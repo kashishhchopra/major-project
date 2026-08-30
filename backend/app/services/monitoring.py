@@ -19,6 +19,7 @@ from app.services.geo import (
     zones_containing_point,
 )
 from app.services.safety import compute_safety_score
+from app.services.trajectory import predict_trajectory, predicts_crosses_zone
 from app.websocket.manager import broadcast_sync, notify_tourist_sync
 
 logger = get_logger(__name__)
@@ -156,6 +157,30 @@ def process_ping(db: Session, tourist: Tourist, lat: float, lng: float,
                       f"Entered {z.risk_level} risk zone: {z.name}", lat, lng,
                       zone_id=z.id)
         alerts_raised.append("geofence")
+
+    # ---- predicted geofence (trajectory forecast) ----
+    # Preventive only: no incident dedup logic, just a heads-up alert before
+    # the tourist actually reaches a high-risk/restricted zone.
+    recent_pings = (
+        db.query(LocationPing)
+        .filter(LocationPing.tourist_id == tourist.id)
+        .order_by(LocationPing.timestamp.desc())
+        .limit(5)
+        .all()
+    )
+    recent_pings = list(reversed(recent_pings))  # oldest-first for predict_trajectory
+    predicted = predict_trajectory(recent_pings, settings.TRAJECTORY_HORIZON_MIN)
+    crossing = predicts_crosses_zone(predicted, zones) if predicted else None
+    if crossing:
+        pz = crossing["zone"]
+        sev = _RISK_SEVERITY.get(pz.risk_level, "medium")
+        _create_alert(
+            db, tourist.id, "predicted_geofence", sev,
+            f"Predicted to enter {pz.risk_level} risk zone '{pz.name}' "
+            f"in ~{crossing['eta_min']:.0f} min",
+            lat, lng, zone_id=pz.id,
+        )
+        alerts_raised.append("predicted_geofence")
 
     # ---- safety score refresh ----
     ss = compute_safety_score(db, tourist, anomaly_score=anomaly["score"])

@@ -1,4 +1,5 @@
 """Compute a tourist's dynamic 0-100 safety score with an explainable breakdown."""
+import json
 
 from sqlalchemy.orm import Session
 
@@ -21,24 +22,39 @@ def band_for(score: float) -> str:
     return "danger"
 
 
-def compute_safety_score(
-    db: Session, tourist: Tourist, anomaly_score: float = 0.1
-) -> dict:
-    """Returns {score, band, breakdown}. Uses the RandomForest model when available."""
-    lat = tourist.last_lat if tourist.last_lat is not None else 0.0
-    lng = tourist.last_lng if tourist.last_lng is not None else 0.0
+def zone_time_multiplier(zone: Zone, hour: int) -> float:
+    """Hour-of-day multiplier on a zone's base risk weight, from its curve.
 
+    `time_risk_curve` is a JSON object like {"20": 1.3, "6": 0.6} -- hour of
+    day (as a string key) -> multiplier. An empty/missing curve, or any
+    malformed value, falls back to 1.0 (flat behavior) rather than ever
+    raising -- a bad curve must never crash safety scoring.
+    """
+    raw = getattr(zone, "time_risk_curve", None) or "{}"
+    try:
+        curve = json.loads(raw)
+        if not isinstance(curve, dict):
+            return 1.0
+        return float(curve.get(str(hour), 1.0))
+    except (TypeError, ValueError):
+        return 1.0
+
+
+def score_at(db: Session, lat: float, lng: float, hour: int, anomaly_score: float = 0.1) -> dict:
+    """Evaluate the safety-score model at an arbitrary point/hour, independent
+    of any particular tourist row. Shared by `compute_safety_score` (the
+    tourist's live position) and `app.services.forecast` (predicted future
+    positions) so the scoring logic lives in exactly one place."""
     zones = db.query(Zone).all()
     inside = zones_containing_point(lat, lng, zones) if (lat or lng) else []
     if inside:
         worst = max(inside, key=lambda z: _RISK_WEIGHT.get(z.risk_level, 50))
-        zone_risk = _RISK_WEIGHT.get(worst.risk_level, 50)
+        zone_risk = _RISK_WEIGHT.get(worst.risk_level, 50) * zone_time_multiplier(worst, hour)
         crime_index = worst.crime_index
         zone_name = worst.name
     else:
         zone_risk, crime_index, zone_name = 15.0, 20.0, "open area"
 
-    hour = local_hour_for(lat, lng)
     weather_risk = weather.get_weather_risk(lat, lng)
 
     feats = ml_service.safety_features(zone_risk, hour, anomaly_score, crime_index, weather_risk)
@@ -58,3 +74,13 @@ def compute_safety_score(
         "explanation": explain.explain_safety_score(feats),
     }
     return {"score": score, "band": band_for(score), "breakdown": breakdown}
+
+
+def compute_safety_score(
+    db: Session, tourist: Tourist, anomaly_score: float = 0.1
+) -> dict:
+    """Returns {score, band, breakdown}. Uses the RandomForest model when available."""
+    lat = tourist.last_lat if tourist.last_lat is not None else 0.0
+    lng = tourist.last_lng if tourist.last_lng is not None else 0.0
+    hour = local_hour_for(lat, lng)
+    return score_at(db, lat, lng, hour, anomaly_score)

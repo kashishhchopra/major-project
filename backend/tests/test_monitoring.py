@@ -11,6 +11,43 @@ from app.services.monitoring import process_ping, trigger_sos
 from tests.conftest import make_tourist, make_unit, make_zone
 
 
+def test_pings_heading_straight_at_a_high_risk_zone_raise_a_predicted_alert(db):
+    """A tourist walking steadily toward a seeded high-risk zone should get a
+    preventive `predicted_geofence` alert before they actually cross the
+    geofence, driven off their recent ping trajectory."""
+    base_lat, base_lng = 26.1000, 91.7000
+    step = 0.003  # ~330m per ping -> a brisk, clearly-moving pace
+    t = make_tourist(db, itinerary=[], lat=base_lat, lng=base_lng)
+
+    # Build up ping history walking north-east, one ping every ~2 minutes,
+    # via process_ping itself (matches how a real client would drive this).
+    now = utc_now()
+    for i in range(1, 4):
+        lat, lng = base_lat + i * step, base_lng + i * step
+        process_ping(db, t, lat, lng, speed_kmh=10)
+        # backdate the just-written ping so consecutive pings aren't
+        # effectively simultaneous (process_ping always stamps "now").
+        last = (
+            db.query(LocationPing)
+            .filter(LocationPing.tourist_id == t.id)
+            .order_by(LocationPing.timestamp.desc())
+            .first()
+        )
+        last.timestamp = now - timedelta(minutes=(3 - i))
+        db.commit()
+
+    # Seed a high-risk zone directly ahead on that same bearing.
+    ahead_lat, ahead_lng = base_lat + 8 * step, base_lng + 8 * step
+    make_zone(db, name="Ahead High Risk", risk="high", lat=ahead_lat, lng=ahead_lng, d=0.004)
+
+    result = process_ping(db, t, base_lat + 3 * step, base_lng + 3 * step, speed_kmh=10)
+
+    assert "predicted_geofence" in result["alerts_raised"]
+    alert = db.query(Alert).filter_by(type="predicted_geofence").one()
+    assert "Ahead High Risk" in alert.message
+    assert alert.zone_id is not None
+
+
 def test_ping_is_persisted_and_updates_last_position(db):
     t = make_tourist(db)
     process_ping(db, t, 26.150, 91.740, speed_kmh=4)

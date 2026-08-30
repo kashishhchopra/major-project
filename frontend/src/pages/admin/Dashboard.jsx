@@ -6,6 +6,7 @@ import { touristIcon, sosIcon, missingIcon, policeIcon, riskColor } from '../../
 import { Stat, SeverityBadge, bandColor } from '../../components/ui.jsx'
 import { DEFAULT_MAP, POLL_INTERVAL_MS, loadMapConfig } from '../../config'
 import HeatmapLayer from '../../components/HeatmapLayer.jsx'
+import TrajectoryOverlay from '../../components/TrajectoryOverlay.jsx'
 
 export default function Dashboard() {
   const [tourists, setTourists] = useState([])
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const [mapCfg, setMapCfg] = useState(DEFAULT_MAP)
   const [heatPoints, setHeatPoints] = useState([])
   const [showHeatmap, setShowHeatmap] = useState(true)
+  const [trajectories, setTrajectories] = useState({})
 
   const load = async () => {
     const [t, z, u, a, s, hist] = await Promise.all([
@@ -34,6 +36,19 @@ export default function Dashboard() {
     setHeatPoints(
       hist.data.filter((al) => al.lat != null && al.lng != null).map((al) => [al.lat, al.lng, 0.6])
     )
+
+    // Predicted short-horizon path per visible tourist, for the trajectory
+    // overlay. Best-effort: a single tourist's forecast failing shouldn't
+    // block the rest of the live map from loading.
+    const visible = t.data.filter((x) => x.last_lat != null)
+    const forecasts = await Promise.all(
+      visible.map((x) =>
+        api.get(`/tourists/${x.id}/trajectory-forecast`)
+          .then((r) => [x.id, r.data.points])
+          .catch(() => [x.id, null])
+      )
+    )
+    setTrajectories(Object.fromEntries(forecasts))
   }
 
   useEffect(() => {
@@ -118,6 +133,9 @@ export default function Dashboard() {
                   Safety: <b style={{ color: bandColor(t.safety_score) }}>{t.safety_score}</b>
                 </Popup>
               </Marker>
+            ))}
+            {tourists.filter((t) => t.last_lat).map((t) => (
+              <TrajectoryOverlay key={`traj${t.id}`} points={trajectories[t.id]} />
             ))}
           </MapContainer>
         </div>

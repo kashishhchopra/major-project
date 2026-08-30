@@ -76,6 +76,11 @@ class Settings(BaseSettings):
     # How far ahead (minutes) each ping's trajectory is projected to check for
     # an imminent high-risk/restricted zone crossing.
     TRAJECTORY_HORIZON_MIN: float = 15.0
+    # Lateral offset (metres) applied to a candidate route's midpoint waypoint
+    # when perturbing the direct origin->destination line (see routing.py).
+    ROUTE_CANDIDATE_OFFSET_M: float = 250.0
+    # Distance (metres) between risk-sampling points along a candidate route.
+    ROUTE_SAMPLE_INTERVAL_M: float = 100.0
 
     # ---- map defaults (surfaced to the frontend via /api/config) ----
     MAP_CENTER_LAT: float = 26.1445

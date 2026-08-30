@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     # ---- domain thresholds ----
     ROUTE_DEVIATION_THRESHOLD_M: float = 2000.0
     ANOMALY_INCIDENT_DEDUPE_MINUTES: int = 5
+    # How far ahead (minutes) each ping's trajectory is projected to check for
+    # an imminent high-risk/restricted zone crossing.
+    TRAJECTORY_HORIZON_MIN: float = 15.0
 
     # ---- map defaults (surfaced to the frontend via /api/config) ----
     MAP_CENTER_LAT: float = 26.1445

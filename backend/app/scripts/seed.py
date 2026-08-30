@@ -58,10 +58,23 @@ def seed() -> None:
         zones = [
             Zone(name="Riverside Restricted Area", risk_level="restricted",
                  polygon=json.dumps(_rect(26.1800, 91.7700)), crime_index=85,
-                 description="Border/riverbank — entry prohibited after dusk", source="manual"),
+                 description="Border/riverbank — entry prohibited after dusk", source="manual",
+                 # Low risk multiplier by day, spikes sharply after dusk (hour 18+)
+                 # and stays elevated overnight -- demonstrates time-aware zone risk.
+                 time_risk_curve=json.dumps({
+                     "0": 1.4, "1": 1.4, "2": 1.4, "3": 1.4, "4": 1.3, "5": 1.2,
+                     "6": 0.7, "7": 0.6, "8": 0.6, "9": 0.6, "10": 0.6, "11": 0.6,
+                     "12": 0.6, "13": 0.6, "14": 0.6, "15": 0.6, "16": 0.7, "17": 0.9,
+                     "18": 1.2, "19": 1.3, "20": 1.4, "21": 1.4, "22": 1.4, "23": 1.4,
+                 })),
             Zone(name="Old Market High-Risk Zone", risk_level="high",
                  polygon=json.dumps(_rect(26.1650, 91.7500)), crime_index=70,
-                 description="Pickpocketing & scam hotspot", source="manual"),
+                 description="Pickpocketing & scam hotspot", source="manual",
+                 # Busy/well-lit by day, pickpocketing risk climbs in the evening.
+                 time_risk_curve=json.dumps({
+                     "9": 0.7, "10": 0.7, "11": 0.7, "12": 0.8, "13": 0.8, "14": 0.8,
+                     "17": 1.1, "18": 1.2, "19": 1.3, "20": 1.3, "21": 1.2,
+                 })),
             Zone(name="Hillside Trek Caution Zone", risk_level="medium",
                  polygon=json.dumps(_rect(26.1250, 91.7150, 0.01, 0.01)), crime_index=40,
                  description="Landslide-prone trekking route", source="manual"),

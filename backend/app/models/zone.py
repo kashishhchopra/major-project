@@ -19,3 +19,7 @@ class Zone(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     # auto = discovered by DBSCAN clustering, manual = defined by admin
     source: Mapped[str] = mapped_column(String, default="manual")
+    # JSON object mapping hour-of-day (str "0".."23") -> multiplier applied to
+    # this zone's base risk weight, e.g. {"20": 1.3, "6": 0.6}. Empty "{}"
+    # (the default) means flat behavior -- identical to a zone with no curve.
+    time_risk_curve: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")

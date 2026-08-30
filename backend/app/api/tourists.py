@@ -17,6 +17,7 @@ from app.core.security import hash_password
 from app.db.session import get_db
 from app.models.tourist import IdBlock, LocationPing, Tourist
 from app.models.user import User
+from app.models.zone import Zone
 from app.schemas.tourist import (
     IdBlockOut,
     LocationUpdate,
@@ -25,8 +26,10 @@ from app.schemas.tourist import (
     TouristOut,
 )
 from app.services import hashchain
+from app.services.forecast import DEFAULT_HORIZONS_MIN, forecast_risk
 from app.services.monitoring import process_ping
 from app.services.safety import compute_safety_score
+from app.services.trajectory import predict_trajectory, predicts_crosses_zone
 
 router = APIRouter(prefix="/tourists", tags=["tourists"])
 
@@ -250,3 +253,45 @@ def get_pings(tourist_id: int, limit: int = 100, db: Session = Depends(get_db),
          "anomaly_score": p.anomaly_score}
         for p in reversed(pings)
     ]
+
+
+@router.get("/{tourist_id}/trajectory-forecast")
+def get_trajectory_forecast(tourist_id: int, horizon_min: float = 15.0,
+                            db: Session = Depends(get_db),
+                            _: User = Depends(require_self_or_admin)):
+    """Predicted future positions (kinematic extrapolation from recent pings),
+    plus a warning if the projected path crosses a high-risk/restricted zone."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    pings = (
+        db.query(LocationPing)
+        .filter(LocationPing.tourist_id == tourist_id)
+        .order_by(LocationPing.timestamp.desc())
+        .limit(5)
+        .all()
+    )
+    pings = list(reversed(pings))
+    predicted = predict_trajectory(pings, horizon_min)
+    zones = db.query(Zone).all()
+    crossing = predicts_crosses_zone(predicted, zones) if predicted else None
+    return {
+        "tourist_id": tourist_id,
+        "points": [{"lat": lat, "lng": lng, "eta_min": eta} for lat, lng, eta in predicted],
+        "warning": {
+            "zone_id": crossing["zone"].id,
+            "zone_name": crossing["zone"].name,
+            "risk_level": crossing["zone"].risk_level,
+            "eta_min": crossing["eta_min"],
+        } if crossing else None,
+    }
+
+
+@router.get("/{tourist_id}/risk-forecast")
+def get_risk_forecast(tourist_id: int, db: Session = Depends(get_db),
+                      _: User = Depends(require_self_or_admin)):
+    """Dynamic risk forecast: predicted safety score at +15/+30/+60 minutes."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    return {"tourist_id": tourist_id, "forecast": forecast_risk(db, t, DEFAULT_HORIZONS_MIN)}

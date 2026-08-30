@@ -57,10 +57,19 @@ def send_sos(tid: int, lat: float, lng: float, token: str) -> dict:
     return r.json()
 
 
+def get_risk_forecast(tid: int, token: str) -> dict:
+    r = httpx.get(f"{BASE}/tourists/{tid}/risk-forecast",
+                  headers={"Authorization": f"Bearer {token}"}, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--steps", type=int, default=40)
     ap.add_argument("--interval", type=float, default=2.0)
+    ap.add_argument("--forecast", action="store_true",
+                    help="After each step, print the scripted tourist's +15/+30/+60 min risk forecast")
     args = ap.parse_args()
 
     tourists, token = get_tourists()
@@ -111,6 +120,15 @@ def main() -> None:
                       f"band={out['band']:<8}{tag}")
             except Exception as e:  # noqa: BLE001
                 print(f"[step {step}] {t['full_name']} update failed: {e}")
+
+        if args.forecast:
+            scripted = tourists[1 % len(tourists)]
+            try:
+                fc = get_risk_forecast(scripted["id"], token)["forecast"]
+                summary = ", ".join(f"+{f['minutes']}m={f['score']} ({f['band']})" for f in fc)
+                print(f"[step {step}] FORECAST {scripted['full_name']:<14} {summary}")
+            except Exception as e:  # noqa: BLE001
+                print(f"[step {step}] forecast fetch failed: {e}")
 
         time.sleep(args.interval)
 

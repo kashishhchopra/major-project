@@ -14,6 +14,8 @@ import useWebSocket from '../../useWebSocket'
 import LanguageSwitcher from '../../components/LanguageSwitcher.jsx'
 import ThemeToggle from '../../components/ThemeToggle.jsx'
 import ScoreExplanation from '../../components/ScoreExplanation.jsx'
+import TrajectoryOverlay from '../../components/TrajectoryOverlay.jsx'
+import RiskForecastStrip from '../../components/RiskForecastStrip.jsx'
 import { enqueueSOS, flushQueue, queueLength } from '../../lib/offlineQueue'
 import useOnlineStatus from '../../hooks/useOnlineStatus'
 
@@ -27,6 +29,8 @@ export default function TouristApp() {
   const [score, setScore] = useState(null)
   const [zones, setZones] = useState([])
   const [units, setUnits] = useState([])
+  const [trajectory, setTrajectory] = useState([])
+  const [riskForecast, setRiskForecast] = useState([])
   const [tracking, setTracking] = useState(true)
   const [toast, setToast] = useState(null)
   const [sosSent, setSosSent] = useState(null)
@@ -50,6 +54,20 @@ export default function TouristApp() {
     posRef.current = [m.data.last_lat, m.data.last_lng]
   }
   useEffect(() => { load() }, [])
+
+  // Trajectory + dynamic risk forecast for this tourist's own map/score card.
+  // Best-effort refresh alongside the location poll -- neither failing
+  // should block the rest of the app view.
+  useEffect(() => {
+    if (!tid) return
+    const loadForecasts = () => {
+      api.get(`/tourists/${tid}/trajectory-forecast`).then((r) => setTrajectory(r.data.points)).catch(() => {})
+      api.get(`/tourists/${tid}/risk-forecast`).then((r) => setRiskForecast(r.data.forecast)).catch(() => {})
+    }
+    loadForecasts()
+    const iv = setInterval(loadForecasts, TRACK_INTERVAL_MS)
+    return () => clearInterval(iv)
+  }, [tid])
 
   const pushLocation = async (lat, lng, speedKmh) => {
     posRef.current = [lat, lng]
@@ -205,6 +223,9 @@ export default function TouristApp() {
           </div>
         </div>
 
+        {/* dynamic risk forecast: predicted score at +15/+30/+60 min */}
+        <RiskForecastStrip forecast={riskForecast} />
+
         {/* geofence warning */}
         {riskyZone ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -229,6 +250,7 @@ export default function TouristApp() {
             ))}
             <Marker position={[me.last_lat, me.last_lng]} icon={touristIcon(score.score)} />
             {nearby.map((u) => <Marker key={u.id} position={[u.lat, u.lng]} icon={policeIcon} />)}
+            <TrajectoryOverlay points={trajectory} />
           </MapContainer>
         </div>
 

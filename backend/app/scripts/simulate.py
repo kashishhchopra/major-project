@@ -57,6 +57,13 @@ def send_sos(tid: int, lat: float, lng: float, token: str) -> dict:
     return r.json()
 
 
+def acknowledge_incident(incident_id: int, token: str) -> dict:
+    r = httpx.post(f"{BASE}/incidents/{incident_id}/acknowledge",
+                   headers={"Authorization": f"Bearer {token}"}, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+
 def get_risk_forecast(tid: int, token: str) -> dict:
     r = httpx.get(f"{BASE}/tourists/{tid}/risk-forecast",
                   headers={"Authorization": f"Bearer {token}"}, timeout=10)
@@ -70,6 +77,9 @@ def main() -> None:
     ap.add_argument("--interval", type=float, default=2.0)
     ap.add_argument("--forecast", action="store_true",
                     help="After each step, print the scripted tourist's +15/+30/+60 min risk forecast")
+    ap.add_argument("--no-ack", action="store_true",
+                    help="Do not acknowledge the scripted SOS (step 26) -- lets the escalation "
+                         "clock visibly advance stages instead of stopping at first dispatch")
     args = ap.parse_args()
 
     tourists, token = get_tourists()
@@ -105,6 +115,13 @@ def main() -> None:
                 unit = res.get("nearest_unit", {})
                 print(f"[step {step}] SOS: {t['full_name']} -> dispatched "
                       f"{unit.get('name') if unit else 'n/a'} ({unit.get('distance_km') if unit else '?'} km)")
+                if args.no_ack:
+                    print(f"[step {step}] --no-ack set: leaving the incident unacknowledged "
+                          f"so escalation stages advance on their own")
+                else:
+                    with contextlib.suppress(Exception):
+                        acknowledge_incident(res["incident_id"], token)
+                        print(f"[step {step}] incident #{res['incident_id']} acknowledged")
                 continue
             else:
                 # normal wander

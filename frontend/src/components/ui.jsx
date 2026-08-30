@@ -40,6 +40,12 @@ export function StatusBadge({ status }) {
     acknowledged: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
     dispatched: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
     resolved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
+    // escalation stages -- each hop up is more alarming, control_room being
+    // the calmest (still open, nobody notified yet) and responder_dispatch
+    // the most urgent unacknowledged state before it's finally acknowledged.
+    control_room: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+    emergency_contact: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
+    responder_dispatch: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
   }
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${map[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'}`}>

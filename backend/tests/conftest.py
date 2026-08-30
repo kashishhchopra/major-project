@@ -106,9 +106,10 @@ def make_tourist(db, name="Test Tourist", lat=26.1445, lng=91.7362,
     return t
 
 
-def make_unit(db, name="Unit Alpha", lat=26.145, lng=91.737, available=True):
+def make_unit(db, name="Unit Alpha", lat=26.145, lng=91.737, available=True,
+             unit_type="police"):
     u = PoliceUnit(name=name, station=f"{name} PS", phone="100",
-                   lat=lat, lng=lng, available=available)
+                   lat=lat, lng=lng, available=available, unit_type=unit_type)
     db.add(u)
     db.commit()
     db.refresh(u)
@@ -151,3 +152,24 @@ def admin_headers(client, admin_user):
 @pytest.fixture
 def tourist_headers(client, tourist_user):
     return _token(client, "tourist@test.com", "touristpass1")
+
+
+@pytest.fixture
+def responder_unit(db):
+    return make_unit(db, name="Responder Unit")
+
+
+@pytest.fixture
+def responder_user(db, responder_unit):
+    u = User(email="responder@test.gov", full_name="Responder",
+             hashed_password=hash_password("responderpass1"), role="responder",
+             unit_id=responder_unit.id)
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    return u
+
+
+@pytest.fixture
+def responder_headers(client, responder_user):
+    return _token(client, "responder@test.gov", "responderpass1")

@@ -13,18 +13,23 @@ import ModelInsights from './pages/admin/ModelInsights.jsx'
 import Devices from './pages/admin/Devices.jsx'
 import AuditLog from './pages/admin/AuditLog.jsx'
 import TouristApp from './pages/tourist/TouristApp.jsx'
+import ResponderLayout from './pages/responder/ResponderLayout.jsx'
+import ResponderConsole from './pages/responder/ResponderConsole.jsx'
 
 function Protected({ role, children }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  if (role && user.role !== role) return <Navigate to="/" replace />
+  const allowed = Array.isArray(role) ? role.includes(user.role) : user.role === role
+  if (role && !allowed) return <Navigate to="/" replace />
   return children
 }
 
 function Home() {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  return <Navigate to={user.role === 'admin' ? '/admin' : '/app'} replace />
+  if (user.role === 'admin') return <Navigate to="/admin" replace />
+  if (user.role === 'responder') return <Navigate to="/responder" replace />
+  return <Navigate to="/app" replace />
 }
 
 export default function App() {
@@ -47,6 +52,10 @@ export default function App() {
       </Route>
 
       <Route path="/app" element={<Protected role="tourist"><TouristApp /></Protected>} />
+
+      <Route path="/responder" element={<Protected role="responder"><ResponderLayout /></Protected>}>
+        <Route index element={<ResponderConsole />} />
+      </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

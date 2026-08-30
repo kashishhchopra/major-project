@@ -70,6 +70,17 @@ class Settings(BaseSettings):
     OPENWEATHER_TIMEOUT_SECONDS: float = 3.0
     WEATHER_CACHE_TTL_SECONDS: int = 600
 
+    # ---- dispatch / escalation ----
+    # Assumed average travel speed for a responding unit, used only to turn a
+    # distance into a rough ETA estimate for the dispatch-ranking UI -- not a
+    # claim about real traffic conditions.
+    DISPATCH_ASSUMED_SPEED_KMH: float = 30.0
+    # How often the background escalation job re-checks open incidents.
+    ESCALATION_TICK_SECONDS: int = 30
+    # How long an incident sits at each escalation stage before auto-advancing
+    # to the next one if nobody has acknowledged it.
+    ESCALATION_STAGE_TIMEOUT_SECONDS: int = 120
+
     # ---- domain thresholds ----
     ROUTE_DEVIATION_THRESHOLD_M: float = 2000.0
     ANOMALY_INCIDENT_DEDUPE_MINUTES: int = 5

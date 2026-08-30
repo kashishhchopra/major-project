@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import api from '../../api'
 import useWebSocket from '../../useWebSocket'
 import { SeverityBadge, StatusBadge, Card } from '../../components/ui.jsx'
+import DispatchPanel from '../../components/DispatchPanel.jsx'
 import { downloadCSV } from '../../lib/csv'
 
 const NEXT = { detected: 'acknowledged', acknowledged: 'dispatched', dispatched: 'resolved' }
@@ -20,6 +21,7 @@ export default function Incidents() {
   const [statusFilter, setStatusFilter] = useState('')
   const [severityFilter, setSeverityFilter] = useState('')
   const [sortBy, setSortBy] = useState('newest')
+  const [expanded, setExpanded] = useState(null)
 
   const load = () => {
     const url = statusFilter ? `/incidents?status=${statusFilter}` : '/incidents'
@@ -102,8 +104,13 @@ export default function Incidents() {
                 <span className="capitalize">{inc.type.replace('_', ' ')}</span>
                 <SeverityBadge severity={inc.severity} />
                 <StatusBadge status={inc.status} />
+                {inc.escalation_stage && <StatusBadge status={inc.escalation_stage} />}
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => setExpanded(expanded === inc.id ? null : inc.id)}
+                  className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-semibold px-2 py-1.5">
+                  {expanded === inc.id ? 'Hide dispatch ▲' : 'Dispatch ▾'}
+                </button>
                 {NEXT[inc.status] && (
                   <button onClick={() => advance(inc)}
                     className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
@@ -133,6 +140,14 @@ export default function Incidents() {
             <div className="flex justify-between text-[10px] text-slate-400 mt-1">
               <span>Detected</span><span>Ack</span><span>Dispatched</span><span>Resolved</span>
             </div>
+            {expanded === inc.id && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
+                  Dispatch candidates
+                </div>
+                <DispatchPanel incidentId={inc.id} />
+              </div>
+            )}
           </div>
         ))}
       </div>

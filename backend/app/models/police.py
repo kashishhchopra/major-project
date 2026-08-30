@@ -15,3 +15,5 @@ class PoliceUnit(Base):
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lng: Mapped[float] = mapped_column(Float, nullable=False)
     available: Mapped[bool] = mapped_column(default=True)
+    # unit_type: police / ambulance / rescue
+    unit_type: Mapped[str] = mapped_column(String, default="police")

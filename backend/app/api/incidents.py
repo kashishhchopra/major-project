@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_admin, require_self_or_admin
+from app.api.deps import (
+    get_current_user,
+    require_admin,
+    require_admin_or_responder,
+    require_self_or_admin,
+)
 from app.core.pagination import PageParams
 from app.core.time import utc_now
 from app.db.session import get_db
@@ -15,13 +20,14 @@ from app.models.tourist import Tourist
 from app.models.user import User
 from app.schemas.incident import (
     AlertOut,
+    DispatchCandidateOut,
     EFIROut,
     IncidentOut,
     IncidentStatusUpdate,
     PoliceUnitOut,
     SOSRequest,
 )
-from app.services import audit
+from app.services import audit, dispatch
 from app.services.efir import file_efir, generate_efir
 from app.services.efir_pdf import render_efir_pdf
 from app.services.monitoring import trigger_sos
@@ -76,21 +82,63 @@ def list_incidents(response: Response, status: str | None = None,
     return page.apply(q.order_by(Incident.detected_at.desc())).all()
 
 
-@router.get("/incidents/{incident_id}", response_model=IncidentOut)
-def get_incident(incident_id: int, db: Session = Depends(get_db),
-                 _: User = Depends(require_admin)):
+@router.get("/incidents/mine", response_model=list[IncidentOut])
+def list_my_incidents(response: Response, page: PageParams = Depends(),
+                      db: Session = Depends(get_db),
+                      user: User = Depends(require_admin_or_responder)):
+    """A responder's own worklist: incidents assigned to the unit they represent.
+
+    Admins hit this too (they can access everything else already) but with no
+    `unit_id` they'd see nothing useful -- this route exists for responders.
+    """
+    q = db.query(Incident).filter(Incident.assigned_unit_id == user.unit_id)
+    response.headers["X-Total-Count"] = str(q.with_entities(func.count(Incident.id)).scalar())
+    return page.apply(q.order_by(Incident.detected_at.desc())).all()
+
+
+def _get_incident_or_404(incident_id: int, db: Session) -> Incident:
     inc = db.get(Incident, incident_id)
     if not inc:
         raise HTTPException(status_code=404, detail="Incident not found")
     return inc
 
 
+@router.get("/incidents/{incident_id}", response_model=IncidentOut)
+def get_incident(incident_id: int, db: Session = Depends(get_db),
+                 _: User = Depends(require_admin)):
+    return _get_incident_or_404(incident_id, db)
+
+
+@router.get("/incidents/{incident_id}/dispatch-candidates",
+           response_model=list[DispatchCandidateOut])
+def dispatch_candidates(incident_id: int, db: Session = Depends(get_db),
+                        _: User = Depends(require_admin_or_responder)):
+    """Full ranked unit list for an incident -- top pick plus backups."""
+    inc = _get_incident_or_404(incident_id, db)
+    if inc.lat is None or inc.lng is None:
+        return []
+    return dispatch.rank_units(db, inc.lat, inc.lng)
+
+
+def _assert_can_update(inc: Incident, user: User) -> None:
+    if user.role == "admin":
+        return
+    is_assigned_responder = (
+        user.role == "responder"
+        and user.unit_id is not None
+        and inc.assigned_unit_id == user.unit_id
+    )
+    if is_assigned_responder:
+        return
+    raise HTTPException(status_code=403, detail="Forbidden")
+
+
 @router.patch("/incidents/{incident_id}", response_model=IncidentOut)
 def update_incident(incident_id: int, payload: IncidentStatusUpdate,
-                    db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    inc = db.get(Incident, incident_id)
-    if not inc:
-        raise HTTPException(status_code=404, detail="Incident not found")
+                    db: Session = Depends(get_db),
+                    user: User = Depends(require_admin_or_responder)):
+    inc = _get_incident_or_404(incident_id, db)
+    _assert_can_update(inc, user)
     now = utc_now()
     inc.status = payload.status
     if payload.status == "acknowledged":
@@ -104,6 +152,24 @@ def update_incident(incident_id: int, payload: IncidentStatusUpdate,
             if t and t.status == "sos":
                 t.status = "active"
     db.add(IncidentEvent(incident_id=inc.id, status=payload.status, note=payload.note))
+    db.commit()
+    db.refresh(inc)
+    return inc
+
+
+@router.post("/incidents/{incident_id}/acknowledge", response_model=IncidentOut)
+def acknowledge_incident(incident_id: int, db: Session = Depends(get_db),
+                         user: User = Depends(require_admin_or_responder)):
+    """Human acknowledgement: stops the escalation clock (see services/escalation.py)."""
+    inc = _get_incident_or_404(incident_id, db)
+    _assert_can_update(inc, user)
+    inc.escalation_stage = "acknowledged"
+    inc.escalation_deadline = None
+    if inc.status == "detected":
+        inc.status = "acknowledged"
+        inc.acknowledged_at = utc_now()
+    db.add(IncidentEvent(incident_id=inc.id, status="acknowledged",
+                         note=f"Acknowledged by {user.email}"))
     db.commit()
     db.refresh(inc)
     return inc

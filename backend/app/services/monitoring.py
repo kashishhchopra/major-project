@@ -245,19 +245,25 @@ def process_device_telemetry(
 
 
 def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: str) -> dict:
-    """One-tap SOS: mark tourist, find nearest available police unit, open critical incident."""
+    """One-tap SOS: mark tourist, find nearest available unit, open critical incident."""
     from app.models.police import PoliceUnit
+    from app.services import dispatch
 
     logger.warning("sos_triggered", tourist_id=tourist.id, lat=lat, lng=lng)
     tourist.status = "sos"
     tourist.last_lat, tourist.last_lng = lat, lng
     tourist.last_seen = utc_now()
 
-    units = db.query(PoliceUnit).filter(PoliceUnit.available == True).all()  # noqa: E712
-    nearest = min(units, key=lambda u: haversine_m(lat, lng, u.lat, u.lng), default=None)
+    ranked = dispatch.rank_units(db, lat, lng)
+    nearest = db.get(PoliceUnit, ranked[0]["unit_id"]) if ranked else None
 
     inc = _open_incident(db, tourist, "sos", "critical",
                          f"SOS triggered by {tourist.full_name}: {message}", lat, lng)
+    # The escalation clock starts the moment an SOS incident is opened -- see
+    # app/services/escalation.py:tick_escalations().
+    inc.escalation_deadline = utc_now() + timedelta(
+        seconds=settings.ESCALATION_STAGE_TIMEOUT_SECONDS
+    )
     if nearest:
         inc.assigned_unit_id = nearest.id
         inc.status = "dispatched"

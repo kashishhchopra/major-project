@@ -39,6 +39,18 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_responder(user: User = Depends(get_current_user)) -> User:
+    if user.role != "responder":
+        raise HTTPException(status_code=403, detail="Responder access required")
+    return user
+
+
+def require_admin_or_responder(user: User = Depends(get_current_user)) -> User:
+    if user.role not in ("admin", "responder"):
+        raise HTTPException(status_code=403, detail="Admin or responder access required")
+    return user
+
+
 def require_self_or_admin(
     tourist_id: int = Path(...), user: User = Depends(get_current_user)
 ) -> User:

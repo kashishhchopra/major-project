@@ -24,6 +24,11 @@ class Incident(Base):
     assigned_unit_id: Mapped[int | None] = mapped_column(
         ForeignKey("police_units.id"), nullable=True
     )
+    # escalation_stage: control_room -> emergency_contact -> responder_dispatch
+    # -> acknowledged. Advanced by app/services/escalation.py:tick_escalations()
+    # whenever `escalation_deadline` passes without a human acknowledgement.
+    escalation_stage: Mapped[str] = mapped_column(String, default="control_room")
+    escalation_deadline: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     detected_at: Mapped[datetime] = mapped_column(
         DateTime, default=utc_now

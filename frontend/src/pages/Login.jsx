@@ -26,7 +26,7 @@ export default function Login() {
     setLoading(true)
     try {
       const u = await login(email, password)
-      nav(u.role === 'admin' ? '/admin' : '/app')
+      nav(u.role === 'admin' ? '/admin' : u.role === 'responder' ? '/responder' : '/app')
     } catch (err) {
       setError(t('auth.invalid_credentials'))
     } finally {

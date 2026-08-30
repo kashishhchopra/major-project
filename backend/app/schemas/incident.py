@@ -37,6 +37,8 @@ class IncidentOut(BaseModel):
     lat: float | None
     lng: float | None
     assigned_unit_id: int | None
+    escalation_stage: str
+    escalation_deadline: datetime | None
     detected_at: datetime
     acknowledged_at: datetime | None
     dispatched_at: datetime | None
@@ -53,6 +55,16 @@ class IncidentStatusUpdate(BaseModel):
     note: str = Field("", max_length=1000)
 
 
+class DispatchCandidateOut(BaseModel):
+    unit_id: int
+    name: str
+    unit_type: str
+    station: str
+    distance_km: float
+    eta_min: float
+    available: bool
+
+
 class SOSRequest(BaseModel):
     lat: float = Field(..., ge=-90, le=90)
     lng: float = Field(..., ge=-180, le=180)
@@ -67,6 +79,7 @@ class PoliceUnitOut(BaseModel):
     lat: float
     lng: float
     available: bool
+    unit_type: str
 
     class Config:
         from_attributes = True

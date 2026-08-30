@@ -102,16 +102,28 @@ def seed() -> None:
         # ---- police units ----
         units = [
             PoliceUnit(name="Unit Alpha", station="City Central PS", phone="100",
-                       lat=26.1450, lng=91.7370),
+                       lat=26.1450, lng=91.7370, unit_type="police"),
             PoliceUnit(name="Unit Bravo", station="Riverside PS", phone="100",
-                       lat=26.1750, lng=91.7650),
+                       lat=26.1750, lng=91.7650, unit_type="police"),
             PoliceUnit(name="Unit Charlie", station="Market PS", phone="100",
-                       lat=26.1620, lng=91.7480),
+                       lat=26.1620, lng=91.7480, unit_type="police"),
             PoliceUnit(name="Unit Delta", station="Hillside Outpost", phone="100",
-                       lat=26.1280, lng=91.7180),
+                       lat=26.1280, lng=91.7180, unit_type="police"),
+            PoliceUnit(name="Ambulance 1", station="City Hospital", phone="102",
+                       lat=26.1470, lng=91.7390, unit_type="ambulance"),
+            PoliceUnit(name="Rescue Team 1", station="Fire & Rescue HQ", phone="101",
+                       lat=26.1600, lng=91.7550, unit_type="rescue"),
         ]
         db.add_all(units)
         db.flush()
+        responder_unit = units[0]
+
+        # ---- responder (field unit) account, linked to Unit Alpha ----
+        db.add(User(
+            email="responder@tourism.gov.in", full_name="Unit Alpha Responder",
+            hashed_password=hash_password("responder123"), role="responder",
+            unit_id=responder_unit.id,
+        ))
 
         # ---- demo tourists ----
         now = utc_now()
@@ -204,6 +216,7 @@ def seed() -> None:
         print("Seed complete.")
         print("  Admin login : admin@tourism.gov.in / admin123")
         print("  Tourist login: aarav@example.com / tourist123 (and emma/rohan/sofia/kenji)")
+        print("  Responder login: responder@tourism.gov.in / responder123 (Unit Alpha)")
         print(f"  Tourists: {db.query(Tourist).count()}, Zones: {db.query(Zone).count()}, "
               f"Units: {db.query(PoliceUnit).count()}")
     finally:

@@ -7,13 +7,26 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import analytics, auth, devices, incidents, ml, tourists, ws, zones
+from app.core import scheduler as job_scheduler
 from app.core.config import settings
 from app.core.logging import RequestIDMiddleware, configure_logging
 from app.core.middleware import BodySizeLimitMiddleware, SecurityHeadersMiddleware
 from app.core.ratelimit import global_rate_limit
-from app.db.session import init_db
+from app.db.session import SessionLocal, init_db
 
 configure_logging(json_output=settings.is_production)
+
+
+def _escalation_tick_job() -> None:
+    """Runs on the scheduler thread -- give it its own DB session per tick,
+    same pattern as the audit trail's independent session (app/services/audit.py)."""
+    from app.services.escalation import tick_escalations
+
+    db = SessionLocal()
+    try:
+        tick_escalations(db)
+    finally:
+        db.close()
 
 
 @asynccontextmanager
@@ -24,7 +37,16 @@ async def lifespan(app: FastAPI):
 
     init_db()
     manager.bind_loop(asyncio.get_running_loop())
+    job_scheduler.start()
+    job_scheduler.scheduler.add_job(
+        _escalation_tick_job,
+        "interval",
+        seconds=settings.ESCALATION_TICK_SECONDS,
+        id="escalation_tick",
+        replace_existing=True,
+    )
     yield
+    job_scheduler.shutdown()
 
 
 app = FastAPI(

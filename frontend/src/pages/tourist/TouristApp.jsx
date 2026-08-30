@@ -16,6 +16,7 @@ import ThemeToggle from '../../components/ThemeToggle.jsx'
 import ScoreExplanation from '../../components/ScoreExplanation.jsx'
 import TrajectoryOverlay from '../../components/TrajectoryOverlay.jsx'
 import RiskForecastStrip from '../../components/RiskForecastStrip.jsx'
+import RoutePicker, { RouteLayer, useRoutePicker } from '../../components/RoutePicker.jsx'
 import { enqueueSOS, flushQueue, queueLength } from '../../lib/offlineQueue'
 import useOnlineStatus from '../../hooks/useOnlineStatus'
 
@@ -37,6 +38,8 @@ export default function TouristApp() {
   const [sosQueued, setSosQueued] = useState(false)
   const [pendingCount, setPendingCount] = useState(queueLength())
   const [emergencyMessage, setEmergencyMessage] = useState('')
+  const [routePickerOpen, setRoutePickerOpen] = useState(false)
+  const routePicker = useRoutePicker(tid)
   const posRef = useRef(null)
   const speech = useSpeechRecognition({ lang: i18n.resolvedLanguage || i18n.language })
   const geo = useGeolocation({ enabled: tracking && !SIMULATE_GPS })
@@ -251,8 +254,19 @@ export default function TouristApp() {
             <Marker position={[me.last_lat, me.last_lng]} icon={touristIcon(score.score)} />
             {nearby.map((u) => <Marker key={u.id} position={[u.lat, u.lng]} icon={policeIcon} />)}
             <TrajectoryOverlay points={trajectory} />
+            <RouteLayer active={routePickerOpen} dest={routePicker.dest}
+              result={routePicker.result} onPick={routePicker.pick} />
           </MapContainer>
         </div>
+
+        {/* safe route recommendation -- toggle-able so the default view
+            stays uncluttered, following the same optional-panel pattern as
+            the itinerary/police cards below */}
+        <button onClick={() => setRoutePickerOpen((v) => !v)}
+          className="w-full text-sm font-semibold text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 rounded-xl py-2">
+          {routePickerOpen ? 'Hide safe route planner' : '🧭 Plan a safe route'}
+        </button>
+        <RoutePicker active={routePickerOpen} onToggle={() => setRoutePickerOpen(false)} state={routePicker} />
 
         {/* live tracking toggle */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4">

@@ -28,6 +28,7 @@ from app.schemas.tourist import (
 from app.services import hashchain
 from app.services.forecast import DEFAULT_HORIZONS_MIN, forecast_risk
 from app.services.monitoring import process_ping
+from app.services.routing import recommend_route
 from app.services.safety import compute_safety_score
 from app.services.trajectory import predict_trajectory, predicts_crosses_zone
 
@@ -295,3 +296,19 @@ def get_risk_forecast(tourist_id: int, db: Session = Depends(get_db),
     if not t:
         raise HTTPException(status_code=404, detail="Tourist not found")
     return {"tourist_id": tourist_id, "forecast": forecast_risk(db, t, DEFAULT_HORIZONS_MIN)}
+
+
+@router.get("/{tourist_id}/route-recommendation")
+def get_route_recommendation(tourist_id: int, dest_lat: float, dest_lng: float,
+                             db: Session = Depends(get_db),
+                             _: User = Depends(require_self_or_admin)):
+    """Approximate, lower-risk route from the tourist's last known position to
+    a destination. NOT turn-by-turn navigation -- see `app.services.routing`
+    for why (no road-network routing engine in this codebase)."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    if t.last_lat is None or t.last_lng is None:
+        raise HTTPException(status_code=400, detail="Tourist has no known location yet")
+    result = recommend_route(db, (t.last_lat, t.last_lng), (dest_lat, dest_lng))
+    return {"tourist_id": tourist_id, **result}

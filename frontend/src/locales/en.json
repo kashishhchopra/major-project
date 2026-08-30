@@ -1,0 +1,53 @@
+{
+  "app": {
+    "name": "Tourist Safety",
+    "digital_id": "Digital Tourist ID",
+    "logout": "Logout",
+    "loading": "Loading…"
+  },
+  "safety": {
+    "my_score": "My Safety Score",
+    "zone": "Zone",
+    "night_caution": "Night-time caution",
+    "daytime": "Daytime"
+  },
+  "geofence": {
+    "warning_title": "Geo-fence Warning",
+    "warning_body": "You are in {{zone}} ({{risk}} risk). Stay alert and consider leaving the area.",
+    "safe": "You are in a safe area."
+  },
+  "tracking": {
+    "title": "Live Location Tracking",
+    "subtitle": "Opt-in — lets the control room protect you"
+  },
+  "itinerary": {
+    "title": "Itinerary Tracker",
+    "next_stop": "next stop"
+  },
+  "police": {
+    "title": "Nearby Police Stations"
+  },
+  "sos": {
+    "button": "SOS — Send Emergency Alert",
+    "sent_title": "SOS Sent",
+    "dispatched": "Dispatched {{name}} ({{station}}) — {{km}} km away.",
+    "contacts_notified": "Emergency contacts notified: {{list}}",
+    "describe_title": "Describe Your Emergency (optional)",
+    "describe_placeholder": "What's happening? You can type or use the mic below.",
+    "speak": "🎤 Speak instead",
+    "listening": "● Listening… tap to stop",
+    "voice_unsupported": "Voice input not supported on this device — type above.",
+    "describe_note": "This is sent along with your SOS alert. Pressing the SOS button below works immediately even if you leave this blank."
+  },
+  "auth": {
+    "login_title": "Sign In",
+    "email": "Email",
+    "password": "Password",
+    "sign_in": "Sign In",
+    "register_prompt": "New tourist? Register here",
+    "invalid_credentials": "Incorrect email or password"
+  },
+  "lang": {
+    "label": "Language"
+  }
+}

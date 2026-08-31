@@ -1,8 +1,12 @@
 """Import all models so SQLAlchemy's metadata registers them."""
 from app.models.alert import Alert
+from app.models.anchor import ChainAnchor
 from app.models.audit import AuditLog
+from app.models.checkin import CheckIn
 from app.models.device import Device
+from app.models.disaster import DisasterAdvisory
 from app.models.efir import EFIR
+from app.models.guardian import TripGuardian
 from app.models.incident import Incident, IncidentEvent
 from app.models.password_reset import PasswordResetToken
 from app.models.police import PoliceUnit
@@ -26,4 +30,8 @@ __all__ = [
     "AuditLog",
     "Device",
     "EFIR",
+    "TripGuardian",
+    "CheckIn",
+    "DisasterAdvisory",
+    "ChainAnchor",
 ]

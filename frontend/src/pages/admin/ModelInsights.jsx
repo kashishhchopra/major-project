@@ -12,6 +12,14 @@ const CATEGORICAL = ['#2a78d6', '#008300', '#e87ba4', '#eda100', '#1baf7a', '#eb
 const SEQ = ['#cde2fb', '#9ec5f4', '#5598e7', '#2a78d6', '#184f95']
 const INK = { grid: '#e1e0d9', axis: '#898781', text: '#52514e' }
 
+// metrics_summary carries the model's full training report -- scalars like
+// r2/mae alongside nested arrays (predicted_vs_actual, feature_importances).
+// Only the scalar entries are meaningful as an inline summary; the rest are
+// already broken out into their own charts above.
+function scalarMetrics(summary) {
+  return Object.entries(summary || {}).filter(([, v]) => typeof v === 'number' || typeof v === 'string')
+}
+
 function Metric({ label, value, suffix = '' }) {
   return (
     <div>
@@ -27,6 +35,9 @@ export default function ModelInsights() {
   const [error, setError] = useState(null)
   const [registry, setRegistry] = useState(null)
   const [drift, setDrift] = useState(null)
+  const [rollingBack, setRollingBack] = useState(null)
+
+  const loadRegistry = () => api.get('/ml/registry').then((r) => setRegistry(r.data)).catch(() => setRegistry(null))
 
   useEffect(() => {
     Promise.all([api.get('/ml/metrics'), api.get('/ml/status')])
@@ -36,9 +47,20 @@ export default function ModelInsights() {
     // that hasn't retrained since this feature landed) shouldn't block the
     // rest of the page, so failures here are swallowed rather than surfaced
     // as the page-level error.
-    api.get('/ml/registry').then((r) => setRegistry(r.data)).catch(() => setRegistry(null))
+    loadRegistry()
     api.get('/ml/drift').then((r) => setDrift(r.data)).catch(() => setDrift(null))
   }, [])
+
+  // Model Lab: activate a previous version's artifacts without retraining.
+  const activate = async (model, version) => {
+    setRollingBack(`${model}:${version}`)
+    try {
+      await api.post(`/ml/registry/${model}/rollback/${version}`)
+      await loadRegistry()
+    } finally {
+      setRollingBack(null)
+    }
+  }
 
   if (error) {
     return (
@@ -196,9 +218,9 @@ export default function ModelInsights() {
         </div>
       </Card>
 
-      {/* --- version history --- */}
+      {/* --- Model Lab: version history + activate/rollback --- */}
       {registry && (
-        <Card title="Model Version History">
+        <Card title="Model Lab — Version History">
           <div className="space-y-4">
             {Object.entries(registry).map(([model, info]) => (
               <div key={model}>
@@ -206,18 +228,30 @@ export default function ModelInsights() {
                   {model} <span className="text-xs font-normal text-slate-400">(active: v{info.active_version})</span>
                 </div>
                 <div className="space-y-1">
-                  {[...info.versions].reverse().map((v) => (
-                    <div key={v.version}
-                      className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg ${
-                        v.version === info.active_version ? 'bg-sky-50 border border-sky-200' : 'bg-slate-50'}`}>
-                      <span className="font-mono">v{v.version}</span>
-                      <span className="text-slate-500">{new Date(v.trained_at).toLocaleString()}</span>
-                      <span className="text-slate-400 font-mono">hash {v.dataset_hash}</span>
-                      {v.version === info.active_version && (
-                        <span className="text-sky-600 font-semibold">active</span>
-                      )}
-                    </div>
-                  ))}
+                  {[...info.versions].reverse().map((v) => {
+                    const isActive = v.version === info.active_version
+                    const key = `${model}:${v.version}`
+                    return (
+                      <div key={v.version}
+                        className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg ${
+                          isActive ? 'bg-sky-50 border border-sky-200' : 'bg-slate-50'}`}>
+                        <span className="font-mono">v{v.version}</span>
+                        <span className="text-slate-500">{new Date(v.trained_at).toLocaleString()}</span>
+                        <span className="text-slate-400 font-mono">hash {v.dataset_hash}</span>
+                        <span className="text-slate-500">
+                          {scalarMetrics(v.metrics_summary).map(([k, val]) => `${k}=${val}`).join(' · ')}
+                        </span>
+                        {isActive ? (
+                          <span className="text-sky-600 font-semibold">active</span>
+                        ) : (
+                          <button onClick={() => activate(model, v.version)} disabled={rollingBack === key}
+                            className="text-sky-600 hover:text-sky-700 font-semibold disabled:opacity-50">
+                            {rollingBack === key ? 'Activating…' : 'Activate'}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ))}

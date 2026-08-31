@@ -1,8 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth.jsx'
+import Landing from './pages/Landing.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
+import GuardianView from './pages/GuardianView.jsx'
 import AdminLayout from './pages/admin/AdminLayout.jsx'
 import Dashboard from './pages/admin/Dashboard.jsx'
 import TouristSearch from './pages/admin/TouristSearch.jsx'
@@ -26,7 +28,7 @@ function Protected({ role, children }) {
 
 function Home() {
   const { user } = useAuth()
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Landing />
   if (user.role === 'admin') return <Navigate to="/admin" replace />
   if (user.role === 'responder') return <Navigate to="/responder" replace />
   return <Navigate to="/app" replace />
@@ -38,6 +40,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/guardian/:token" element={<GuardianView />} />
       <Route path="/" element={<Home />} />
 
       <Route path="/admin" element={<Protected role="admin"><AdminLayout /></Protected>}>

@@ -22,6 +22,12 @@ function DrawCapture({ active, onPoint }) {
 
 const emptyForm = { name: '', risk_level: 'medium', crime_index: 30, description: '' }
 
+const DENSITY_CLS = {
+  low: 'bg-green-100 text-green-700',
+  medium: 'bg-yellow-100 text-yellow-800',
+  high: 'bg-red-100 text-red-700',
+}
+
 export default function Zones() {
   const [zones, setZones] = useState([])
   const [mapCfg, setMapCfg] = useState(DEFAULT_MAP)
@@ -30,12 +36,17 @@ export default function Zones() {
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [density, setDensity] = useState([])
 
   const load = () => api.get('/zones').then((r) => setZones(r.data))
+  const loadDensity = () => api.get('/zones/crowd-density').then((r) => setDensity(r.data))
 
   useEffect(() => {
     load()
+    loadDensity()
     loadMapConfig((p) => api.get(p)).then(setMapCfg)
+    const iv = setInterval(loadDensity, 15000)
+    return () => clearInterval(iv)
   }, [])
 
   const startDrawing = () => {
@@ -163,6 +174,23 @@ export default function Zones() {
             </form>
           </Card>
         )}
+
+        <Card title="Crowd Density">
+          <div className="space-y-2 max-h-[220px] overflow-y-auto">
+            {density.map((d) => (
+              <div key={d.zone_id} className="flex items-center justify-between text-sm">
+                <span>{d.zone}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">{d.tourist_count} tourists</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${DENSITY_CLS[d.density]}`}>
+                    {d.density}{d.overcrowded ? ' ⚠' : ''}
+                  </span>
+                </span>
+              </div>
+            ))}
+            {density.length === 0 && <div className="text-slate-400 text-sm">No zones yet.</div>}
+          </div>
+        </Card>
 
         <Card title="Existing Zones">
           <div className="space-y-2 max-h-[420px] overflow-y-auto">

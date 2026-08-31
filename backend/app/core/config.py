@@ -81,6 +81,40 @@ class Settings(BaseSettings):
     # to the next one if nobody has acknowledged it.
     ESCALATION_STAGE_TIMEOUT_SECONDS: int = 120
 
+    # ---- check-in / check-out ----
+    # How often the background job re-checks planned check-ins.
+    CHECKIN_TICK_SECONDS: int = 30
+    # Grace period after a missed check-in deadline before it escalates from
+    # an alert to an incident -- "well before an SOS is ever pressed."
+    CHECKIN_GRACE_MINUTES: int = 30
+
+    # ---- privacy & consent ----
+    # How often the background job purges location history past its
+    # retention window (see services/privacy.py).
+    RETENTION_PURGE_TICK_SECONDS: int = 3600
+
+    # ---- disaster & weather alert feeds ----
+    # How often the background job refreshes area-level hazard advisories.
+    DISASTER_TICK_SECONDS: int = 120
+    # Name of a real disaster-advisory provider, if one is ever wired up.
+    # Empty (the default) means the deterministic simulator runs -- no
+    # external API/key is assumed to exist for this project. See
+    # services/disaster.py.
+    DISASTER_FEED_PROVIDER: str = ""
+
+    # ---- external hash-chain anchoring ----
+    # How often the background job anchors the chain's current root hash.
+    ANCHOR_TICK_SECONDS: int = 1800
+    # Where anchors are published. "local" (the default) appends to a local,
+    # append-only JSON ledger file standing in for an external timestamping
+    # service -- see services/anchoring.py for why, and how to point this at
+    # a real one.
+    ANCHOR_TARGET: str = "local"
+    # Where the "external" ledger file lives -- stands in for a real public
+    # timestamping service. A real deployment would point this integration
+    # at an actual external store instead; see services/anchoring.py.
+    ANCHOR_LEDGER_PATH: str = "anchor_ledger.jsonl"
+
     # ---- domain thresholds ----
     ROUTE_DEVIATION_THRESHOLD_M: float = 2000.0
     ANOMALY_INCIDENT_DEDUPE_MINUTES: int = 5

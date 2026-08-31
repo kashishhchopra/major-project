@@ -30,6 +30,29 @@ function ExportButton({ filename, rows }) {
   )
 }
 
+// One-click printable report -- the visual counterpart to the per-chart CSV
+// exports above. GET /analytics/pdf renders the same aggregates server-side.
+function PdfExportButton() {
+  const [loading, setLoading] = useState(false)
+  const download = async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get('/analytics/pdf', { responseType: 'blob' })
+      const url = URL.createObjectURL(data)
+      window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 30000)
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <button onClick={download} disabled={loading}
+      className="text-sm text-sky-600 hover:text-sky-700 font-semibold disabled:opacity-50">
+      {loading ? 'Generating…' : '⭳ Download PDF Report'}
+    </button>
+  )
+}
+
 export default function Analytics() {
   const [summary, setSummary] = useState(null)
   const [overTime, setOverTime] = useState([])
@@ -54,7 +77,10 @@ export default function Analytics() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-slate-800">Analytics &amp; Reporting</h2>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-lg font-bold text-slate-800">Analytics &amp; Reporting</h2>
+        <PdfExportButton />
+      </div>
 
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

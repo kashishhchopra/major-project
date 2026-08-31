@@ -3,24 +3,89 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../auth.jsx'
 
-const emptyContact = { name: '', phone: '', relation: 'family' }
-const emptyStop = { name: '', lat: '', lng: '' }
+const DOC_TYPES = [
+  { value: '', label: 'Select Verification Method' },
+  { value: 'aadhaar', label: 'Aadhaar' },
+  { value: 'passport', label: 'Passport' },
+  { value: 'voterid', label: 'Voter ID' },
+  { value: 'pan', label: 'PAN' },
+]
+
+const STEPS = ['Identity', 'Document', 'Trip', 'Emergency Contact', 'Account']
+
+function GlobeShell({ children }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#04070d' }}>
+      <style>{`
+        .reg-globe { position: relative; width: 260px; height: 260px; border-radius: 50%;
+          background: radial-gradient(circle at 32% 28%, #4fd1ff 0%, #0ea5e9 28%, #075985 55%, #03203a 78%, #01111f 100%);
+          box-shadow: 0 0 70px rgba(14,165,233,0.4), inset -24px -16px 50px rgba(0,0,0,0.55);
+        }
+        .reg-globe::before { content:''; position:absolute; inset:0; opacity:.5;
+          background-image:
+            radial-gradient(circle at 20% 40%, rgba(255,255,255,0.18) 0 3%, transparent 4%),
+            radial-gradient(circle at 60% 20%, rgba(255,255,255,0.14) 0 5%, transparent 6%),
+            radial-gradient(circle at 75% 65%, rgba(255,255,255,0.16) 0 4%, transparent 5%);
+        }
+        .reg-input { background: transparent; border: 1px solid rgba(148,163,184,0.4); color: #e6f1ff; }
+        .reg-input::placeholder { color: rgba(230,241,255,0.4); }
+        .reg-input:focus { outline: none; border-color: #22d3ee; }
+        .reg-input option { color: #0f172a; }
+      `}</style>
+      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+        <div className="hidden md:flex justify-center">
+          <div className="reg-globe"></div>
+        </div>
+        <div className="text-white">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+function StepDots({ step }) {
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      {STEPS.map((s, i) => (
+        <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-cyan-400' : 'bg-white/15'}`} title={s}></div>
+      ))}
+    </div>
+  )
+}
 
 export default function Register() {
   const { login } = useAuth()
   const nav = useNavigate()
+  const [step, setStep] = useState(0)
   const [f, setF] = useState({
-    full_name: '', nationality: 'Indian', document_type: 'aadhaar',
+    full_name: '', nationality: 'Indian', document_type: '',
     document_number: '', phone: '', email: '', password: '',
     trip_start: '', trip_end: '',
   })
-  const [contacts, setContacts] = useState([{ ...emptyContact }])
-  const [stops, setStops] = useState([{ ...emptyStop }])
+  const [contact, setContact] = useState({ name: '', phone: '', relation: 'family' })
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+
+  const validators = [
+    () => f.full_name.trim().length >= 2 && f.document_type,
+    () => f.document_number.trim().length >= 4 && f.phone.trim().length >= 3,
+    () => f.trip_start && f.trip_end && new Date(f.trip_end) > new Date(f.trip_start),
+    () => true, // emergency contact is optional
+    () => true, // account is optional
+  ]
+  const canAdvance = validators[step]()
+
+  const next = () => {
+    if (!canAdvance) {
+      setError('Please fill in the required fields to continue.')
+      return
+    }
+    setError('')
+    setStep((s) => Math.min(s + 1, STEPS.length - 1))
+  }
+  const back = () => { setError(''); setStep((s) => Math.max(s - 1, 0)) }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -37,19 +102,16 @@ export default function Register() {
         password: f.password || null,
         trip_start: new Date(f.trip_start).toISOString(),
         trip_end: new Date(f.trip_end).toISOString(),
-        emergency_contacts: contacts.filter((c) => c.name && c.phone),
-        itinerary: stops
-          .filter((s) => s.name && s.lat && s.lng)
-          .map((s) => ({ name: s.name, lat: Number(s.lat), lng: Number(s.lng) })),
+        emergency_contacts: contact.name && contact.phone ? [contact] : [],
+        itinerary: [],
       }
       const { data } = await api.post('/tourists', payload)
       setResult(data)
-      // auto-login if they set credentials
       if (f.email && f.password) {
         setTimeout(async () => {
           const u = await login(f.email, f.password)
           nav(u.role === 'admin' ? '/admin' : '/app')
-        }, 1500)
+        }, 1600)
       }
     } catch (err) {
       const d = err.response?.data?.detail
@@ -61,103 +123,117 @@ export default function Register() {
 
   if (result) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+      <GlobeShell>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center backdrop-blur-sm">
           <div className="text-5xl mb-3">✅</div>
-          <h1 className="text-xl font-bold">Digital Tourist ID Issued</h1>
-          <div className="mt-3 text-2xl font-mono font-bold text-sky-700">{result.digital_id}</div>
-          <p className="text-sm text-slate-500 mt-2">
+          <h1 className="text-xl font-bold">Your Unique Blockchain ID</h1>
+          <div className="mt-3 text-2xl font-mono font-bold text-cyan-300 tracking-wider">{result.digital_id}</div>
+          <p className="text-sm text-slate-300 mt-3">
+            Anchored as the genesis block of your tamper-evident ID chain.
             Valid until {new Date(result.trip_end).toLocaleDateString()}.
-            {f.email ? ' Signing you in…' : ''}
           </p>
-          {!f.email && <Link to="/login" className="inline-block mt-4 text-sky-600 underline">Go to login</Link>}
+          <p className="text-sm text-slate-400 mt-1">{f.email ? 'Signing you in…' : ''}</p>
+          {!f.email && (
+            <Link to="/login" className="inline-block mt-5 bg-gradient-to-r from-cyan-400 to-sky-500 text-slate-900 font-bold px-6 py-2.5 rounded-xl">
+              Continue to Login
+            </Link>
+          )}
         </div>
-      </div>
+      </GlobeShell>
     )
   }
 
-  const input = 'mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 outline-none'
+  const label = 'text-sm font-medium text-slate-300'
+  const input = `reg-input mt-1 w-full rounded-lg px-3 py-2.5`
 
   return (
-    <div className="min-h-screen bg-slate-100 py-8 px-4">
-      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-6 sm:p-8">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold">🧳 Tourist Registration (KYC)</h1>
-          <Link to="/login" className="text-sm text-sky-600">Back to login</Link>
+    <GlobeShell>
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="text-2xl font-bold">Identity Verification</h1>
+          <Link to="/login" className="text-xs text-slate-400 hover:text-slate-200">Back to login</Link>
         </div>
+        <p className="text-xs text-slate-400 mb-5">Step {step + 1} of {STEPS.length} — {STEPS[step]}</p>
+        <StepDots step={step} />
 
-        <form onSubmit={submit} className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="text-sm font-medium text-slate-600">Full name
-              <input className={input} value={f.full_name} onChange={set('full_name')} required minLength={2} /></label>
-            <label className="text-sm font-medium text-slate-600">Nationality
-              <input className={input} value={f.nationality} onChange={set('nationality')} /></label>
-            <label className="text-sm font-medium text-slate-600">Document type
-              <select className={input} value={f.document_type} onChange={set('document_type')}>
-                <option value="aadhaar">Aadhaar</option>
-                <option value="passport">Passport</option>
-                <option value="voterid">Voter ID</option>
-                <option value="pan">PAN</option>
-              </select></label>
-            <label className="text-sm font-medium text-slate-600">Document number
-              <input className={input} value={f.document_number} onChange={set('document_number')} required minLength={4} /></label>
-            <label className="text-sm font-medium text-slate-600">Phone
-              <input className={input} value={f.phone} onChange={set('phone')} required /></label>
-            <div />
-            <label className="text-sm font-medium text-slate-600">Trip start
-              <input type="datetime-local" className={input} value={f.trip_start} onChange={set('trip_start')} required /></label>
-            <label className="text-sm font-medium text-slate-600">Trip end
-              <input type="datetime-local" className={input} value={f.trip_end} onChange={set('trip_end')} required /></label>
-          </div>
+        <form onSubmit={step === STEPS.length - 1 ? submit : (e) => { e.preventDefault(); next() }} className="space-y-4">
+          {step === 0 && (
+            <>
+              <label className={label}>Enter Full Name
+                <input className={input} value={f.full_name} onChange={set('full_name')}
+                  placeholder="Enter Full Name" required minLength={2} /></label>
+              <label className={label}>Select Verification Method
+                <select className={input} value={f.document_type} onChange={set('document_type')} required>
+                  {DOC_TYPES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select></label>
+            </>
+          )}
 
-          <fieldset className="border border-slate-200 rounded-xl p-4">
-            <legend className="text-sm font-semibold px-2">Emergency Contacts</legend>
-            {contacts.map((c, i) => (
-              <div key={i} className="grid grid-cols-3 gap-2 mb-2">
-                <input placeholder="Name" className={input} value={c.name}
-                  onChange={(e) => setContacts(contacts.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-                <input placeholder="Phone" className={input} value={c.phone}
-                  onChange={(e) => setContacts(contacts.map((x, j) => j === i ? { ...x, phone: e.target.value } : x))} />
-                <input placeholder="Relation" className={input} value={c.relation}
-                  onChange={(e) => setContacts(contacts.map((x, j) => j === i ? { ...x, relation: e.target.value } : x))} />
-              </div>
-            ))}
-            <button type="button" className="text-xs text-sky-600" onClick={() => setContacts([...contacts, { ...emptyContact }])}>+ add contact</button>
-          </fieldset>
+          {step === 1 && (
+            <>
+              <label className={label}>{f.document_type ? DOC_TYPES.find((d) => d.value === f.document_type)?.label : 'Document'} Number
+                <input className={input} value={f.document_number} onChange={set('document_number')}
+                  placeholder="Enter document number" required minLength={4} /></label>
+              <label className={label}>Phone
+                <input className={input} value={f.phone} onChange={set('phone')} placeholder="+91-90000-00000" required /></label>
+              <label className={label}>Nationality
+                <input className={input} value={f.nationality} onChange={set('nationality')} /></label>
+            </>
+          )}
 
-          <fieldset className="border border-slate-200 rounded-xl p-4">
-            <legend className="text-sm font-semibold px-2">Itinerary (waypoints)</legend>
-            {stops.map((s, i) => (
-              <div key={i} className="grid grid-cols-3 gap-2 mb-2">
-                <input placeholder="Place name" className={input} value={s.name}
-                  onChange={(e) => setStops(stops.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-                <input placeholder="Latitude" type="number" step="any" className={input} value={s.lat}
-                  onChange={(e) => setStops(stops.map((x, j) => j === i ? { ...x, lat: e.target.value } : x))} />
-                <input placeholder="Longitude" type="number" step="any" className={input} value={s.lng}
-                  onChange={(e) => setStops(stops.map((x, j) => j === i ? { ...x, lng: e.target.value } : x))} />
-              </div>
-            ))}
-            <button type="button" className="text-xs text-sky-600" onClick={() => setStops([...stops, { ...emptyStop }])}>+ add waypoint</button>
-          </fieldset>
+          {step === 2 && (
+            <>
+              <label className={label}>Trip Start
+                <input type="datetime-local" className={input} value={f.trip_start} onChange={set('trip_start')} required /></label>
+              <label className={label}>Trip End
+                <input type="datetime-local" className={input} value={f.trip_end} onChange={set('trip_end')} required /></label>
+              <p className="text-xs text-slate-400">Your digital ID stays valid for exactly this window.</p>
+            </>
+          )}
 
-          <fieldset className="border border-slate-200 rounded-xl p-4">
-            <legend className="text-sm font-semibold px-2">Login (optional — to access the tourist app)</legend>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="text-sm font-medium text-slate-600">Email
-                <input type="email" className={input} value={f.email} onChange={set('email')} /></label>
-              <label className="text-sm font-medium text-slate-600">Password (min 8, letters + numbers)
+          {step === 3 && (
+            <>
+              <p className="text-xs text-slate-400 -mt-1 mb-2">Optional, but strongly recommended — notified automatically on SOS.</p>
+              <label className={label}>Contact name
+                <input className={input} value={contact.name}
+                  onChange={(e) => setContact({ ...contact, name: e.target.value })} placeholder="Name" /></label>
+              <label className={label}>Contact phone
+                <input className={input} value={contact.phone}
+                  onChange={(e) => setContact({ ...contact, phone: e.target.value })} placeholder="Phone" /></label>
+              <label className={label}>Relation
+                <input className={input} value={contact.relation}
+                  onChange={(e) => setContact({ ...contact, relation: e.target.value })} placeholder="family" /></label>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <p className="text-xs text-slate-400 -mt-1 mb-2">Optional — set credentials to access the tourist app after registering.</p>
+              <label className={label}>Email
+                <input type="email" className={input} value={f.email} onChange={set('email')} placeholder="you@example.com" /></label>
+              <label className={label}>Password (min 8, letters + numbers)
                 <input type="password" className={input} value={f.password} onChange={set('password')} /></label>
-            </div>
-          </fieldset>
+            </>
+          )}
 
-          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{error}</div>}
+          {error && <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg p-2">{error}</div>}
 
-          <button disabled={loading}
-            className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2.5 rounded-lg disabled:opacity-60">
-            {loading ? 'Issuing digital ID…' : 'Register & Issue Digital ID'}
-          </button>
+          <div className="flex items-center gap-3 pt-2">
+            {step > 0 && (
+              <button type="button" onClick={back}
+                className="flex-1 border border-white/20 text-slate-200 font-semibold py-2.5 rounded-lg">
+                Back
+              </button>
+            )}
+            <button type="submit" disabled={loading}
+              className="flex-[2] bg-gradient-to-r from-cyan-400 to-sky-500 text-slate-900 font-bold py-2.5 rounded-lg disabled:opacity-60">
+              {step === STEPS.length - 1
+                ? (loading ? 'Issuing…' : 'Get Your Unique Blockchain ID')
+                : 'Next'}
+            </button>
+          </div>
         </form>
       </div>
-    </div>
+    </GlobeShell>
   )
 }

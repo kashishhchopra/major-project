@@ -42,9 +42,10 @@ def get_tourists() -> list[dict]:
     return tr.json(), token
 
 
-def send_location(tid: int, lat: float, lng: float, speed: float) -> dict:
+def send_location(tid: int, lat: float, lng: float, speed: float, token: str) -> dict:
     r = httpx.post(f"{BASE}/tourists/{tid}/location",
-                   json={"lat": lat, "lng": lng, "speed_kmh": speed}, timeout=10)
+                   json={"lat": lat, "lng": lng, "speed_kmh": speed},
+                   headers={"Authorization": f"Bearer {token}"}, timeout=10)
     r.raise_for_status()
     return r.json()
 
@@ -130,7 +131,7 @@ def main() -> None:
 
             pos[tid] = [lat, lng]
             try:
-                out = send_location(tid, lat, lng, speed)
+                out = send_location(tid, lat, lng, speed, token)
                 flags = out.get("alerts_raised") or []
                 tag = f"  ⚠ {flags}" if flags else ""
                 print(f"[step {step}] {t['full_name']:<14} score={out['safety_score']:>5} "

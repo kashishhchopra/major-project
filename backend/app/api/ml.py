@@ -18,7 +18,7 @@ from app.db.session import get_db
 from app.ml import registry
 from app.models.tourist import LocationPing
 from app.models.user import User
-from app.services import drift
+from app.services import audit, drift, ml_service
 
 router = APIRouter(prefix="/ml", tags=["ml"])
 
@@ -134,6 +134,26 @@ def model_registry(_: User = Depends(require_admin)):
             detail="No model registry found. Run: python -m app.ml.train_all",
         )
     return reg
+
+
+@router.post("/registry/{model_name}/rollback/{version}")
+def rollback_model(model_name: str, version: int, db: Session = Depends(get_db),
+                   user: User = Depends(require_admin)):
+    """Model Lab: activate a previously trained version of a model, restoring
+    its artifacts as the active (unversioned) files without retraining. See
+    app/ml/registry.py:rollback()."""
+    try:
+        record = registry.rollback(settings.ML_MODELS_DIR, model_name, version)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    # ml_service caches loaded artifacts in-process; drop the cache so the
+    # rolled-back files are picked up on the next prediction, not after a restart.
+    ml_service.clear_cache()
+    audit.record(db, "model_rollback", actor=user.email,
+                target=f"{model_name} -> v{version}")
+    db.commit()
+    return {"model": model_name, "active_version": record["version"],
+            "trained_at": record["trained_at"]}
 
 
 @router.get("/drift")

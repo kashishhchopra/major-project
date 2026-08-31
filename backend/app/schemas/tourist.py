@@ -71,9 +71,28 @@ class TouristOut(BaseModel):
     tracking_enabled: bool
     status: str
     is_valid: bool
+    preferred_language: str
+    data_retention_days: int
 
     class Config:
         from_attributes = True
+
+
+class DuressPinSet(BaseModel):
+    pin: str = Field(..., min_length=4, max_length=8, pattern=r"^\d+$")
+
+
+class DuressSOSRequest(BaseModel):
+    pin: str = Field(..., min_length=4, max_length=8)
+    lat: float = LAT
+    lng: float = LNG
+    message: str = Field("SOS - emergency assistance required", max_length=500)
+
+
+class PrivacySettingsUpdate(BaseModel):
+    tracking_enabled: bool | None = None
+    data_retention_days: int | None = Field(None, ge=1, le=365)
+    preferred_language: str | None = Field(None, max_length=10)
 
 
 class LocationUpdate(BaseModel):

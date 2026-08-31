@@ -45,6 +45,15 @@ class Tourist(Base):
     tracking_enabled: Mapped[bool] = mapped_column(default=True)
     status: Mapped[str] = mapped_column(String, default="active")  # active / sos / missing
 
+    # Digital Safety Passport: shown to a responder scanning the tourist's QR.
+    preferred_language: Mapped[str] = mapped_column(String, default="en", server_default="en")
+    # Privacy & Consent Dashboard: how long raw location pings are kept after
+    # the trip ends before a scheduled job purges them (see services/privacy.py).
+    data_retention_days: Mapped[int] = mapped_column(Integer, default=90, server_default="90")
+    # Duress SOS: set by the tourist in-app; entering this PIN instead of the
+    # real one raises a silent SOS with no visible confirmation on screen.
+    duress_pin_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=utc_now
     )

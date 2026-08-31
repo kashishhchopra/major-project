@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -9,6 +11,7 @@ from app.api.deps import (
     require_self_or_admin,
 )
 from app.core.pagination import PageParams
+from app.core.security import verify_password
 from app.core.time import utc_now
 from app.db.session import get_db
 from app.models.alert import Alert
@@ -16,8 +19,9 @@ from app.models.audit import AuditLog
 from app.models.efir import EFIR
 from app.models.incident import Incident, IncidentEvent
 from app.models.police import PoliceUnit
-from app.models.tourist import Tourist
+from app.models.tourist import LocationPing, Tourist
 from app.models.user import User
+from app.models.zone import Zone
 from app.schemas.incident import (
     AlertOut,
     DispatchCandidateOut,
@@ -27,7 +31,8 @@ from app.schemas.incident import (
     PoliceUnitOut,
     SOSRequest,
 )
-from app.services import audit, dispatch
+from app.schemas.tourist import DuressSOSRequest
+from app.services import alert_priority, audit, dispatch
 from app.services.efir import file_efir, generate_efir
 from app.services.efir_pdf import render_efir_pdf
 from app.services.monitoring import trigger_sos
@@ -47,6 +52,35 @@ def list_alerts(limit: int = 100, only_active: bool = False,
     return q.order_by(Alert.created_at.desc()).limit(limit).all()
 
 
+@router.get("/alerts/prioritized")
+def prioritized_alerts(limit: int = 100, only_active: bool = False,
+                       db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    """Alerts ranked by real urgency (severity + type + zone isolation) and
+    bucketed into critical/high/medium/low, instead of arrival order -- see
+    services/alert_priority.py."""
+    q = db.query(Alert)
+    if only_active:
+        q = q.filter(Alert.acknowledged == False)  # noqa: E712
+    alerts = q.order_by(Alert.created_at.desc()).limit(limit).all()
+
+    zone_ids = {a.zone_id for a in alerts if a.zone_id is not None}
+    zones_by_id = (
+        {z.id: z for z in db.query(Zone).filter(Zone.id.in_(zone_ids)).all()}
+        if zone_ids else {}
+    )
+    ranked = alert_priority.prioritize(alerts, zones_by_id)
+    return [
+        {
+            "id": r["alert"].id, "tourist_id": r["alert"].tourist_id, "type": r["alert"].type,
+            "severity": r["alert"].severity, "message": r["alert"].message,
+            "lat": r["alert"].lat, "lng": r["alert"].lng,
+            "acknowledged": r["alert"].acknowledged, "created_at": r["alert"].created_at,
+            "priority": r["priority"], "priority_score": r["priority_score"],
+        }
+        for r in ranked
+    ]
+
+
 @router.post("/alerts/{alert_id}/ack")
 def ack_alert(alert_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     a = db.get(Alert, alert_id)
@@ -64,9 +98,28 @@ def sos(tourist_id: int, payload: SOSRequest, request: Request,
     t = db.get(Tourist, tourist_id)
     if not t:
         raise HTTPException(status_code=404, detail="Tourist not found")
-    result = trigger_sos(db, t, payload.lat, payload.lng, payload.message)
+    result = trigger_sos(db, t, payload.lat, payload.lng, payload.message, silent=payload.silent)
     audit.record(db, "sos", actor=user.email, target=t.digital_id,
                  detail=payload.message, request=request)
+    return result
+
+
+@router.post("/tourists/{tourist_id}/sos/duress")
+def duress_sos(tourist_id: int, payload: DuressSOSRequest, request: Request,
+               db: Session = Depends(get_db), user: User = Depends(require_self_or_admin)):
+    """Silent/Duress SOS: entering the tourist's duress PIN raises the exact
+    same protected SOS as the visible button, silently -- for the situations
+    where a loud, obvious SOS is dangerous. See services/monitoring.py."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    if not t.duress_pin_hash or not verify_password(payload.pin, t.duress_pin_hash):
+        # Deliberately generic -- this must look identical to any other
+        # rejected PIN attempt to whoever is watching the screen.
+        raise HTTPException(status_code=400, detail="Incorrect PIN")
+    result = trigger_sos(db, t, payload.lat, payload.lng, payload.message, silent=True)
+    audit.record(db, "duress_sos", actor=user.email, target=t.digital_id,
+                detail=payload.message, request=request)
     return result
 
 
@@ -107,6 +160,65 @@ def _get_incident_or_404(incident_id: int, db: Session) -> Incident:
 def get_incident(incident_id: int, db: Session = Depends(get_db),
                  _: User = Depends(require_admin)):
     return _get_incident_or_404(incident_id, db)
+
+
+@router.get("/incidents/{incident_id}/timeline")
+def incident_timeline(incident_id: int, db: Session = Depends(get_db),
+                      _: User = Depends(require_admin_or_responder)):
+    """Reconstructs the story of an incident minute by minute: its own
+    status/escalation events, plus the anomaly pings and alerts around it for
+    the tourist involved -- so an evaluator can see not just what the
+    incident did, but why it fired. Feeds the frontend's trail-replay map."""
+    inc = _get_incident_or_404(incident_id, db)
+
+    events = [
+        {"timestamp": e.timestamp, "kind": "status", "label": e.status, "detail": e.note}
+        for e in db.query(IncidentEvent).filter(IncidentEvent.incident_id == inc.id)
+                   .order_by(IncidentEvent.timestamp).all()
+    ]
+
+    if inc.tourist_id:
+        window_start = inc.detected_at - timedelta(minutes=15)
+        window_end = (inc.resolved_at or utc_now()) + timedelta(minutes=2)
+
+        pings = (
+            db.query(LocationPing)
+            .filter(
+                LocationPing.tourist_id == inc.tourist_id,
+                LocationPing.timestamp.between(window_start, window_end),
+                LocationPing.is_anomaly.is_(True),
+            )
+            .order_by(LocationPing.timestamp)
+            .all()
+        )
+        for p in pings:
+            events.append({
+                "timestamp": p.timestamp, "kind": "anomaly", "label": "Anomalous movement",
+                "detail": f"speed {p.speed_kmh:.1f} km/h · anomaly score "
+                          f"{(p.anomaly_score or 0):.2f}",
+            })
+
+        alerts = (
+            db.query(Alert)
+            .filter(
+                Alert.tourist_id == inc.tourist_id,
+                Alert.created_at.between(window_start, window_end),
+            )
+            .order_by(Alert.created_at)
+            .all()
+        )
+        for a in alerts:
+            events.append({
+                "timestamp": a.created_at, "kind": "alert",
+                "label": a.type.replace("_", " "), "detail": a.message,
+            })
+
+    events.sort(key=lambda e: e["timestamp"])
+    return {
+        "incident_id": inc.id, "tourist_id": inc.tourist_id,
+        "window_start": (inc.detected_at - timedelta(minutes=15)) if inc.tourist_id else None,
+        "events": events,
+    }
 
 
 @router.get("/incidents/{incident_id}/dispatch-candidates",

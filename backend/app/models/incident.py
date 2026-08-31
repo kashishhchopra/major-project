@@ -1,7 +1,7 @@
 """Incident lifecycle records and their event timeline."""
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utc_now
@@ -29,6 +29,11 @@ class Incident(Base):
     # whenever `escalation_deadline` passes without a human acknowledgement.
     escalation_stage: Mapped[str] = mapped_column(String, default="control_room")
     escalation_deadline: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Silent/Duress SOS: raised without any visible confirmation on the
+    # tourist's screen (shake gesture, rapid trigger, or duress PIN). The
+    # control room still sees it exactly like any other SOS -- this only
+    # flags *how* it was raised, for the responder's situational awareness.
+    silent: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     detected_at: Mapped[datetime] = mapped_column(
         DateTime, default=utc_now

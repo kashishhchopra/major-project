@@ -46,6 +46,19 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // Offline Maps & Safety Card: OSM map tiles the tourist has
+            // already viewed stay visible with no signal at all. CacheFirst
+            // (not NetworkFirst) -- a tile never changes, so there's no
+            // reason to ever re-fetch one that's already cached.
+            urlPattern: ({ url }) => /tile\.openstreetmap\.org/.test(url.hostname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'map-tile-cache',
+              expiration: { maxEntries: 2000, maxAgeSeconds: 60 * 60 * 24 * 30 }, // 30 days
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),

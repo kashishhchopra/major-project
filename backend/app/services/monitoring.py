@@ -28,7 +28,7 @@ _RISK_SEVERITY = {"low": "low", "medium": "medium", "high": "high", "restricted"
 
 
 def _create_alert(db: Session, tourist_id, atype, severity, message, lat, lng,
-                  zone_id: int | None = None) -> Alert:
+                  zone_id: int | None = None, notify_self: bool = True) -> Alert:
     alert = Alert(
         tourist_id=tourist_id, type=atype, severity=severity,
         message=message, lat=lat, lng=lng, zone_id=zone_id,
@@ -47,7 +47,11 @@ def _create_alert(db: Session, tourist_id, atype, severity, message, lat, lng,
         "created_at": alert.created_at.isoformat(),
     }
     broadcast_sync(payload)  # admin control-room feed: every tourist's alerts
-    notify_tourist_sync(tourist_id, payload)  # the tourist's own device: only theirs
+    if notify_self:
+        # Silent/Duress SOS deliberately skips this -- pushing this exact alert
+        # back to the tourist's own device would pop a "🚨 SOS" toast on their
+        # screen and give away that anything happened at all.
+        notify_tourist_sync(tourist_id, payload)
     return alert
 
 
@@ -244,12 +248,19 @@ def process_device_telemetry(
     return result
 
 
-def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: str) -> dict:
-    """One-tap SOS: mark tourist, find nearest available unit, open critical incident."""
+def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: str,
+                silent: bool = False) -> dict:
+    """One-tap SOS: mark tourist, find nearest available unit, open critical incident.
+
+    `silent` (Silent/Duress SOS) is the same protected payload raised through
+    a discreet trigger (shake gesture, rapid re-press, duress PIN) instead of
+    the visible button -- the control-room side is identical, it is only
+    tagged so a responder knows not to call back or approach visibly.
+    """
     from app.models.police import PoliceUnit
     from app.services import dispatch
 
-    logger.warning("sos_triggered", tourist_id=tourist.id, lat=lat, lng=lng)
+    logger.warning("sos_triggered", tourist_id=tourist.id, lat=lat, lng=lng, silent=silent)
     tourist.status = "sos"
     tourist.last_lat, tourist.last_lng = lat, lng
     tourist.last_seen = utc_now()
@@ -257,8 +268,12 @@ def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: 
     ranked = dispatch.rank_units(db, lat, lng)
     nearest = db.get(PoliceUnit, ranked[0]["unit_id"]) if ranked else None
 
-    inc = _open_incident(db, tourist, "sos", "critical",
-                         f"SOS triggered by {tourist.full_name}: {message}", lat, lng)
+    description = (
+        f"Silent/duress SOS from {tourist.full_name}: {message}" if silent
+        else f"SOS triggered by {tourist.full_name}: {message}"
+    )
+    inc = _open_incident(db, tourist, "sos", "critical", description, lat, lng)
+    inc.silent = silent
     # The escalation clock starts the moment an SOS incident is opened -- see
     # app/services/escalation.py:tick_escalations().
     inc.escalation_deadline = utc_now() + timedelta(
@@ -272,7 +287,7 @@ def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: 
                              note=f"Auto-dispatched to {nearest.name} ({nearest.station})"))
 
     _create_alert(db, tourist.id, "sos", "critical",
-                  f"🚨 SOS from {tourist.full_name}", lat, lng)
+                  f"🚨 SOS from {tourist.full_name}", lat, lng, notify_self=not silent)
 
     contacts = json.loads(tourist.emergency_contacts or "[]")
     for contact in contacts:
@@ -282,6 +297,22 @@ def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: 
             body=(
                 f"{tourist.full_name} has triggered an SOS. Last known location: "
                 f"{lat:.5f}, {lng:.5f}. Message: {message}"
+            ),
+        )
+
+    # Trip Guardian: any family member with an active share link is notified
+    # too, the same way an emergency contact is -- see app/api/guardian.py.
+    from app.models.guardian import TripGuardian
+    guardians = db.query(TripGuardian).filter(
+        TripGuardian.tourist_id == tourist.id, TripGuardian.revoked.is_(False)
+    ).all()
+    for g in guardians:
+        notifications.get_channel().send(
+            to=g.guardian_contact or g.guardian_name,
+            subject=f"SOS alert -- {tourist.full_name}",
+            body=(
+                f"{tourist.full_name}, whose trip you're following, has triggered an "
+                f"SOS. Last known location: {lat:.5f}, {lng:.5f}."
             ),
         )
     db.commit()

@@ -6,7 +6,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.api import analytics, auth, devices, incidents, ml, tourists, ws, zones
+from app.api import (
+    analytics,
+    anchor,
+    auth,
+    copilot,
+    devices,
+    disaster,
+    guardian,
+    incidents,
+    ml,
+    tourists,
+    ws,
+    zones,
+)
 from app.core import scheduler as job_scheduler
 from app.core.config import settings
 from app.core.logging import RequestIDMiddleware, configure_logging
@@ -29,6 +42,46 @@ def _escalation_tick_job() -> None:
         db.close()
 
 
+def _checkin_tick_job() -> None:
+    from app.services.checkin import tick_checkins
+
+    db = SessionLocal()
+    try:
+        tick_checkins(db)
+    finally:
+        db.close()
+
+
+def _retention_purge_tick_job() -> None:
+    from app.services.privacy import tick_retention_purge
+
+    db = SessionLocal()
+    try:
+        tick_retention_purge(db)
+    finally:
+        db.close()
+
+
+def _disaster_tick_job() -> None:
+    from app.services.disaster import tick_disaster_feed
+
+    db = SessionLocal()
+    try:
+        tick_disaster_feed(db)
+    finally:
+        db.close()
+
+
+def _anchor_tick_job() -> None:
+    from app.services.anchoring import publish_anchor
+
+    db = SessionLocal()
+    try:
+        publish_anchor(db)
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
@@ -43,6 +96,34 @@ async def lifespan(app: FastAPI):
         "interval",
         seconds=settings.ESCALATION_TICK_SECONDS,
         id="escalation_tick",
+        replace_existing=True,
+    )
+    job_scheduler.scheduler.add_job(
+        _checkin_tick_job,
+        "interval",
+        seconds=settings.CHECKIN_TICK_SECONDS,
+        id="checkin_tick",
+        replace_existing=True,
+    )
+    job_scheduler.scheduler.add_job(
+        _retention_purge_tick_job,
+        "interval",
+        seconds=settings.RETENTION_PURGE_TICK_SECONDS,
+        id="retention_purge_tick",
+        replace_existing=True,
+    )
+    job_scheduler.scheduler.add_job(
+        _disaster_tick_job,
+        "interval",
+        seconds=settings.DISASTER_TICK_SECONDS,
+        id="disaster_tick",
+        replace_existing=True,
+    )
+    job_scheduler.scheduler.add_job(
+        _anchor_tick_job,
+        "interval",
+        seconds=settings.ANCHOR_TICK_SECONDS,
+        id="anchor_tick",
         replace_existing=True,
     )
     yield
@@ -106,6 +187,10 @@ app.include_router(incidents.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(analytics.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(ml.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(devices.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(guardian.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(copilot.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(disaster.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(anchor.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(ws.router)  # websocket at /ws/alerts (auth via token query param)
 
 # /api/metrics — Prometheus scrape target. Excluded from request logging noise

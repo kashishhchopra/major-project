@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.models.zone import Zone
 from app.schemas.zone import ZoneCreate, ZoneOut
-from app.services import geo
+from app.services import crowd_density, geo
 
 router = APIRouter(prefix="/zones", tags=["zones"])
 
@@ -38,6 +38,13 @@ def create_zone(payload: ZoneCreate, db: Session = Depends(get_db),
     db.commit()
     db.refresh(z)
     return _serialize(z)
+
+
+@router.get("/crowd-density")
+def crowd_density_report(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    """Per-zone tourist concentration -- overcrowding is its own kind of risk.
+    See services/crowd_density.py."""
+    return crowd_density.zone_density_report(db)
 
 
 @router.delete("/{zone_id}", status_code=204)

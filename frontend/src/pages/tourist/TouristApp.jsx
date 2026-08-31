@@ -11,14 +11,21 @@ import { TRACK_INTERVAL_MS, SIMULATE_GPS } from '../../config'
 import useSpeechRecognition from '../../hooks/useSpeechRecognition'
 import useGeolocation from '../../hooks/useGeolocation'
 import useWebSocket from '../../useWebSocket'
-import LanguageSwitcher from '../../components/LanguageSwitcher.jsx'
-import ThemeToggle from '../../components/ThemeToggle.jsx'
 import ScoreExplanation from '../../components/ScoreExplanation.jsx'
 import TrajectoryOverlay from '../../components/TrajectoryOverlay.jsx'
 import RiskForecastStrip from '../../components/RiskForecastStrip.jsx'
 import RoutePicker, { RouteLayer, useRoutePicker } from '../../components/RoutePicker.jsx'
 import { enqueueSOS, flushQueue, queueLength } from '../../lib/offlineQueue'
 import useOnlineStatus from '../../hooks/useOnlineStatus'
+import SafetyPassportCard from '../../components/SafetyPassportCard.jsx'
+import TripGuardianCard from '../../components/TripGuardianCard.jsx'
+import CheckInCard from '../../components/CheckInCard.jsx'
+import PrivacyCard from '../../components/PrivacyCard.jsx'
+import { DuressPinSettings, DuressLockButton } from '../../components/DuressLock.jsx'
+import CopilotChat from '../../components/CopilotChat.jsx'
+import DisasterBanner from '../../components/DisasterBanner.jsx'
+import SafetyCardPanel from '../../components/SafetyCardPanel.jsx'
+import TouristHub from '../../components/TouristHub.jsx'
 
 export default function TouristApp() {
   const { user, logout } = useAuth()
@@ -41,6 +48,7 @@ export default function TouristApp() {
   const [routePickerOpen, setRoutePickerOpen] = useState(false)
   const routePicker = useRoutePicker(tid)
   const posRef = useRef(null)
+  const copilotRef = useRef(null)
   const speech = useSpeechRecognition({ lang: i18n.resolvedLanguage || i18n.language })
   const geo = useGeolocation({ enabled: tracking && !SIMULATE_GPS })
   const lastSentGeoTs = useRef(0)
@@ -186,24 +194,25 @@ export default function TouristApp() {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-24">
-      <header className="bg-sky-600 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-[1000]">
-        <div>
-          <div className="text-xs opacity-80">{t('app.digital_id')}</div>
-          <div className="font-bold">{me.digital_id}</div>
-        </div>
-        <div className="flex items-center gap-2">
-          {!online && (
-            <span className="text-xs bg-orange-500/90 px-2 py-1 rounded-full font-semibold">
-              📡 Offline
-            </span>
-          )}
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <button onClick={() => { logout(); nav('/login') }} className="text-sm bg-sky-700 px-3 py-1 rounded-lg">
-            {t('app.logout')}
-          </button>
-        </div>
-      </header>
+      <TouristHub
+        digitalId={me.digital_id}
+        onSOS={sendSOS}
+        onAskAI={() => copilotRef.current?.open()}
+        topBarExtra={
+          <>
+            {!online && (
+              <span className="text-xs bg-orange-500/90 px-2 py-1 rounded-full font-semibold">
+                📡 Offline
+              </span>
+            )}
+            <DuressLockButton touristId={tid} getPosition={() => posRef.current}
+              className="text-xs text-slate-300 hover:text-white" />
+            <button onClick={() => { logout(); nav('/login') }} className="text-xs border border-slate-600 px-3 py-1.5 rounded-lg">
+              {t('app.logout')}
+            </button>
+          </>
+        }
+      />
 
       {toast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg z-[1001] text-sm">
@@ -226,8 +235,14 @@ export default function TouristApp() {
           </div>
         </div>
 
-        {/* dynamic risk forecast: predicted score at +15/+30/+60 min */}
-        <RiskForecastStrip forecast={riskForecast} />
+        {/* dynamic risk forecast: predicted score at +15/+30/+60 min --
+            the "Incident Response System using AI" hub card jumps here */}
+        <div id="hub-incident-ai">
+          <RiskForecastStrip forecast={riskForecast} />
+        </div>
+
+        {/* disaster & weather alert feeds -- active hazards for the tourist's zone */}
+        <DisasterBanner touristId={tid} />
 
         {/* geofence warning */}
         {riskyZone ? (
@@ -243,8 +258,8 @@ export default function TouristApp() {
           </div>
         )}
 
-        {/* map */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden" style={{ height: 240 }}>
+        {/* map -- the hub's "Map" card jumps here */}
+        <div id="hub-map" className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden" style={{ height: 240 }}>
           <MapContainer center={[me.last_lat, me.last_lng]} zoom={14} style={{ height: '100%' }} key={me.id}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
             {zones.map((z) => (
@@ -320,7 +335,31 @@ export default function TouristApp() {
           </ul>
         </Card>
 
-        {/* voice/text emergency description — optional context sent with SOS */}
+        {/* Digital Safety Passport + QR -- the hub's "Profile" and
+            "Wearable & Emergency Contacts" cards both jump here: this is
+            where the device and emergency-contact info actually live */}
+        <div id="hub-profile">
+          <SafetyPassportCard touristId={tid} />
+        </div>
+
+        {/* Offline Maps & Safety Card */}
+        <SafetyCardPanel touristId={tid} />
+
+        {/* Trip Guardian (family live-share) */}
+        <TripGuardianCard touristId={tid} />
+
+        {/* Tourist check-in / check-out */}
+        <CheckInCard touristId={tid} />
+
+        {/* Silent / duress SOS PIN setup */}
+        <DuressPinSettings touristId={tid} />
+
+        {/* Privacy & consent dashboard */}
+        <PrivacyCard touristId={tid} />
+
+        {/* voice/text emergency description — optional context sent with SOS.
+            The hub's "Report" card jumps here. */}
+        <div id="hub-report" />
         <Card title={t('sos.describe_title')}>
           <textarea
             value={emergencyMessage}
@@ -391,6 +430,10 @@ export default function TouristApp() {
           </button>
         </div>
       </div>
+
+      <CopilotChat ref={copilotRef} endpoint={`/tourists/${tid}/copilot/ask`} title="Safety Helper"
+        placeholder="e.g. is this area safe?"
+        suggestions={['Nearest hospital?', 'Is this area safe?', 'What should I do now?']} />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth.jsx'
 import ThemeToggle from '../../components/ThemeToggle.jsx'
+import CopilotChat from '../../components/CopilotChat.jsx'
 
 const links = [
   { to: '/admin', label: 'Live Dashboard', end: true, icon: '🗺️' },
@@ -53,6 +54,14 @@ export default function AdminLayout() {
       <main className="flex-1 p-4 max-w-[1400px] w-full mx-auto">
         <Outlet />
       </main>
+
+      <CopilotChat endpoint="/copilot/ask" title="AI Safety Copilot"
+        placeholder="e.g. why was tourist 104 flagged?"
+        suggestions={[
+          'Which tourists are at risk?',
+          'How many active alerts?',
+          'How many open incidents?',
+        ]} />
     </div>
   )
 }

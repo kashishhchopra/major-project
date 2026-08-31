@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Marker } from 'react-leaflet'
 import { touristIcon } from './mapIcons'
 
@@ -8,11 +8,20 @@ import { touristIcon } from './mapIcons'
 export default function TrailReplay({ pings }) {
   const [step, setStep] = useState(pings.length - 1)
 
+  // `pings` starts empty and is replaced once the fetch resolves (the parent
+  // mounts this before it has data, e.g. right when a new tourist is
+  // selected) -- without this, `step` stays locked to the -1 it got at mount
+  // and every later render slices to an empty `visible` even after pings has
+  // arrived, leaving `current` undefined.
+  useEffect(() => {
+    setStep(pings.length - 1)
+  }, [pings])
+
   const visible = useMemo(() => pings.slice(0, step + 1), [pings, step])
   const path = useMemo(() => visible.map((p) => [p.lat, p.lng]), [visible])
   const current = visible[visible.length - 1]
 
-  if (pings.length === 0) {
+  if (pings.length === 0 || !current) {
     return <div className="text-sm text-slate-400">No location history recorded yet.</div>
   }
 

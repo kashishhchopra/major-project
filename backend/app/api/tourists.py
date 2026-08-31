@@ -5,27 +5,39 @@ import json
 import uuid
 
 import qrcode
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_admin, require_self_or_admin
+from app.api.deps import (
+    get_current_user,
+    require_admin,
+    require_self_admin_or_responder,
+    require_self_or_admin,
+)
 from app.core.config import settings
 from app.core.pagination import PageParams
 from app.core.ratelimit import registration_rate_limit
 from app.core.security import hash_password
+from app.core.time import utc_now
 from app.db.session import get_db
+from app.models.checkin import CheckIn
 from app.models.tourist import IdBlock, LocationPing, Tourist
 from app.models.user import User
 from app.models.zone import Zone
+from app.schemas.checkin import CheckInCreate, CheckInOut
 from app.schemas.tourist import (
+    DuressPinSet,
     IdBlockOut,
     LocationUpdate,
+    PrivacySettingsUpdate,
     SafetyScoreOut,
     TouristCreate,
     TouristOut,
 )
-from app.services import hashchain
+from app.services import audit, hashchain, privacy
+from app.services import passport as passport_service
+from app.services.safety_card import build_safety_card
 from app.services.forecast import DEFAULT_HORIZONS_MIN, forecast_risk
 from app.services.monitoring import process_ping
 from app.services.routing import recommend_route
@@ -63,6 +75,8 @@ def _serialize(t: Tourist) -> dict:
         "tracking_enabled": t.tracking_enabled,
         "status": t.status,
         "is_valid": t.is_valid,
+        "preferred_language": t.preferred_language,
+        "data_retention_days": t.data_retention_days,
     }
 
 
@@ -155,6 +169,43 @@ def get_qr(tourist_id: int, db: Session = Depends(get_db),
     img.save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode()
     return {"digital_id": t.digital_id, "qr_png_base64": f"data:image/png;base64,{b64}"}
+
+
+@router.get("/{tourist_id}/passport")
+def get_passport(tourist_id: int, db: Session = Depends(get_db),
+                 _: User = Depends(require_self_admin_or_responder)):
+    """Digital Safety Passport: the essentials an emergency responder needs,
+    in one view -- ID, contacts, language, device, current risk, plus a QR
+    code encoding the digital ID. See services/passport.py."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    return passport_service.build_passport(db, t)
+
+
+@router.post("/{tourist_id}/passport/scan")
+def scan_passport(tourist_id: int, db: Session = Depends(get_db),
+                  user: User = Depends(require_self_admin_or_responder)):
+    """Same as GET /passport, but logs the scan as a chain event -- used when
+    a responder in the field scans a tourist's QR code."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    hashchain.append_block(db, t, "PASSPORT_SCANNED", {"scanned_by": user.email})
+    db.commit()
+    return passport_service.build_passport(db, t)
+
+
+@router.get("/{tourist_id}/safety-card")
+def get_safety_card(tourist_id: int, db: Session = Depends(get_db),
+                    _: User = Depends(require_self_or_admin)):
+    """Offline Maps & Safety Card: nearest hospital/police + emergency
+    numbers -- see services/safety_card.py. Cached by the PWA service worker
+    for offline use like every other GET."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    return build_safety_card(db, t)
 
 
 @router.get("/{tourist_id}/chain", response_model=list[IdBlockOut])
@@ -312,3 +363,95 @@ def get_route_recommendation(tourist_id: int, dest_lat: float, dest_lng: float,
         raise HTTPException(status_code=400, detail="Tourist has no known location yet")
     result = recommend_route(db, (t.last_lat, t.last_lng), (dest_lat, dest_lng))
     return {"tourist_id": tourist_id, **result}
+
+
+# ---------------- check-in / check-out ----------------
+@router.post("/{tourist_id}/checkins", response_model=CheckInOut, status_code=201)
+def create_checkin(tourist_id: int, payload: CheckInCreate, db: Session = Depends(get_db),
+                   _: User = Depends(require_self_or_admin)):
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    c = CheckIn(tourist_id=tourist_id, **payload.model_dump())
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+@router.get("/{tourist_id}/checkins", response_model=list[CheckInOut])
+def list_checkins(tourist_id: int, db: Session = Depends(get_db),
+                  _: User = Depends(require_self_or_admin)):
+    return (
+        db.query(CheckIn)
+        .filter(CheckIn.tourist_id == tourist_id)
+        .order_by(CheckIn.expected_return_at.desc())
+        .all()
+    )
+
+
+@router.post("/{tourist_id}/checkins/{checkin_id}/checkin", response_model=CheckInOut)
+def mark_checked_in(tourist_id: int, checkin_id: int, db: Session = Depends(get_db),
+                    _: User = Depends(require_self_or_admin)):
+    """The tourist confirming they're safely back -- clears the check-in
+    before it can ever be flagged as missed. See services/checkin.py."""
+    c = db.query(CheckIn).filter(CheckIn.id == checkin_id, CheckIn.tourist_id == tourist_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Check-in not found")
+    if c.status not in ("planned", "missed"):
+        raise HTTPException(status_code=400, detail=f"Check-in already {c.status}")
+    c.checked_in_at = utc_now()
+    c.status = "checked_in"
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+# ---------------- privacy & consent ----------------
+@router.get("/{tourist_id}/privacy")
+def get_privacy(tourist_id: int, db: Session = Depends(get_db),
+                _: User = Depends(require_self_or_admin)):
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    return privacy.privacy_report(db, t)
+
+
+@router.patch("/{tourist_id}/privacy")
+def update_privacy(tourist_id: int, payload: PrivacySettingsUpdate, db: Session = Depends(get_db),
+                   _: User = Depends(require_self_or_admin)):
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    updates = payload.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(t, field, value)
+    db.commit()
+    return privacy.privacy_report(db, t)
+
+
+@router.delete("/{tourist_id}/location-history")
+def delete_location_history(tourist_id: int, request: Request, db: Session = Depends(get_db),
+                            user: User = Depends(require_self_or_admin)):
+    """Tourist-initiated purge -- "delete my data now." See services/privacy.py."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    deleted = privacy.purge_location_history(db, t)
+    audit.record(db, "purge_location_history", actor=user.email, target=t.digital_id,
+                detail=f"{deleted} pings deleted", request=request)
+    return {"tourist_id": tourist_id, "pings_deleted": deleted}
+
+
+# ---------------- silent / duress SOS ----------------
+@router.post("/{tourist_id}/duress-pin")
+def set_duress_pin(tourist_id: int, payload: DuressPinSet, db: Session = Depends(get_db),
+                   _: User = Depends(require_self_or_admin)):
+    """Set (or replace) the PIN that raises a silent SOS -- see
+    POST /tourists/{id}/sos/duress in app/api/incidents.py."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    t.duress_pin_hash = hash_password(payload.pin)
+    db.commit()
+    return {"tourist_id": tourist_id, "duress_pin_set": True}

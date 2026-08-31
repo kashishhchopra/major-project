@@ -35,3 +35,6 @@ frontend/coverage/
 
 # Backup files created during this session's schema migrations
 *.db.bak
+
+# External Hash-Chain Anchoring's local ledger stand-in (services/anchoring.py)
+backend/anchor_ledger.jsonl

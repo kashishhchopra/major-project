@@ -62,6 +62,18 @@ def require_self_or_admin(
     raise HTTPException(status_code=403, detail="Forbidden")
 
 
+def require_self_admin_or_responder(
+    tourist_id: int = Path(...), user: User = Depends(get_current_user)
+) -> User:
+    """Admins and responders (e.g. scanning a Digital Safety Passport in the
+    field) see any tourist; a tourist may only act on their own record."""
+    if user.role in ("admin", "responder"):
+        return user
+    if user.role == "tourist" and user.tourist_id == tourist_id:
+        return user
+    raise HTTPException(status_code=403, detail="Forbidden")
+
+
 def authenticate_ws_token(token: str | None, db: Session) -> User | None:
     """Validate a token passed as a WebSocket query param. Returns None if invalid."""
     if not token:

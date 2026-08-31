@@ -4,17 +4,19 @@ Every endpoint here aggregates in SQL. The previous implementation loaded whole
 tables with `.all()` and counted in Python, which is O(rows) memory per request
 and degrades badly once the ping/alert tables grow.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
+from app.core.time import utc_now
 from app.db.session import get_db
 from app.models.alert import Alert
 from app.models.incident import Incident
 from app.models.tourist import Tourist
 from app.models.user import User
 from app.models.zone import Zone
+from app.services.analytics_pdf import render_analytics_pdf
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -118,3 +120,18 @@ def severity_breakdown(db: Session = Depends(get_db), _: User = Depends(require_
     order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
     out = [{"severity": s, "count": c} for s, c in rows]
     return sorted(out, key=lambda r: order.get(r["severity"], 99))
+
+
+@router.get("/pdf")
+def analytics_pdf(db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    """One-click printable report -- the visual counterpart to the CSV export
+    already on the dashboard. Reuses the same aggregate queries above."""
+    pdf_bytes = render_analytics_pdf(
+        summary(db, user), incidents_over_time(db, user), alerts_by_type(db, user),
+        zone_risk(db, user), severity_breakdown(db, user),
+    )
+    filename = "analytics-report-" + utc_now().strftime("%Y%m%d-%H%M%S") + ".pdf"
+    return Response(
+        content=pdf_bytes, media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )

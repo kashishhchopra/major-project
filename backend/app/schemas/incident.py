@@ -37,6 +37,7 @@ class IncidentOut(BaseModel):
     lat: float | None
     lng: float | None
     assigned_unit_id: int | None
+    silent: bool
     escalation_stage: str
     escalation_deadline: datetime | None
     detected_at: datetime
@@ -69,6 +70,10 @@ class SOSRequest(BaseModel):
     lat: float = Field(..., ge=-90, le=90)
     lng: float = Field(..., ge=-180, le=180)
     message: str = Field("SOS - emergency assistance required", max_length=500)
+    # Silent/Duress SOS: raised via a discreet trigger (shake, rapid re-press,
+    # duress PIN) rather than the visible button -- same payload, tagged so
+    # the control room knows not to call back or approach visibly.
+    silent: bool = False
 
 
 class PoliceUnitOut(BaseModel):

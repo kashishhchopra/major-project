@@ -5,6 +5,20 @@
 export const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 export const WS_PATH = import.meta.env.VITE_WS_PATH || '/ws/alerts'
 export const SHOW_DEMO_LOGINS = (import.meta.env.VITE_SHOW_DEMO ?? 'true') !== 'false'
+// Demo-login shortcuts are deploy-config, not source: VITE_DEMO_LOGINS is a
+// JSON array of {label,email,password}. Empty by default -- a real deployment
+// gets no working credentials baked into the bundle even if SHOW_DEMO_LOGINS
+// is left on by accident. Format: '[{"label":"Admin","email":"a@b.com","password":"x"}]'
+export const DEMO_LOGINS = (() => {
+  const raw = import.meta.env.VITE_DEMO_LOGINS
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+})()
 export const POLL_INTERVAL_MS = Number(import.meta.env.VITE_POLL_INTERVAL_MS || 8000)
 export const TRACK_INTERVAL_MS = Number(import.meta.env.VITE_TRACK_INTERVAL_MS || 5000)
 // Demo/dev convenience: simulate a random walk instead of real GPS, since a

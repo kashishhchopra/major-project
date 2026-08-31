@@ -37,11 +37,11 @@ from app.schemas.tourist import (
 )
 from app.services import audit, hashchain, privacy
 from app.services import passport as passport_service
-from app.services.safety_card import build_safety_card
 from app.services.forecast import DEFAULT_HORIZONS_MIN, forecast_risk
 from app.services.monitoring import process_ping
 from app.services.routing import recommend_route
 from app.services.safety import compute_safety_score
+from app.services.safety_card import build_safety_card
 from app.services.trajectory import predict_trajectory, predicts_crosses_zone
 
 router = APIRouter(prefix="/tourists", tags=["tourists"])

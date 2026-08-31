@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { getAccessToken, refreshAccessToken } from './api'
 import { WS_PATH } from './config'
 
 const RECONNECT_DELAY_MS = 3000
@@ -17,10 +18,7 @@ export default function useWebSocket(onEvent, path = WS_PATH) {
     let cancelled = false
     let reconnectTimer = null
 
-    const open = () => {
-      const token = localStorage.getItem('token')
-      if (!token || cancelled) return
-
+    const connectWith = (token) => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
       // Token passed as a query param so the server can authorize the socket.
       const url = `${proto}://${location.host}${path}?token=${encodeURIComponent(token)}`
@@ -36,13 +34,30 @@ export default function useWebSocket(onEvent, path = WS_PATH) {
       ws.onclose = () => {
         setConnected(false)
         if (cancelled) return
-        // Access tokens now expire in ~30 minutes (see backend refresh-token
-        // change); a socket open longer than that gets closed by the server
-        // and needs a fresh token to reconnect. `api.js`'s interceptor keeps
-        // localStorage's token current as long as REST calls keep happening,
-        // so re-reading it here picks up a refreshed token automatically.
+        // Access tokens expire in ~30 minutes; a socket open longer than
+        // that gets closed by the server and needs a fresh token to
+        // reconnect. The access token lives in memory only (api.js), so
+        // `open()` re-reads it (and refreshes if needed) on every attempt
+        // rather than relying on a stale closure.
         reconnectTimer = setTimeout(open, RECONNECT_DELAY_MS)
       }
+    }
+
+    const open = async () => {
+      if (cancelled) return
+      let token = getAccessToken()
+      if (!token) {
+        // Covers the case where this hook mounts before AuthProvider's own
+        // silent refresh resolves, or a reconnect attempt after the
+        // in-memory token was cleared without a page reload.
+        try {
+          token = await refreshAccessToken()
+        } catch {
+          return
+        }
+      }
+      if (cancelled || !token) return
+      connectWith(token)
     }
 
     open()

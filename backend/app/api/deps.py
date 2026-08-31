@@ -1,4 +1,6 @@
 """Shared FastAPI dependencies: current user resolution & role guards."""
+from datetime import UTC, datetime
+
 from fastapi import Depends, Header, HTTPException, Path, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -23,6 +25,18 @@ def _user_from_token(token: str, db: Session) -> User:
         raise _CREDS_EXC
     user = db.query(User).filter(User.email == payload["sub"]).first()
     if user is None:
+        raise _CREDS_EXC
+    # Reject a still-unexpired access token minted before the user's most
+    # recent password reset. `User` is already loaded here, so this costs
+    # zero extra queries and gives immediate global logout rather than
+    # waiting for the access token to expire naturally. See
+    # app/api/auth.py::_token_predates_epoch for the matching refresh-token
+    # check and why the epoch is floored to whole seconds before comparing.
+    iat = payload.get("iat")
+    if iat is None:
+        raise _CREDS_EXC
+    issued_at = datetime.fromtimestamp(iat, tz=UTC).replace(tzinfo=None)
+    if issued_at < user.sessions_valid_from.replace(microsecond=0):
         raise _CREDS_EXC
     return user
 

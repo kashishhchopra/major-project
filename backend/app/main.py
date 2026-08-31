@@ -22,6 +22,7 @@ from app.api import (
 )
 from app.core import scheduler as job_scheduler
 from app.core.config import settings
+from app.core.joblock import run_locked
 from app.core.logging import RequestIDMiddleware, configure_logging
 from app.core.middleware import BodySizeLimitMiddleware, SecurityHeadersMiddleware
 from app.core.ratelimit import global_rate_limit
@@ -30,56 +31,47 @@ from app.db.session import SessionLocal, init_db
 configure_logging(json_output=settings.is_production)
 
 
+def _locked(job_id: str, fn) -> None:
+    """Each tick acquires app.models.job_lock.JobLock for `job_id` before
+    running, so with WEB_CONCURRENCY > 1 only one worker executes a given
+    tick -- the rest see the lock held and skip it silently."""
+    run_locked(SessionLocal, job_id, settings.JOB_LOCK_TTL_SECONDS, fn)
+
+
 def _escalation_tick_job() -> None:
-    """Runs on the scheduler thread -- give it its own DB session per tick,
-    same pattern as the audit trail's independent session (app/services/audit.py)."""
     from app.services.escalation import tick_escalations
 
-    db = SessionLocal()
-    try:
-        tick_escalations(db)
-    finally:
-        db.close()
+    _locked("escalation_tick", tick_escalations)
 
 
 def _checkin_tick_job() -> None:
     from app.services.checkin import tick_checkins
 
-    db = SessionLocal()
-    try:
-        tick_checkins(db)
-    finally:
-        db.close()
+    _locked("checkin_tick", tick_checkins)
 
 
 def _retention_purge_tick_job() -> None:
     from app.services.privacy import tick_retention_purge
 
-    db = SessionLocal()
-    try:
-        tick_retention_purge(db)
-    finally:
-        db.close()
+    _locked("retention_purge_tick", tick_retention_purge)
 
 
 def _disaster_tick_job() -> None:
     from app.services.disaster import tick_disaster_feed
 
-    db = SessionLocal()
-    try:
-        tick_disaster_feed(db)
-    finally:
-        db.close()
+    _locked("disaster_tick", tick_disaster_feed)
 
 
 def _anchor_tick_job() -> None:
     from app.services.anchoring import publish_anchor
 
-    db = SessionLocal()
-    try:
-        publish_anchor(db)
-    finally:
-        db.close()
+    _locked("anchor_tick", publish_anchor)
+
+
+def _token_purge_tick_job() -> None:
+    from app.api.auth import purge_expired_revocations
+
+    _locked("token_purge_tick", purge_expired_revocations)
 
 
 @asynccontextmanager
@@ -90,44 +82,53 @@ async def lifespan(app: FastAPI):
 
     init_db()
     manager.bind_loop(asyncio.get_running_loop())
-    job_scheduler.start()
-    job_scheduler.scheduler.add_job(
-        _escalation_tick_job,
-        "interval",
-        seconds=settings.ESCALATION_TICK_SECONDS,
-        id="escalation_tick",
-        replace_existing=True,
-    )
-    job_scheduler.scheduler.add_job(
-        _checkin_tick_job,
-        "interval",
-        seconds=settings.CHECKIN_TICK_SECONDS,
-        id="checkin_tick",
-        replace_existing=True,
-    )
-    job_scheduler.scheduler.add_job(
-        _retention_purge_tick_job,
-        "interval",
-        seconds=settings.RETENTION_PURGE_TICK_SECONDS,
-        id="retention_purge_tick",
-        replace_existing=True,
-    )
-    job_scheduler.scheduler.add_job(
-        _disaster_tick_job,
-        "interval",
-        seconds=settings.DISASTER_TICK_SECONDS,
-        id="disaster_tick",
-        replace_existing=True,
-    )
-    job_scheduler.scheduler.add_job(
-        _anchor_tick_job,
-        "interval",
-        seconds=settings.ANCHOR_TICK_SECONDS,
-        id="anchor_tick",
-        replace_existing=True,
-    )
+    if settings.SCHEDULER_ENABLED:
+        job_scheduler.start()
+        job_scheduler.scheduler.add_job(
+            _escalation_tick_job,
+            "interval",
+            seconds=settings.ESCALATION_TICK_SECONDS,
+            id="escalation_tick",
+            replace_existing=True,
+        )
+        job_scheduler.scheduler.add_job(
+            _checkin_tick_job,
+            "interval",
+            seconds=settings.CHECKIN_TICK_SECONDS,
+            id="checkin_tick",
+            replace_existing=True,
+        )
+        job_scheduler.scheduler.add_job(
+            _retention_purge_tick_job,
+            "interval",
+            seconds=settings.RETENTION_PURGE_TICK_SECONDS,
+            id="retention_purge_tick",
+            replace_existing=True,
+        )
+        job_scheduler.scheduler.add_job(
+            _disaster_tick_job,
+            "interval",
+            seconds=settings.DISASTER_TICK_SECONDS,
+            id="disaster_tick",
+            replace_existing=True,
+        )
+        job_scheduler.scheduler.add_job(
+            _anchor_tick_job,
+            "interval",
+            seconds=settings.ANCHOR_TICK_SECONDS,
+            id="anchor_tick",
+            replace_existing=True,
+        )
+        job_scheduler.scheduler.add_job(
+            _token_purge_tick_job,
+            "interval",
+            seconds=settings.TOKEN_PURGE_TICK_SECONDS,
+            id="token_purge_tick",
+            replace_existing=True,
+        )
     yield
-    job_scheduler.shutdown()
+    if settings.SCHEDULER_ENABLED:
+        job_scheduler.shutdown()
 
 
 app = FastAPI(

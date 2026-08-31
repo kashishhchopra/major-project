@@ -1,5 +1,5 @@
-import { createContext, useContext, useState } from 'react'
-import api from './api'
+import { createContext, useContext, useEffect, useState } from 'react'
+import api, { refreshAccessToken, setAccessToken } from './api'
 
 const AuthContext = createContext(null)
 
@@ -16,14 +16,39 @@ export function AuthProvider({ children }) {
       return null
     }
   })
+  // The access token is in-memory only (see api.js) and doesn't survive a
+  // hard reload, so a `user` rehydrated from localStorage is only a
+  // rendering hint until a silent refresh against the httpOnly cookie
+  // confirms it. `ready` gates protected routes so they don't flash a
+  // redirect to /login while that confirmation is in flight.
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function init() {
+      if (user) {
+        try {
+          await refreshAccessToken()
+        } catch {
+          if (!cancelled) {
+            localStorage.removeItem('user')
+            setUser(null)
+          }
+        }
+      }
+      if (!cancelled) setReady(true)
+    }
+    init()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
+  }, [])
 
   const login = async (email, password) => {
     const form = new URLSearchParams()
     form.append('username', email)
     form.append('password', password)
     const { data } = await api.post('/auth/login', form)
-    localStorage.setItem('token', data.access_token)
-    localStorage.setItem('refreshToken', data.refresh_token)
+    setAccessToken(data.access_token)
     const u = {
       role: data.role,
       tourist_id: data.tourist_id,
@@ -32,25 +57,23 @@ export function AuthProvider({ children }) {
     }
     localStorage.setItem('user', JSON.stringify(u))
     setUser(u)
+    setReady(true)
     return u
   }
 
   const logout = () => {
-    const refreshToken = localStorage.getItem('refreshToken')
-    // Best-effort revocation -- fire and forget. Local state is cleared
+    // Best-effort revocation -- fire and forget. The refresh-token cookie is
+    // sent automatically (withCredentials); local state is cleared
     // regardless of whether this call succeeds, since the user is leaving
-    // either way; if it fails, the refresh token still expires naturally.
-    if (refreshToken) {
-      api.post('/auth/logout', { refresh_token: refreshToken }).catch(() => {})
-    }
-    localStorage.removeItem('token')
-    localStorage.removeItem('refreshToken')
+    // either way.
+    api.post('/auth/logout', {}).catch(() => {})
+    setAccessToken(null)
     localStorage.removeItem('user')
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, ready, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

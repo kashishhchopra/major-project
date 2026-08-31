@@ -5,7 +5,7 @@ from tests.conftest import make_tourist, make_zone
 
 
 def _alert(**kw):
-    defaults = dict(type="anomaly", severity="medium", message="m", lat=1.0, lng=1.0)
+    defaults = {"type": "anomaly", "severity": "medium", "message": "m", "lat": 1.0, "lng": 1.0}
     defaults.update(kw)
     return Alert(**defaults)
 

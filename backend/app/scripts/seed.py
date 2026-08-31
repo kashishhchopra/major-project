@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from datetime import timedelta
 
+from app.core.config import settings
 from app.core.security import hash_password
 from app.core.time import utc_now
 from app.db.session import Base, SessionLocal
@@ -20,6 +22,18 @@ from app.models.zone import Zone
 from app.services import hashchain
 
 CENTER = (26.1445, 91.7362)  # Guwahati
+
+
+def _seed_password(env_var: str) -> str:
+    """Demo account passwords come from env when set; otherwise a random
+    password is generated and printed once. Nothing weak is hardcoded into
+    source, which is what actually ends up in a public repo."""
+    value = os.environ.get(env_var)
+    if value:
+        return value
+    generated = secrets.token_urlsafe(9)
+    print(f"  ({env_var} not set -- generated: {generated})")
+    return generated
 
 
 def _rect(lat, lng, dlat=0.008, dlng=0.008):
@@ -45,13 +59,23 @@ def _reset_data(db) -> None:
 
 
 def seed() -> None:
+    if settings.is_production and os.environ.get("SEED_FORCE") != "true":
+        raise RuntimeError(
+            "Refusing to seed a production database with demo accounts. "
+            "Set SEED_FORCE=true if this is genuinely intended."
+        )
+
+    admin_password = _seed_password("SEED_ADMIN_PASSWORD")
+    tourist_password = _seed_password("SEED_TOURIST_PASSWORD")
+    responder_password = _seed_password("SEED_RESPONDER_PASSWORD")
+
     db = SessionLocal()
     _reset_data(db)
     try:
         # ---- admin / police operator account ----
         db.add(User(
             email="admin@tourism.gov.in", full_name="Control Room Officer",
-            hashed_password=hash_password("admin123"), role="admin",
+            hashed_password=hash_password(admin_password), role="admin",
         ))
 
         # ---- zones (mix of manual + DBSCAN-discovered) ----
@@ -121,7 +145,7 @@ def seed() -> None:
         # ---- responder (field unit) account, linked to Unit Alpha ----
         db.add(User(
             email="responder@tourism.gov.in", full_name="Unit Alpha Responder",
-            hashed_password=hash_password("responder123"), role="responder",
+            hashed_password=hash_password(responder_password), role="responder",
             unit_id=responder_unit.id,
         ))
 
@@ -192,7 +216,7 @@ def seed() -> None:
             # tourist login account
             db.add(User(
                 email=d["email"], full_name=d["full_name"],
-                hashed_password=hash_password("tourist123"),
+                hashed_password=hash_password(tourist_password),
                 role="tourist", tourist_id=t.id,
             ))
 
@@ -214,9 +238,9 @@ def seed() -> None:
 
         db.commit()
         print("Seed complete.")
-        print("  Admin login : admin@tourism.gov.in / admin123")
-        print("  Tourist login: aarav@example.com / tourist123 (and emma/rohan/sofia/kenji)")
-        print("  Responder login: responder@tourism.gov.in / responder123 (Unit Alpha)")
+        print(f"  Admin login : admin@tourism.gov.in / {admin_password}")
+        print(f"  Tourist login: aarav@example.com / {tourist_password} (and emma/rohan/sofia/kenji)")
+        print(f"  Responder login: responder@tourism.gov.in / {responder_password} (Unit Alpha)")
         print(f"  Tourists: {db.query(Tourist).count()}, Zones: {db.query(Zone).count()}, "
               f"Units: {db.query(PoliceUnit).count()}")
     finally:

@@ -19,7 +19,12 @@ import ResponderLayout from './pages/responder/ResponderLayout.jsx'
 import ResponderConsole from './pages/responder/ResponderConsole.jsx'
 
 function Protected({ role, children }) {
-  const { user } = useAuth()
+  const { user, ready } = useAuth()
+  // While the silent refresh against the httpOnly cookie is in flight (see
+  // auth.jsx), a rehydrated `user` is only a hint -- rendering the
+  // redirect-to-login too early would flash a logged-out screen on every
+  // hard reload even for a valid session.
+  if (!ready) return null
   if (!user) return <Navigate to="/login" replace />
   const allowed = Array.isArray(role) ? role.includes(user.role) : user.role === role
   if (role && !allowed) return <Navigate to="/" replace />

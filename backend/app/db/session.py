@@ -11,6 +11,19 @@ logger = logging.getLogger(__name__)
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 connect_args = {"check_same_thread": False} if _is_sqlite else {}
 
+
+def apply_sqlite_pragmas(dbapi_connection, _record=None) -> None:
+    """Per-connection SQLite tuning, shared by the app engine (below) and by
+    tests, which build their own separate in-memory engine (tests/conftest.py)
+    and would otherwise get none of this -- including FK enforcement, which
+    SQLite has off by default per connection."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA busy_timeout=10000")
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 # SQLAlchemy's default pool (size=5, max_overflow=10 -> 15 total) is sized for
 # a real database server, not for a single-file SQLite database serving many
 # request-handling threads. Under load-testing this backend, the default pool
@@ -29,22 +42,19 @@ engine = create_engine(
 )
 
 if _is_sqlite:
-    @event.listens_for(engine, "connect")
-    def _sqlite_pragmas(dbapi_connection, _record) -> None:
-        # WAL lets readers proceed while a write is in progress instead of
-        # blocking behind SQLite's default rollback-journal exclusive lock --
-        # the single biggest concurrency win available without changing engines.
-        # busy_timeout matters just as much: SQLite's default is 0, so a
-        # second concurrent WRITER (WAL only helps readers-vs-writer, not
-        # writer-vs-writer) raises "database is locked" immediately instead of
-        # waiting its turn. Load-testing this backend surfaced exactly that --
-        # concurrent geofence/anomaly alert inserts failing outright under
-        # load. A timeout turns that hard failure into a bounded wait.
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute("PRAGMA busy_timeout=10000")
-        cursor.close()
+    # WAL lets readers proceed while a write is in progress instead of
+    # blocking behind SQLite's default rollback-journal exclusive lock --
+    # the single biggest concurrency win available without changing engines.
+    # busy_timeout matters just as much: SQLite's default is 0, so a
+    # second concurrent WRITER (WAL only helps readers-vs-writer, not
+    # writer-vs-writer) raises "database is locked" immediately instead of
+    # waiting its turn. Load-testing this backend surfaced exactly that --
+    # concurrent geofence/anomaly alert inserts failing outright under
+    # load. A timeout turns that hard failure into a bounded wait.
+    # foreign_keys=ON is required too: SQLite ignores FK constraints unless
+    # explicitly turned on per connection, or users.tourist_id/unit_id's FK
+    # is decorative.
+    event.listens_for(engine, "connect")(apply_sqlite_pragmas)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

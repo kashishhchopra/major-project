@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, beforeEach } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
 import MockAdapter from 'axios-mock-adapter'
 import api from '../api'

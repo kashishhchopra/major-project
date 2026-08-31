@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import MockAdapter from 'axios-mock-adapter'
-import api, { bare } from './api'
+import api, { bare, getAccessToken, setAccessToken } from './api'
 
 // `location.href = ...` isn't implemented by jsdom's Navigation and throws;
 // stub it so the "give up and redirect" path can be exercised in tests.
@@ -14,6 +14,7 @@ const bareMock = new MockAdapter(bare)
 
 beforeEach(() => {
   localStorage.clear()
+  setAccessToken(null)
   apiMock.reset()
   bareMock.reset()
 })
@@ -25,7 +26,7 @@ afterEach(() => {
 
 describe('api request interceptor', () => {
   it('attaches the bearer token when present', async () => {
-    localStorage.setItem('token', 'abc123')
+    setAccessToken('abc123')
     apiMock.onGet('/whoami').reply((config) => {
       expect(config.headers.Authorization).toBe('Bearer abc123')
       return [200, { ok: true }]
@@ -44,8 +45,7 @@ describe('api request interceptor', () => {
 
 describe('api response interceptor — refresh-on-401', () => {
   it('transparently retries the original request after a successful refresh', async () => {
-    localStorage.setItem('token', 'expired')
-    localStorage.setItem('refreshToken', 'valid-refresh')
+    setAccessToken('expired')
 
     let calls = 0
     apiMock.onGet('/protected').reply(() => {
@@ -53,19 +53,19 @@ describe('api response interceptor — refresh-on-401', () => {
       if (calls === 1) return [401, { detail: 'expired' }]
       return [200, { data: 'secret' }]
     })
+    // The refresh token itself travels as an httpOnly cookie the test
+    // environment doesn't model -- only the resulting access token matters.
     bareMock.onPost('/auth/refresh').reply(200, {
       access_token: 'fresh-token', refresh_token: 'fresh-refresh',
     })
 
     const res = await api.get('/protected')
     expect(res.data).toEqual({ data: 'secret' })
-    expect(localStorage.getItem('token')).toBe('fresh-token')
-    expect(localStorage.getItem('refreshToken')).toBe('fresh-refresh')
+    expect(getAccessToken()).toBe('fresh-token')
   })
 
   it('only refreshes once for several concurrent 401s', async () => {
-    localStorage.setItem('token', 'expired')
-    localStorage.setItem('refreshToken', 'valid-refresh')
+    setAccessToken('expired')
 
     apiMock.onGet('/a').replyOnce(401).onGet('/a').reply(200, { ok: 1 })
     apiMock.onGet('/b').replyOnce(401).onGet('/b').reply(200, { ok: 2 })
@@ -82,26 +82,15 @@ describe('api response interceptor — refresh-on-401', () => {
   })
 
   it('clears the session and redirects when the refresh token itself is rejected', async () => {
-    localStorage.setItem('token', 'expired')
-    localStorage.setItem('refreshToken', 'also-expired')
+    setAccessToken('expired')
     localStorage.setItem('user', JSON.stringify({ role: 'admin' }))
 
     apiMock.onGet('/protected').reply(401)
     bareMock.onPost('/auth/refresh').reply(401, { detail: 'refresh token expired' })
 
     await expect(api.get('/protected')).rejects.toBeTruthy()
-    expect(localStorage.getItem('token')).toBeNull()
-    expect(localStorage.getItem('refreshToken')).toBeNull()
+    expect(getAccessToken()).toBeNull()
     expect(localStorage.getItem('user')).toBeNull()
-    expect(window.location.href).toBe('/login')
-  })
-
-  it('redirects immediately with no refresh token to try', async () => {
-    localStorage.setItem('token', 'expired')
-    // no refreshToken set at all
-    apiMock.onGet('/protected').reply(401)
-
-    await expect(api.get('/protected')).rejects.toBeTruthy()
     expect(window.location.href).toBe('/login')
   })
 
@@ -115,8 +104,7 @@ describe('api response interceptor — refresh-on-401', () => {
   })
 
   it('does not retry forever if the refreshed request 401s again', async () => {
-    localStorage.setItem('token', 'expired')
-    localStorage.setItem('refreshToken', 'valid-refresh')
+    setAccessToken('expired')
 
     apiMock.onGet('/still-broken').reply(401)  // 401 every single time
     let refreshCalls = 0
@@ -132,18 +120,18 @@ describe('api response interceptor — refresh-on-401', () => {
     expect(refreshCalls).toBe(1)
   })
 
-  it('recovers after a no-refresh-token failure once the user logs back in', async () => {
+  it('recovers after a refresh failure once the user logs back in', async () => {
     // Regression test: an earlier version only cleared the shared
     // refreshPromise via .finally() on the success branch, so a rejection
-    // with no refresh token present left it permanently stuck -- every
-    // later refresh attempt reused that same stale rejected promise, even
-    // after a fresh login supplied a valid refresh token.
+    // left it permanently stuck -- every later refresh attempt reused that
+    // same stale rejected promise, even after a fresh login/refresh
+    // supplied a valid credential.
+    bareMock.onPost('/auth/refresh').replyOnce(401)
     apiMock.onGet('/protected').reply(401)
-    await expect(api.get('/protected')).rejects.toBeTruthy()  // no refreshToken set
+    await expect(api.get('/protected')).rejects.toBeTruthy()
 
-    // "user logs back in"
-    localStorage.setItem('token', 'expired-again')
-    localStorage.setItem('refreshToken', 'now-valid')
+    // "user logs back in" / cookie becomes valid again
+    setAccessToken('expired-again')
     let calls = 0
     apiMock.onGet('/protected2').reply(() => {
       calls += 1
@@ -162,6 +150,6 @@ describe('api response interceptor — refresh-on-401', () => {
     await expect(api.get('/broken')).rejects.toMatchObject({
       response: { status: 500 },
     })
-    expect(localStorage.getItem('token')).toBeNull() // untouched, was never set
+    expect(getAccessToken()).toBeNull() // untouched, was never set
   })
 })

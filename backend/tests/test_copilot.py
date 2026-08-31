@@ -81,6 +81,27 @@ def test_tourist_advice(client, tourist_headers, tourist_user):
     assert r.json()["handled"] is True
 
 
+def test_tourist_embassy_lookup_for_foreign_national(client, tourist_headers, tourist_user, db):
+    from app.models.tourist import Tourist
+
+    t = db.get(Tourist, tourist_user.tourist_id)
+    t.nationality = "Japanese"
+    db.commit()
+
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "where is my embassy?"})
+    assert r.status_code == 200
+    assert "Japan" in r.json()["answer"]
+
+
+def test_tourist_embassy_lookup_for_indian_national_is_not_applicable(client, tourist_headers, tourist_user):
+    # tourist_user's Tourist row defaults to nationality="Indian".
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "where is my embassy?"})
+    assert r.status_code == 200
+    assert "foreign tourists" in r.json()["answer"]
+
+
 def test_tourist_copilot_forbidden_for_other_tourist(client, tourist_headers, db):
     other = make_tourist(db, name="Not Me")
     r = client.post(f"/api/tourists/{other.id}/copilot/ask", headers=tourist_headers,

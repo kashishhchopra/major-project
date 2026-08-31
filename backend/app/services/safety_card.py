@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.models.police import PoliceUnit
 from app.models.tourist import Tourist
+from app.services import consular
 from app.services.geo import haversine_m
 
 # National emergency numbers that work regardless of network/carrier --
@@ -48,7 +49,7 @@ def build_safety_card(db: Session, tourist: Tourist) -> dict:
     hospitals = [u for u in all_units if u.unit_type == "ambulance"]
     police = [u for u in all_units if u.unit_type == "police"]
 
-    return {
+    card = {
         "digital_id": tourist.digital_id,
         "nearest_hospital": _nearest(tourist, hospitals),
         "nearest_police": _nearest(tourist, police),
@@ -59,3 +60,16 @@ def build_safety_card(db: Session, tourist: Tourist) -> dict:
             "went offline."
         ),
     }
+
+    # Consular info only for a recognised foreign nationality -- keeps the
+    # cached payload small for the (large majority) Indian-national case,
+    # and there is nothing to show an Indian tourist here anyway.
+    country_code = consular.normalize_nationality(
+        tourist.nationality_code or tourist.nationality
+    )
+    if country_code and country_code != "IN":
+        missions = consular.missions_for(country_code, tourist.last_lat, tourist.last_lng)
+        card["consular"] = missions[0] if missions else None
+        card["country_guidance"] = consular.guidance_for(country_code)
+
+    return card

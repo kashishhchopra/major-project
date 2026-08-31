@@ -1,5 +1,8 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from './auth.jsx'
+import { RTL_LANGUAGES } from './i18n.js'
 import Landing from './pages/Landing.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -39,7 +42,25 @@ function Home() {
   return <Navigate to="/app" replace />
 }
 
+// RTL only applies to the tourist-facing screens (this app's translated
+// surface) -- the admin/responder consoles are untranslated and used by
+// Indian police operators, so flipping their layout would be actively
+// wrong, not just unnecessary. See i18n.js:RTL_LANGUAGES and i18n.rtl.test.js.
+function useDocumentDirection() {
+  const { i18n } = useTranslation()
+  const location = useLocation()
+
+  useEffect(() => {
+    const lang = i18n.resolvedLanguage || i18n.language
+    const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/responder')
+    const rtl = RTL_LANGUAGES.includes(lang) && !isAdminRoute
+    document.documentElement.dir = rtl ? 'rtl' : 'ltr'
+    document.documentElement.lang = lang
+  }, [i18n.resolvedLanguage, i18n.language, location.pathname])
+}
+
 export default function App() {
+  useDocumentDirection()
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

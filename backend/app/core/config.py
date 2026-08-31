@@ -122,6 +122,19 @@ class Settings(BaseSettings):
     # external API/key is assumed to exist for this project. See
     # services/disaster.py.
     DISASTER_FEED_PROVIDER: str = ""
+    # A CAP 1.2 feed URL to poll when DISASTER_FEED_PROVIDER is set. No
+    # default is assumed live/stable -- NDMA SACHET's public feed is served
+    # by a JS SPA with no documented XML/JSON endpoint discoverable without
+    # provider cooperation (see services/cap.py's module docstring). Point
+    # this at whatever CAP 1.2 source is actually available to you.
+    DISASTER_FEED_URL: str = ""
+
+    # ---- live-feed fallback ladder (see services/feeds.py) ----
+    # False = snapshot-only, no network calls at all -- the demo-venue kill
+    # switch (e.g. a hackathon hall with no reliable internet).
+    FEEDS_ENABLED: bool = True
+    FEED_CACHE_DIR: str = "feed_cache"
+    FEED_TIMEOUT_SECONDS: int = 600
 
     # ---- external hash-chain anchoring ----
     # How often the background job anchors the chain's current root hash.

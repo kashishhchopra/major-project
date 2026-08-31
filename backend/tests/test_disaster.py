@@ -50,6 +50,49 @@ def test_tick_disaster_feed_expires_no_longer_indicated(db, monkeypatch):
     assert result["expired"]
 
 
+# ---------------------------------------------------------------- real CAP feed
+def test_tick_uses_simulator_when_no_provider_configured(db, monkeypatch):
+    calls = []
+    monkeypatch.setattr("app.services.disaster.fetch_real_feed_candidates",
+                        lambda zones: calls.append(1))
+    tick_disaster_feed(db)
+    assert calls == []  # never even attempted -- DISASTER_FEED_PROVIDER is "" by default
+
+
+def test_tick_uses_real_feed_when_configured(db, monkeypatch):
+    from app.core.config import settings
+
+    zone = make_zone(db, name="Real Feed Zone", risk="high", lat=26.165, lng=91.75, d=0.02)
+    monkeypatch.setattr(settings, "DISASTER_FEED_PROVIDER", "cap")
+    monkeypatch.setattr(
+        "app.services.disaster.fetch_real_feed_candidates",
+        lambda zones: [{"zone_id": zone.id, "hazard_type": "flood", "severity": "critical",
+                        "message": "real advisory", "source": "cap:live",
+                        "external_id": "NWS-123", "area_desc": "Test Area"}],
+    )
+    result = tick_disaster_feed(db)
+    assert result["created"]
+    advisory = db.get(DisasterAdvisory, result["created"][0])
+    assert advisory.external_id == "NWS-123"
+    assert advisory.area_desc == "Test Area"
+    assert advisory.source == "cap:live"
+
+
+def test_tick_falls_back_to_simulator_when_real_feed_unavailable(db, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "DISASTER_FEED_PROVIDER", "cap")
+    monkeypatch.setattr("app.services.disaster.fetch_real_feed_candidates", lambda zones: None)
+    monkeypatch.setattr("app.services.disaster._daily_seed", lambda zone_id, hazard: 0)
+    zone = make_zone(db, name="Fallback Zone", risk="restricted", lat=26.165, lng=91.75, d=0.02)
+
+    result = tick_disaster_feed(db)
+    assert result["created"]
+    advisory = db.get(DisasterAdvisory, result["created"][0])
+    assert advisory.zone_id == zone.id
+    assert advisory.source == "simulated"
+
+
 def test_active_advisories_for_tourist(db):
     from app.services.disaster import active_advisories_for_tourist
     zone = make_zone(db, name="Hazard Zone", risk="restricted", lat=26.165, lng=91.75, d=0.02)

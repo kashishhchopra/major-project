@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import { Card } from '../../../components/ui.jsx'
 import SafetyCardPanel from '../../../components/SafetyCardPanel.jsx'
+import ConsularCard from '../../../components/ConsularCard.jsx'
 
 // Everything a tourist reaches for in a moment of trouble that isn't the SOS
-// button itself: offline emergency numbers, nearby police, and the AI
-// helper. (ConsularCard slots in here once nationality-aware registration
-// lands -- see the plan's foreign-tourist phase.)
+// button itself: offline emergency numbers, nearby police, embassy contact
+// for foreign tourists, and the AI helper.
 export default function HelpTab({ data, onAskAI }) {
   const { t } = useTranslation()
   const { nearby } = data
@@ -13,6 +13,7 @@ export default function HelpTab({ data, onAskAI }) {
   return (
     <div className="space-y-4">
       <SafetyCardPanel touristId={data.tid} />
+      <ConsularCard touristId={data.tid} />
 
       <Card title={t('police.title')}>
         <ul className="space-y-2">

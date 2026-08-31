@@ -35,7 +35,7 @@ from app.schemas.tourist import (
     TouristCreate,
     TouristOut,
 )
-from app.services import audit, hashchain, privacy
+from app.services import audit, consular, hashchain, privacy
 from app.services import passport as passport_service
 from app.services.forecast import DEFAULT_HORIZONS_MIN, forecast_risk
 from app.services.monitoring import process_ping
@@ -77,6 +77,10 @@ def _serialize(t: Tourist) -> dict:
         "is_valid": t.is_valid,
         "preferred_language": t.preferred_language,
         "data_retention_days": t.data_retention_days,
+        "nationality_code": t.nationality_code,
+        "visa_type": t.visa_type,
+        "visa_expiry": t.visa_expiry,
+        "passport_expiry": t.passport_expiry,
     }
 
 
@@ -89,6 +93,7 @@ def register_tourist(payload: TouristCreate, db: Session = Depends(get_db)):
         digital_id=digital_id,
         full_name=payload.full_name,
         nationality=payload.nationality,
+        nationality_code=consular.normalize_nationality(payload.nationality),
         document_type=payload.document_type,
         document_number=payload.document_number,
         phone=payload.phone,
@@ -96,6 +101,11 @@ def register_tourist(payload: TouristCreate, db: Session = Depends(get_db)):
         emergency_contacts=json.dumps([c.model_dump() for c in payload.emergency_contacts]),
         trip_start=payload.trip_start,
         trip_end=payload.trip_end,
+        visa_type=payload.visa_type,
+        visa_number=payload.visa_number,
+        visa_expiry=payload.visa_expiry,
+        passport_expiry=payload.passport_expiry,
+        planned_states=json.dumps(payload.planned_states),
     )
     db.add(tourist)
     db.flush()
@@ -107,6 +117,14 @@ def register_tourist(payload: TouristCreate, db: Session = Depends(get_db)):
         "document": payload.document_number,
         "trip_end": payload.trip_end.isoformat(),
     })
+
+    # Reuses the same chain rather than a parallel one -- a visa record is
+    # just another attested fact about this tourist's ID.
+    if payload.document_type == "passport":
+        hashchain.append_block(db, tourist, "VISA_RECORDED", {
+            "visa_type": payload.visa_type,
+            "visa_expiry": payload.visa_expiry.isoformat() if payload.visa_expiry else None,
+        })
 
     # optional tourist login account
     if payload.email and payload.password:

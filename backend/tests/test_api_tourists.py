@@ -120,3 +120,59 @@ def test_qr_code_is_returned_as_data_uri(client, tourist_user, admin_headers):
 
 def test_missing_tourist_returns_404(client, admin_headers):
     assert client.get("/api/tourists/9999", headers=admin_headers).status_code == 404
+
+
+# ---------------------------------------------------------------- passport/visa
+def _passport_payload(**over):
+    now = utc_now()
+    base = {
+        "document_type": "passport", "nationality": "Japanese",
+        "document_number": "TK1234567",
+        "visa_type": "Tourist", "visa_expiry": (now + timedelta(days=10)).isoformat(),
+    }
+    base.update(over)
+    return _payload(**base)
+
+
+def test_passport_registration_requires_visa_fields(client):
+    payload = _payload(document_type="passport", nationality="Japanese",
+                       document_number="TK1234567")
+    r = client.post("/api/tourists", json=payload)
+    assert r.status_code == 422
+
+
+def test_passport_registration_with_visa_fields_succeeds(client):
+    r = client.post("/api/tourists", json=_passport_payload())
+    assert r.status_code == 201
+    body = r.json()
+    assert body["nationality_code"] == "JP"
+    assert body["visa_type"] == "Tourist"
+
+
+def test_visa_expiring_before_trip_end_is_rejected(client):
+    now = utc_now()
+    payload = _passport_payload(
+        trip_end=(now + timedelta(days=20)).isoformat(),
+        visa_expiry=(now + timedelta(days=5)).isoformat(),  # expires mid-trip
+    )
+    r = client.post("/api/tourists", json=payload)
+    assert r.status_code == 422
+
+
+def test_aadhaar_registration_does_not_require_visa_fields(client):
+    r = client.post("/api/tourists", json=_payload())  # document_type="aadhaar"
+    assert r.status_code == 201
+
+
+def test_passport_registration_appends_a_visa_recorded_chain_block(client, admin_headers):
+    tid = client.post("/api/tourists", json=_passport_payload()).json()["id"]
+    r = client.get(f"/api/tourists/{tid}/chain", headers=admin_headers)
+    events = [b["event"] for b in r.json()]
+    assert "VISA_RECORDED" in events
+
+
+def test_aadhaar_registration_has_no_visa_recorded_block(client, admin_headers):
+    tid = client.post("/api/tourists", json=_payload()).json()["id"]
+    r = client.get(f"/api/tourists/{tid}/chain", headers=admin_headers)
+    events = [b["event"] for b in r.json()]
+    assert "VISA_RECORDED" not in events

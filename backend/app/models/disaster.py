@@ -24,3 +24,11 @@ class DisasterAdvisory(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     issued_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # CAP <identifier> for a real-feed advisory (see services/cap.py) -- lets
+    # tick_disaster_feed dedupe across ticks by the provider's own id rather
+    # than only (zone_id, hazard_type), which the simulator still uses.
+    external_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # CAP <areaDesc>, the human-readable area the provider described --
+    # kept alongside the zone_id match for transparency about what the
+    # source actually said vs. which local zone we mapped it onto.
+    area_desc: Mapped[str | None] = mapped_column(String, nullable=True)

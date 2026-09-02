@@ -143,6 +143,58 @@ def test_reset_password_is_audited(client, admin_user, capture, db):
     assert db.query(AuditLog).filter_by(action="reset_password").count() == 1
 
 
+# ---------------------------------------------------------------- session epoch
+# JWT `iat` is floored to whole seconds on encode (see
+# app/api/auth.py::_token_predates_epoch), so the epoch check can only ever
+# distinguish tokens across a whole-second boundary -- these tests force a
+# real one rather than relying on wall-clock luck between two fast HTTP calls.
+def test_refresh_token_issued_before_reset_is_rejected_after_it(client, admin_user, capture):
+    """A reset must kill every existing session, not just block new logins --
+    otherwise a refresh token an attacker already holds (the reason the
+    password is being reset) keeps working until it expires on its own."""
+    import time
+
+    login = client.post("/api/auth/login",
+                        data={"username": "admin@test.gov", "password": "adminpass1"}).json()
+    time.sleep(1.1)
+
+    client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
+    token = _extract_token(capture.sent[0]["body"])
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+
+    # Clear the jar so this exercises the stale *body* token specifically,
+    # not whatever cookie the client happens to be holding.
+    client.cookies.clear()
+    r = client.post("/api/auth/refresh", json={"refresh_token": login["refresh_token"]})
+    assert r.status_code == 401
+
+
+def test_access_token_issued_before_reset_is_rejected_after_it(client, admin_user, capture):
+    import time
+
+    login = client.post("/api/auth/login",
+                        data={"username": "admin@test.gov", "password": "adminpass1"}).json()
+    time.sleep(1.1)
+
+    client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
+    token = _extract_token(capture.sent[0]["body"])
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+
+    r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {login['access_token']}"})
+    assert r.status_code == 401
+
+
+def test_a_fresh_login_after_reset_works_normally(client, admin_user, capture):
+    client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
+    token = _extract_token(capture.sent[0]["body"])
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+
+    r = client.post("/api/auth/login", data={"username": "admin@test.gov", "password": "newpass123"})
+    assert r.status_code == 200
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {r.json()['access_token']}"})
+    assert me.status_code == 200
+
+
 # ---------------------------------------------------------------- notification channel
 def test_console_channel_is_the_default(monkeypatch):
     monkeypatch.setattr(notifications.settings, "NOTIFICATION_CHANNEL", "console")

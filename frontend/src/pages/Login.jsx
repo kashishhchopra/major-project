@@ -2,23 +2,19 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth.jsx'
-import { SHOW_DEMO_LOGINS } from '../config'
+import { DEMO_LOGINS, SHOW_DEMO_LOGINS } from '../config'
 import LanguageSwitcher from '../components/LanguageSwitcher.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
-
-const DEMO = [
-  { label: 'Police / Admin', email: 'admin@tourism.gov.in', password: 'admin123' },
-  { label: 'Tourist (Aarav)', email: 'aarav@example.com', password: 'tourist123' },
-]
-
-const ROLE_HOME = { admin: '/admin', responder: '/responder' }
 
 export default function Login() {
   const { login } = useAuth()
   const { t } = useTranslation()
   const nav = useNavigate()
-  const [email, setEmail] = useState(SHOW_DEMO_LOGINS ? 'admin@tourism.gov.in' : '')
-  const [password, setPassword] = useState(SHOW_DEMO_LOGINS ? 'admin123' : '')
+  // Never prefill a password, demo or otherwise -- a shoulder-surfed or
+  // screen-shared login screen shouldn't leak a working credential just by
+  // being open. Demo buttons (below) still fill both fields on click.
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -28,8 +24,8 @@ export default function Login() {
     setLoading(true)
     try {
       const u = await login(email, password)
-      nav(ROLE_HOME[u.role] || '/app')
-    } catch (err) {
+      nav(u.role === 'admin' ? '/admin' : u.role === 'responder' ? '/responder' : '/app')
+    } catch {
       setError(t('auth.invalid_credentials'))
     } finally {
       setLoading(false)
@@ -87,11 +83,11 @@ export default function Login() {
             </button>
           </form>
 
-          {SHOW_DEMO_LOGINS && (
+          {SHOW_DEMO_LOGINS && DEMO_LOGINS.length > 0 && (
             <div className="mt-6 border-t border-slate-100 dark:border-slate-700 pt-4">
               <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">Quick demo login:</p>
               <div className="flex gap-2">
-                {DEMO.map((d) => (
+                {DEMO_LOGINS.map((d) => (
                   <button key={d.email}
                     onClick={() => { setEmail(d.email); setPassword(d.password) }}
                     className="flex-1 text-xs border border-slate-200 dark:border-slate-600 dark:text-slate-300 rounded-lg py-2 hover:bg-slate-50 dark:hover:bg-slate-700">

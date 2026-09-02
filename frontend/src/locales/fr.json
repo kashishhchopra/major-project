@@ -1,0 +1,53 @@
+{
+  "app": {
+    "name": "Sécurité Touristique",
+    "digital_id": "ID Touristique Numérique",
+    "logout": "Déconnexion",
+    "loading": "Chargement…"
+  },
+  "safety": {
+    "my_score": "Mon Score de Sécurité",
+    "zone": "Zone",
+    "night_caution": "Prudence nocturne",
+    "daytime": "Journée"
+  },
+  "geofence": {
+    "warning_title": "Alerte de Géorepérage",
+    "warning_body": "Vous êtes dans {{zone}} (risque {{risk}}). Restez vigilant et envisagez de quitter la zone.",
+    "safe": "Vous êtes dans une zone sûre."
+  },
+  "tracking": {
+    "title": "Suivi de Localisation en Direct",
+    "subtitle": "Optionnel — permet au centre de contrôle de vous protéger"
+  },
+  "itinerary": {
+    "title": "Suivi d'Itinéraire",
+    "next_stop": "prochaine étape"
+  },
+  "police": {
+    "title": "Postes de Police à Proximité"
+  },
+  "sos": {
+    "button": "SOS — Envoyer une Alerte d'Urgence",
+    "sent_title": "SOS Envoyé",
+    "dispatched": "{{name}} ({{station}}) envoyé — à {{km}} km.",
+    "contacts_notified": "Contacts d'urgence prévenus : {{list}}",
+    "describe_title": "Décrivez votre urgence (facultatif)",
+    "describe_placeholder": "Que se passe-t-il ? Vous pouvez taper ou utiliser le micro ci-dessous.",
+    "speak": "🎤 Parler à la place",
+    "listening": "● Écoute en cours… touchez pour arrêter",
+    "voice_unsupported": "La saisie vocale n'est pas prise en charge sur cet appareil — tapez ci-dessus.",
+    "describe_note": "Ceci est envoyé avec votre alerte SOS. Le bouton SOS ci-dessous fonctionne immédiatement même si vous laissez ce champ vide."
+  },
+  "auth": {
+    "login_title": "Connexion",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "sign_in": "Se connecter",
+    "register_prompt": "Nouveau touriste ? Inscrivez-vous ici",
+    "invalid_credentials": "E-mail ou mot de passe incorrect"
+  },
+  "lang": {
+    "label": "Langue"
+  }
+}

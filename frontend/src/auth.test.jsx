@@ -3,13 +3,20 @@ import { render, screen, act } from '@testing-library/react'
 import { useState } from 'react'
 
 // api.js is a configured axios instance; stub it so no network is touched.
-vi.mock('./api', () => ({ default: { post: vi.fn() } }))
+// refreshAccessToken/setAccessToken are also mocked here since AuthProvider
+// calls refreshAccessToken() on mount to re-derive the in-memory access
+// token from the httpOnly refresh-token cookie.
+vi.mock('./api', () => ({
+  default: { post: vi.fn() },
+  refreshAccessToken: vi.fn(),
+  setAccessToken: vi.fn(),
+}))
 
-import api from './api'
+import api, { refreshAccessToken } from './api'
 import { AuthProvider, useAuth } from './auth.jsx'
 
 function Probe() {
-  const { user, login, logout } = useAuth()
+  const { user, ready, login, logout } = useAuth()
   const [error, setError] = useState(null)
   // Swallow the rejection here the way a real login form would, so a failed
   // login is asserted on rather than surfacing as an unhandled rejection.
@@ -17,6 +24,7 @@ function Probe() {
   return (
     <div>
       <span data-testid="who">{user ? `${user.role}:${user.full_name}` : 'anonymous'}</span>
+      <span data-testid="ready">{ready ? 'ready' : 'loading'}</span>
       <span data-testid="error">{error || ''}</span>
       <button onClick={doLogin}>login</button>
       <button onClick={logout}>logout</button>
@@ -29,29 +37,45 @@ const renderProbe = () => render(<AuthProvider><Probe /></AuthProvider>)
 beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
+  refreshAccessToken.mockResolvedValue('tok')
 })
 
 describe('AuthProvider', () => {
-  it('starts anonymous with empty storage', () => {
+  it('starts anonymous with empty storage and becomes ready with no refresh attempt', async () => {
     renderProbe()
+    await act(async () => {})
     expect(screen.getByTestId('who')).toHaveTextContent('anonymous')
+    expect(screen.getByTestId('ready')).toHaveTextContent('ready')
+    expect(refreshAccessToken).not.toHaveBeenCalled()
   })
 
-  it('rehydrates a session from localStorage', () => {
+  it('rehydrates a session from localStorage after a successful silent refresh', async () => {
     localStorage.setItem('user', JSON.stringify({ role: 'admin', full_name: 'Officer' }))
     renderProbe()
+    await act(async () => {})
+    expect(refreshAccessToken).toHaveBeenCalled()
     expect(screen.getByTestId('who')).toHaveTextContent('admin:Officer')
+    expect(screen.getByTestId('ready')).toHaveTextContent('ready')
   })
 
-  it('stores the access and refresh tokens and user on login', async () => {
+  it('drops a stale rehydrated user when the silent refresh fails', async () => {
+    localStorage.setItem('user', JSON.stringify({ role: 'admin', full_name: 'Officer' }))
+    refreshAccessToken.mockRejectedValue(new Error('refresh token expired'))
+    renderProbe()
+    await act(async () => {})
+    expect(screen.getByTestId('who')).toHaveTextContent('anonymous')
+    expect(localStorage.getItem('user')).toBeNull()
+  })
+
+  it('stores only the non-secret user object on login, never a token', async () => {
     api.post.mockResolvedValue({
       data: { access_token: 'tok123', refresh_token: 'refresh123', role: 'admin', tourist_id: null, full_name: 'Officer' },
     })
     renderProbe()
     await act(async () => { screen.getByText('login').click() })
 
-    expect(localStorage.getItem('token')).toBe('tok123')
-    expect(localStorage.getItem('refreshToken')).toBe('refresh123')
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('refreshToken')).toBeNull()
     expect(JSON.parse(localStorage.getItem('user')).role).toBe('admin')
     expect(screen.getByTestId('who')).toHaveTextContent('admin:Officer')
   })
@@ -79,7 +103,7 @@ describe('AuthProvider', () => {
     expect(JSON.parse(localStorage.getItem('user')).tourist_id).toBe(3)
   })
 
-  it('clears all credentials on logout, including the refresh token', async () => {
+  it('clears local state on logout', async () => {
     api.post.mockResolvedValue({
       data: { access_token: 't', refresh_token: 'rt', role: 'admin', tourist_id: null, full_name: 'Officer' },
     })
@@ -87,13 +111,11 @@ describe('AuthProvider', () => {
     await act(async () => { screen.getByText('login').click() })
     await act(async () => { screen.getByText('logout').click() })
 
-    expect(localStorage.getItem('token')).toBeNull()
-    expect(localStorage.getItem('refreshToken')).toBeNull()
     expect(localStorage.getItem('user')).toBeNull()
     expect(screen.getByTestId('who')).toHaveTextContent('anonymous')
   })
 
-  it('logout revokes the refresh token server-side', async () => {
+  it('logout revokes the refresh token server-side via the httpOnly cookie (no body needed)', async () => {
     api.post.mockResolvedValue({
       data: { access_token: 't', refresh_token: 'rt-to-revoke', role: 'admin', tourist_id: null, full_name: 'Officer' },
     })
@@ -102,7 +124,7 @@ describe('AuthProvider', () => {
     api.post.mockResolvedValue({})  // the /auth/logout call itself
     await act(async () => { screen.getByText('logout').click() })
 
-    expect(api.post).toHaveBeenCalledWith('/auth/logout', { refresh_token: 'rt-to-revoke' })
+    expect(api.post).toHaveBeenCalledWith('/auth/logout', {})
   })
 
   it('logout clears local state even if the revoke call fails', async () => {
@@ -114,7 +136,6 @@ describe('AuthProvider', () => {
     api.post.mockRejectedValueOnce(new Error('network down'))
     await act(async () => { screen.getByText('logout').click() })
 
-    expect(localStorage.getItem('token')).toBeNull()
     expect(screen.getByTestId('who')).toHaveTextContent('anonymous')
   })
 
@@ -123,7 +144,7 @@ describe('AuthProvider', () => {
     renderProbe()
     await act(async () => { screen.getByText('login').click() })
 
-    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('user')).toBeNull()
     expect(screen.getByTestId('who')).toHaveTextContent('anonymous')
     expect(screen.getByTestId('error')).toHaveTextContent('401')
   })

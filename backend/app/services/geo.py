@@ -54,6 +54,26 @@ def zones_containing_point(lat: float, lng: float, zones: list[Zone]) -> list[Zo
     return [z for z in zones if point_in_zone(lat, lng, z)]
 
 
+def zones_intersecting_polygon(coords: list[list[float]], zones: list[Zone]) -> list[Zone]:
+    """Zones whose geometry overlaps an externally-sourced polygon (e.g. a
+    CAP disaster-advisory area, see services/cap.py) -- used to translate a
+    free-standing geographic advisory into the zone_id-scoped candidates
+    services/disaster.py already knows how to create/expire/notify on.
+    `coords` are [lat, lng] pairs, matching Zone.polygon's own convention.
+    """
+    if len(coords) < 3:
+        return []
+    advisory_poly = Polygon([(lng, lat) for lat, lng in coords])
+    if not advisory_poly.is_valid:
+        advisory_poly = advisory_poly.buffer(0)  # common fix for a self-intersecting ring
+    out = []
+    for z in zones:
+        zone_poly = _compiled_polygon(z.id, z.polygon)
+        if zone_poly is not None and zone_poly.intersects(advisory_poly):
+            out.append(z)
+    return out
+
+
 def min_distance_to_route(lat: float, lng: float, itinerary: list[dict]) -> float:
     """Minimum distance (m) from a point to any planned itinerary waypoint.
 

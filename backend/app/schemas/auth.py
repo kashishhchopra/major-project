@@ -29,11 +29,14 @@ class UserOut(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    # Optional: a cookie-based client (see REFRESH_COOKIE_NAME) sends no body
+    # at all. Kept for one release as a back-compat path for any client still
+    # holding the refresh token itself rather than relying on the cookie.
+    refresh_token: str | None = None
 
 
 class LogoutRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):

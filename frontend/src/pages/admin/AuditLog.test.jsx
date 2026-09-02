@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, beforeEach } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
 import MockAdapter from 'axios-mock-adapter'
 import api from '../../api'
@@ -31,7 +31,7 @@ describe('AuditLog page', () => {
         anchor_target: 'local', external_ref: 'abc123', created_at: '2026-01-01T00:00:00' },
     ])
 
-    const { getByText, findByText } = render(<AuditLog />)
+    const { findByText } = render(<AuditLog />)
     fireEvent.click(await findByText(/Anchor now/))
     await findByText(/2 tourists/)
   })

@@ -54,10 +54,16 @@ def test_refresh_rotates_out_the_old_token(client, admin_user, db):
 
 
 def test_reusing_a_rotated_out_refresh_token_is_rejected(client, admin_user):
+    # This test is specifically about replaying a stale *presented* token, so
+    # it clears the client's cookie jar before each call and pins itself to
+    # the body-only path -- otherwise the jar would auto-attach the freshly
+    # rotated cookie from the first call and mask the stale body token.
     login = client.post("/api/auth/login",
                         data={"username": "admin@test.gov", "password": "adminpass1"}).json()
+    client.cookies.clear()
     client.post("/api/auth/refresh", json={"refresh_token": login["refresh_token"]})
 
+    client.cookies.clear()
     replay = client.post("/api/auth/refresh", json={"refresh_token": login["refresh_token"]})
     assert replay.status_code == 401
 

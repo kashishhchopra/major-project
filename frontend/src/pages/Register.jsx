@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../auth.jsx'
+import { COUNTRIES } from '../lib/countries.js'
 
 const DOC_TYPES = [
   { value: '', label: 'Select Verification Method' },
@@ -11,7 +12,29 @@ const DOC_TYPES = [
   { value: 'pan', label: 'PAN' },
 ]
 
-const STEPS = ['Identity', 'Document', 'Photo', 'Trip', 'Emergency Contact', 'Account']
+const VISA_TYPES = ['e-Visa', 'Tourist', 'Business', 'Medical', 'Conference']
+
+// Step list is built per-registration rather than a fixed array: a
+// passport-type registration (foreign tourist) needs a "Visa & Travel" step
+// the domestic-document flow doesn't. Keyed by a stable id (not index) so
+// validators/render logic can't drift out of sync when the array's shape
+// changes based on document_type -- see useMemo below.
+function buildSteps(documentType) {
+  const steps = [
+    { key: 'identity', label: 'Identity' },
+    { key: 'document', label: 'Document' },
+  ]
+  if (documentType === 'passport') {
+    steps.push({ key: 'visa', label: 'Visa & Travel' })
+  }
+  steps.push(
+    { key: 'photo', label: 'Photo' },
+    { key: 'trip', label: 'Trip' },
+    { key: 'emergency', label: 'Emergency Contact' },
+    { key: 'account', label: 'Account' },
+  )
+  return steps
+}
 
 // Downscales+recompresses so a phone-camera photo doesn't bloat the request
 // (stored as a data: URI column -- see backend/app/models/tourist.py).
@@ -60,11 +83,12 @@ function GlobeShell({ children }) {
   )
 }
 
-function StepDots({ step }) {
+function StepDots({ steps, activeKey }) {
+  const activeIndex = steps.findIndex((s) => s.key === activeKey)
   return (
     <div className="flex items-center gap-2 mb-6">
-      {STEPS.map((s, i) => (
-        <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-cyan-400' : 'bg-white/15'}`} title={s}></div>
+      {steps.map((s, i) => (
+        <div key={s.key} className={`h-1.5 flex-1 rounded-full ${i <= activeIndex ? 'bg-cyan-400' : 'bg-white/15'}`} title={s.label}></div>
       ))}
     </div>
   )
@@ -143,12 +167,14 @@ function LivePhotoCapture({ photo, onCapture, onRetake }) {
 export default function Register() {
   const { login } = useAuth()
   const nav = useNavigate()
-  const [step, setStep] = useState(0)
   const [f, setF] = useState({
     full_name: '', nationality: 'Indian', document_type: '',
     document_number: '', phone: '', email: '', password: '',
     trip_start: '', trip_end: '', hotel: '', photo: null,
+    nationality_code: '', visa_type: '', visa_number: '', visa_expiry: '', passport_expiry: '',
   })
+  const steps = useMemo(() => buildSteps(f.document_type), [f.document_type])
+  const [stepKey, setStepKey] = useState('identity')
   const [contact, setContact] = useState({ name: '', phone: '', relation: 'family' })
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
@@ -156,15 +182,17 @@ export default function Register() {
 
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
 
-  const validators = [
-    () => f.full_name.trim().length >= 2 && f.document_type,
-    () => f.document_number.trim().length >= 4 && f.phone.trim().length >= 3,
-    () => !!f.photo, // live camera capture is mandatory for the Digital ID card
-    () => f.trip_start && f.trip_end && new Date(f.trip_end) > new Date(f.trip_start),
-    () => true, // emergency contact is optional
-    () => true, // account is optional
-  ]
-  const canAdvance = validators[step]()
+  const validators = {
+    identity: () => f.full_name.trim().length >= 2 && f.document_type,
+    document: () => f.document_number.trim().length >= 4 && f.phone.trim().length >= 3,
+    visa: () => f.nationality_code && f.visa_type && f.visa_expiry,
+    photo: () => !!f.photo, // live camera capture is mandatory for the Digital ID card
+    trip: () => f.trip_start && f.trip_end && new Date(f.trip_end) > new Date(f.trip_start),
+    emergency: () => true, // optional
+    account: () => true, // optional
+  }
+  const stepIndex = steps.findIndex((s) => s.key === stepKey)
+  const canAdvance = validators[stepKey]()
 
   const next = () => {
     if (!canAdvance) {
@@ -172,9 +200,14 @@ export default function Register() {
       return
     }
     setError('')
-    setStep((s) => Math.min(s + 1, STEPS.length - 1))
+    const nextIndex = Math.min(stepIndex + 1, steps.length - 1)
+    setStepKey(steps[nextIndex].key)
   }
-  const back = () => { setError(''); setStep((s) => Math.max(s - 1, 0)) }
+  const back = () => {
+    setError('')
+    const prevIndex = Math.max(stepIndex - 1, 0)
+    setStepKey(steps[prevIndex].key)
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -183,7 +216,9 @@ export default function Register() {
     try {
       const payload = {
         full_name: f.full_name,
-        nationality: f.nationality,
+        nationality: f.document_type === 'passport'
+          ? (COUNTRIES.find((c) => c.code === f.nationality_code)?.name || f.nationality_code)
+          : f.nationality,
         document_type: f.document_type,
         document_number: f.document_number,
         phone: f.phone,
@@ -195,6 +230,12 @@ export default function Register() {
         trip_end: new Date(f.trip_end).toISOString(),
         emergency_contacts: contact.name && contact.phone ? [contact] : [],
         itinerary: [],
+      }
+      if (f.document_type === 'passport') {
+        payload.visa_type = f.visa_type
+        payload.visa_number = f.visa_number || null
+        payload.visa_expiry = f.visa_expiry ? new Date(f.visa_expiry).toISOString() : null
+        payload.passport_expiry = f.passport_expiry ? new Date(f.passport_expiry).toISOString() : null
       }
       const { data } = await api.post('/tourists', payload)
       setResult(data)
@@ -236,6 +277,7 @@ export default function Register() {
 
   const label = 'text-sm font-medium text-slate-300'
   const input = `reg-input mt-1 w-full rounded-lg px-3 py-2.5`
+  const activeLabel = steps[stepIndex]?.label
 
   return (
     <GlobeShell>
@@ -244,11 +286,11 @@ export default function Register() {
           <h1 className="text-2xl font-bold">Identity Verification</h1>
           <Link to="/login" className="text-xs text-slate-400 hover:text-slate-200">Back to login</Link>
         </div>
-        <p className="text-xs text-slate-400 mb-5">Step {step + 1} of {STEPS.length} — {STEPS[step]}</p>
-        <StepDots step={step} />
+        <p className="text-xs text-slate-400 mb-5">Step {stepIndex + 1} of {steps.length} — {activeLabel}</p>
+        <StepDots steps={steps} activeKey={stepKey} />
 
-        <form onSubmit={step === STEPS.length - 1 ? submit : (e) => { e.preventDefault(); next() }} className="space-y-4">
-          {step === 0 && (
+        <form onSubmit={stepKey === 'account' ? submit : (e) => { e.preventDefault(); next() }} className="space-y-4">
+          {stepKey === 'identity' && (
             <>
               <label className={label}>Enter Full Name
                 <input className={input} value={f.full_name} onChange={set('full_name')}
@@ -260,19 +302,46 @@ export default function Register() {
             </>
           )}
 
-          {step === 1 && (
+          {stepKey === 'document' && (
             <>
               <label className={label}>{f.document_type ? DOC_TYPES.find((d) => d.value === f.document_type)?.label : 'Document'} Number
                 <input className={input} value={f.document_number} onChange={set('document_number')}
                   placeholder="Enter document number" required minLength={4} /></label>
               <label className={label}>Phone
                 <input className={input} value={f.phone} onChange={set('phone')} placeholder="+91-90000-00000" required /></label>
-              <label className={label}>Nationality
-                <input className={input} value={f.nationality} onChange={set('nationality')} /></label>
+              {f.document_type === 'passport' ? (
+                <label className={label}>Country of Citizenship
+                  <select className={input} value={f.nationality_code} onChange={set('nationality_code')} required>
+                    <option value="">Select country</option>
+                    {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                  </select></label>
+              ) : (
+                <label className={label}>Nationality
+                  <input className={input} value={f.nationality} onChange={set('nationality')} /></label>
+              )}
             </>
           )}
 
-          {step === 2 && (
+          {stepKey === 'visa' && (
+            <>
+              <p className="text-xs text-slate-400 -mt-1 mb-2">Required for passport-based registration.</p>
+              <label className={label}>Visa Type
+                <select className={input} value={f.visa_type} onChange={set('visa_type')} required>
+                  <option value="">Select visa type</option>
+                  {VISA_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select></label>
+              <label className={label}>Visa Number (optional)
+                <input className={input} value={f.visa_number} onChange={set('visa_number')}
+                  placeholder="Visa number" /></label>
+              <label className={label}>Visa Expiry
+                <input type="date" className={input} value={f.visa_expiry} onChange={set('visa_expiry')} required /></label>
+              <label className={label}>Passport Expiry (optional)
+                <input type="date" className={input} value={f.passport_expiry} onChange={set('passport_expiry')} /></label>
+              <p className="text-xs text-slate-400">Your visa must be valid through your entire planned trip.</p>
+            </>
+          )}
+
+          {stepKey === 'photo' && (
             <>
               <p className="text-xs text-slate-400 -mt-1 mb-2">
                 Required — a live camera capture for your Digital Tourist Safety ID card (no file uploads, to
@@ -284,7 +353,7 @@ export default function Register() {
             </>
           )}
 
-          {step === 3 && (
+          {stepKey === 'trip' && (
             <>
               <label className={label}>Trip Start
                 <input type="datetime-local" className={input} value={f.trip_start} onChange={set('trip_start')} required /></label>
@@ -296,7 +365,7 @@ export default function Register() {
             </>
           )}
 
-          {step === 4 && (
+          {stepKey === 'emergency' && (
             <>
               <p className="text-xs text-slate-400 -mt-1 mb-2">Optional, but strongly recommended — notified automatically on SOS.</p>
               <label className={label}>Contact name
@@ -311,7 +380,7 @@ export default function Register() {
             </>
           )}
 
-          {step === 5 && (
+          {stepKey === 'account' && (
             <>
               <p className="text-xs text-slate-400 -mt-1 mb-2">Optional — set credentials to access the tourist app after registering.</p>
               <label className={label}>Email
@@ -324,7 +393,7 @@ export default function Register() {
           {error && <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg p-2">{error}</div>}
 
           <div className="flex items-center gap-3 pt-2">
-            {step > 0 && (
+            {stepIndex > 0 && (
               <button type="button" onClick={back}
                 className="flex-1 border border-white/20 text-slate-200 font-semibold py-2.5 rounded-lg">
                 Back
@@ -332,7 +401,7 @@ export default function Register() {
             )}
             <button type="submit" disabled={loading}
               className="flex-[2] bg-gradient-to-r from-cyan-400 to-sky-500 text-slate-900 font-bold py-2.5 rounded-lg disabled:opacity-60">
-              {step === STEPS.length - 1
+              {stepKey === 'account'
                 ? (loading ? 'Issuing…' : 'Get Your Unique Blockchain ID')
                 : 'Next'}
             </button>

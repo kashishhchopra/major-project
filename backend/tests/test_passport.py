@@ -40,6 +40,23 @@ def test_passport_visible_to_responder(client, responder_headers, db):
     assert r.status_code == 200
 
 
+def test_passport_includes_consular_phone_for_foreign_nationals(client, admin_headers, db):
+    t = make_tourist(db)
+    t.nationality = "French"
+    db.commit()
+    r = client.get(f"/api/tourists/{t.id}/passport", headers=admin_headers)
+    body = r.json()
+    assert body["nationality_code"] == "FR"
+    assert body["consular_phone"]
+
+
+def test_passport_consular_phone_is_none_for_indian_nationals(client, admin_headers, db):
+    t = make_tourist(db)
+    r = client.get(f"/api/tourists/{t.id}/passport", headers=admin_headers)
+    body = r.json()
+    assert body["consular_phone"] is None
+
+
 def test_scan_logs_chain_event(client, responder_headers, db):
     t = make_tourist(db)
     before = db.query(IdBlock).filter(IdBlock.tourist_id == t.id).count()

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models.device import Device
 from app.models.tourist import Tourist
+from app.services import consular
 
 
 def _qr_base64(tourist: Tourist) -> str:
@@ -35,10 +36,23 @@ def build_passport(db: Session, tourist: Tourist) -> dict:
         .order_by(Device.last_heartbeat.desc())
         .first()
     )
+    country_code = consular.normalize_nationality(
+        tourist.nationality_code or tourist.nationality
+    )
+    primary_mission = None
+    if country_code and country_code != "IN":
+        missions = consular.missions_for(country_code)
+        primary_mission = missions[0] if missions else None
+
     return {
         "digital_id": tourist.digital_id,
         "full_name": tourist.full_name,
         "nationality": tourist.nationality,
+        "nationality_code": country_code,
+        # A responder scanning a foreign tourist's QR sees the consulate
+        # phone number in the same glance as everything else -- no separate
+        # lookup needed in whatever moment this passport actually gets used.
+        "consular_phone": (primary_mission or {}).get("phone"),
         "preferred_language": tourist.preferred_language,
         "phone": tourist.phone,
         "emergency_contacts": json.loads(tourist.emergency_contacts or "[]"),

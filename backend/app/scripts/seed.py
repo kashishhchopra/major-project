@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from datetime import timedelta
 
+from app.core.config import settings
 from app.core.security import hash_password
 from app.core.time import utc_now
 from app.db.session import Base, SessionLocal
@@ -17,7 +19,8 @@ from app.models.police import Camera, PoliceStation, PoliceUnit
 from app.models.tourist import Tourist
 from app.models.user import User
 from app.models.zone import Zone
-from app.services import hashchain, tourist_id
+from app.services import hashchain, poi, tourist_id
+from app.services.crime_index import calibrate_zone_crime_index
 
 CENTER = (26.1445, 91.7362)  # Guwahati
 
@@ -35,6 +38,18 @@ def _avatar_svg(initials: str, color: str) -> str:
         f'fill="white" text-anchor="middle">{initials}</text></svg>'
     )
     return f"data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}"
+
+
+def _seed_password(env_var: str) -> str:
+    """Demo account passwords come from env when set; otherwise a random
+    password is generated and printed once. Nothing weak is hardcoded into
+    source, which is what actually ends up in a public repo."""
+    value = os.environ.get(env_var)
+    if value:
+        return value
+    generated = secrets.token_urlsafe(9)
+    print(f"  ({env_var} not set -- generated: {generated})")
+    return generated
 
 
 def _rect(lat, lng, dlat=0.008, dlng=0.008):
@@ -60,19 +75,34 @@ def _reset_data(db) -> None:
 
 
 def seed() -> None:
+    if settings.is_production and os.environ.get("SEED_FORCE") != "true":
+        raise RuntimeError(
+            "Refusing to seed a production database with demo accounts. "
+            "Set SEED_FORCE=true if this is genuinely intended."
+        )
+
+    admin_password = _seed_password("SEED_ADMIN_PASSWORD")
+    tourist_password = _seed_password("SEED_TOURIST_PASSWORD")
+    responder_password = _seed_password("SEED_RESPONDER_PASSWORD")
+
     db = SessionLocal()
     _reset_data(db)
     try:
         # ---- admin / police operator account ----
         db.add(User(
             email="admin@tourism.gov.in", full_name="Control Room Officer",
-            hashed_password=hash_password("admin123"), role="admin",
+            hashed_password=hash_password(admin_password), role="admin",
         ))
 
         # ---- zones (mix of manual + DBSCAN-discovered) ----
+        # crime_index values below come from calibrate_zone_crime_index(),
+        # anchored to the real NCRB national crime-against-foreigners series
+        # (see app/services/crime_index.py) rather than hand-picked numbers.
         zones = [
-            Zone(name="Riverside Restricted Area", risk_level="restricted",
-                 polygon=json.dumps(_rect(26.1800, 91.7700)), crime_index=85,
+            Zone(name="Riverside Restricted Area", risk_level="restricted", state="Assam",
+                 crime_index_source="ncrb",
+                 polygon=json.dumps(_rect(26.1800, 91.7700)),
+                 crime_index=calibrate_zone_crime_index("restricted"),
                  description="Border/riverbank — entry prohibited after dusk", source="manual",
                  # Low risk multiplier by day, spikes sharply after dusk (hour 18+)
                  # and stays elevated overnight -- demonstrates time-aware zone risk.
@@ -82,19 +112,25 @@ def seed() -> None:
                      "12": 0.6, "13": 0.6, "14": 0.6, "15": 0.6, "16": 0.7, "17": 0.9,
                      "18": 1.2, "19": 1.3, "20": 1.4, "21": 1.4, "22": 1.4, "23": 1.4,
                  })),
-            Zone(name="Old Market High-Risk Zone", risk_level="high",
-                 polygon=json.dumps(_rect(26.1650, 91.7500)), crime_index=70,
+            Zone(name="Old Market High-Risk Zone", risk_level="high", state="Assam",
+                 crime_index_source="ncrb",
+                 polygon=json.dumps(_rect(26.1650, 91.7500)),
+                 crime_index=calibrate_zone_crime_index("high"),
                  description="Pickpocketing & scam hotspot", source="manual",
                  # Busy/well-lit by day, pickpocketing risk climbs in the evening.
                  time_risk_curve=json.dumps({
                      "9": 0.7, "10": 0.7, "11": 0.7, "12": 0.8, "13": 0.8, "14": 0.8,
                      "17": 1.1, "18": 1.2, "19": 1.3, "20": 1.3, "21": 1.2,
                  })),
-            Zone(name="Hillside Trek Caution Zone", risk_level="medium",
-                 polygon=json.dumps(_rect(26.1250, 91.7150, 0.01, 0.01)), crime_index=40,
+            Zone(name="Hillside Trek Caution Zone", risk_level="medium", state="Assam",
+                 crime_index_source="ncrb",
+                 polygon=json.dumps(_rect(26.1250, 91.7150, 0.01, 0.01)),
+                 crime_index=calibrate_zone_crime_index("medium"),
                  description="Landslide-prone trekking route", source="manual"),
-            Zone(name="City Center Safe Zone", risk_level="low",
-                 polygon=json.dumps(_rect(26.1445, 91.7362, 0.006, 0.006)), crime_index=15,
+            Zone(name="City Center Safe Zone", risk_level="low", state="Assam",
+                 crime_index_source="ncrb",
+                 polygon=json.dumps(_rect(26.1445, 91.7362, 0.006, 0.006)),
+                 crime_index=calibrate_zone_crime_index("low"),
                  description="Well-patrolled tourist district", source="manual"),
         ]
 
@@ -167,10 +203,19 @@ def seed() -> None:
         db.flush()
         responder_unit = units[0]
 
+        # Additionally import real police stations & hospitals from the
+        # committed OSM snapshot (app/scripts/fetch_pois.py), if present --
+        # augments rather than replaces the hand-written units above so the
+        # responder-linked "Unit Alpha" demo flow keeps working exactly as
+        # before, while the map also shows genuine coverage across the area.
+        osm_count = poi.seed_units_from_snapshot(db)
+        if osm_count:
+            print(f"  Imported {osm_count} real police/hospital units from OpenStreetMap")
+
         # ---- responder (field unit) account, linked to Unit Alpha ----
         db.add(User(
             email="responder@tourism.gov.in", full_name="Unit Alpha Responder",
-            hashed_password=hash_password("responder123"), role="responder",
+            hashed_password=hash_password(responder_password), role="responder",
             unit_id=responder_unit.id,
         ))
 
@@ -250,7 +295,7 @@ def seed() -> None:
             # tourist login account
             db.add(User(
                 email=d["email"], full_name=d["full_name"],
-                hashed_password=hash_password("tourist123"),
+                hashed_password=hash_password(tourist_password),
                 role="tourist", tourist_id=t.id,
             ))
 
@@ -272,9 +317,9 @@ def seed() -> None:
 
         db.commit()
         print("Seed complete.")
-        print("  Admin login : admin@tourism.gov.in / admin123")
-        print("  Tourist login: aarav@example.com / tourist123 (and emma/rohan/sofia/kenji)")
-        print("  Responder login: responder@tourism.gov.in / responder123 (Unit Alpha)")
+        print(f"  Admin login : admin@tourism.gov.in / {admin_password}")
+        print(f"  Tourist login: aarav@example.com / {tourist_password} (and emma/rohan/sofia/kenji)")
+        print(f"  Responder login: responder@tourism.gov.in / {responder_password} (Unit Alpha)")
         print(f"  Tourists: {db.query(Tourist).count()}, Zones: {db.query(Zone).count()}, "
               f"Units: {db.query(PoliceUnit).count()}, Stations: {db.query(PoliceStation).count()}, "
               f"Cameras: {db.query(Camera).count()}")

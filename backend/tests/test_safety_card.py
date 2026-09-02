@@ -33,3 +33,27 @@ def test_safety_card_forbidden_for_other_tourist(client, tourist_headers, db):
     other = make_tourist(db, name="Not Me")
     r = client.get(f"/api/tourists/{other.id}/safety-card", headers=tourist_headers)
     assert r.status_code == 403
+
+
+def test_safety_card_omits_consular_info_for_indian_nationals(client, admin_headers, db):
+    t = make_tourist(db)  # default nationality="Indian"
+    r = client.get(f"/api/tourists/{t.id}/safety-card", headers=admin_headers)
+    assert "consular" not in r.json()
+
+
+def test_safety_card_includes_consular_info_for_foreign_nationals(client, admin_headers, db):
+    t = make_tourist(db)
+    t.nationality = "Japanese"
+    db.commit()
+    r = client.get(f"/api/tourists/{t.id}/safety-card", headers=admin_headers)
+    body = r.json()
+    assert body["consular"]["country_code"] == "JP"
+    assert body["country_guidance"]["helpline_language"] == "Japanese"
+
+
+def test_safety_card_unrecognised_nationality_has_no_consular_info(client, admin_headers, db):
+    t = make_tourist(db)
+    t.nationality = "Atlantean"
+    db.commit()
+    r = client.get(f"/api/tourists/{t.id}/safety-card", headers=admin_headers)
+    assert "consular" not in r.json()

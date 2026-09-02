@@ -8,6 +8,7 @@ from app.models.disaster import DisasterAdvisory
 from app.models.efir import EFIR
 from app.models.guardian import TripGuardian
 from app.models.incident import Incident, IncidentEvent
+from app.models.job_lock import JobLock
 from app.models.password_reset import PasswordResetToken
 from app.models.police import Camera, PoliceStation, PoliceUnit
 from app.models.revoked_token import RevokedToken
@@ -39,4 +40,5 @@ __all__ = [
     "ChainAnchor",
     "TouristIdToken",
     "TouristIdScan",
+    "JobLock",
 ]

@@ -242,3 +242,158 @@ def test_create_camera_endpoint_requires_admin(client, admin_headers):
                     headers=admin_headers)
     assert r.status_code == 201
     assert r.json()["label"] == "New Cam"
+
+
+# ------------------------------------------- resource fallback (station A->B->C)
+def _fill_station(db, station, count):
+    """Saturate a station with `count` open cases."""
+    for _ in range(count):
+        inc = Incident(tourist_id=None, type="anomaly", severity="medium",
+                       status="detected", description="load", lat=None, lng=None,
+                       station_id=station.id)
+        db.add(inc)
+    db.commit()
+
+
+def test_station_capacity_reports_live_load(db):
+    s = make_station(db, name="Busy PS", max_concurrent_cases=2)
+    assert police_network.station_capacity(db, s)["has_capacity"] is True
+
+    _fill_station(db, s, 2)
+    cap = police_network.station_capacity(db, s)
+    assert cap["open_cases"] == 2
+    assert cap["has_capacity"] is False
+    assert cap["load_pct"] == 100.0
+
+
+def test_resolved_cases_free_up_capacity(db):
+    s = make_station(db, name="Busy PS", max_concurrent_cases=1)
+    _fill_station(db, s, 1)
+    assert police_network.station_capacity(db, s)["has_capacity"] is False
+
+    db.query(Incident).filter(Incident.station_id == s.id).update({"status": "resolved"})
+    db.commit()
+    assert police_network.station_capacity(db, s)["has_capacity"] is True
+
+
+def test_sos_falls_back_when_zone_station_is_at_capacity(db):
+    """Station A (the zone's own) is full -> the case is routed to the next
+    best-suited station instead of being delayed."""
+    zone = make_zone(db, lat=26.165, lng=91.75, d=0.008)
+    station_a = make_station(db, name="Station A", zone_id=zone.id,
+                            lat=26.165, lng=91.75, max_concurrent_cases=1)
+    station_b = make_station(db, name="Station B", lat=26.17, lng=91.76,
+                            max_concurrent_cases=5)
+    _fill_station(db, station_a, 1)  # A is now at capacity
+
+    t = make_tourist(db, lat=26.165, lng=91.75)
+    result = trigger_sos(db, t, 26.165, 91.75, "help")
+    inc = db.get(Incident, result["incident_id"])
+
+    assert inc.station_id == station_b.id
+    notes = [e.note for e in inc.events]
+    assert any("Station A at capacity" in n and "Station B" in n for n in notes)
+
+
+def test_fallback_skips_full_stations_to_the_next_with_capacity(db):
+    """A full, B full -> C takes it (Station A -> Station B -> Station C)."""
+    zone = make_zone(db, lat=26.165, lng=91.75, d=0.008)
+    station_a = make_station(db, name="Station A", zone_id=zone.id,
+                            lat=26.165, lng=91.75, max_concurrent_cases=1)
+    station_b = make_station(db, name="Station B", lat=26.166, lng=91.751,
+                            max_concurrent_cases=1)
+    station_c = make_station(db, name="Station C", lat=26.20, lng=91.80,
+                            max_concurrent_cases=5)
+    _fill_station(db, station_a, 1)
+    _fill_station(db, station_b, 1)
+
+    t = make_tourist(db, lat=26.165, lng=91.75)
+    result = trigger_sos(db, t, 26.165, 91.75, "help")
+    assert db.get(Incident, result["incident_id"]).station_id == station_c.id
+
+
+def test_no_fallback_while_the_zone_station_has_capacity(db):
+    """Unchanged behaviour when nothing is overloaded: the zone's own
+    station keeps the case, with the original routing note."""
+    zone = make_zone(db, lat=26.165, lng=91.75, d=0.008)
+    station_a = make_station(db, name="Station A", zone_id=zone.id,
+                            lat=26.165, lng=91.75, max_concurrent_cases=5)
+    make_station(db, name="Station B", lat=26.17, lng=91.76)
+
+    t = make_tourist(db, lat=26.165, lng=91.75)
+    result = trigger_sos(db, t, 26.165, 91.75, "help")
+    inc = db.get(Incident, result["incident_id"])
+
+    assert inc.station_id == station_a.id
+    assert any("Routed to Station A" in e.note for e in inc.events)
+
+
+def test_every_station_full_still_dispatches_nearest(db):
+    """A busy network beats no response -- the case is never left unassigned."""
+    zone = make_zone(db, lat=26.165, lng=91.75, d=0.008)
+    station_a = make_station(db, name="Station A", zone_id=zone.id,
+                            lat=26.165, lng=91.75, max_concurrent_cases=1)
+    station_b = make_station(db, name="Station B", lat=26.30, lng=91.90,
+                            max_concurrent_cases=1)
+    _fill_station(db, station_a, 1)
+    _fill_station(db, station_b, 1)
+
+    t = make_tourist(db, lat=26.165, lng=91.75)
+    result = trigger_sos(db, t, 26.165, 91.75, "help")
+    # nearest of the two full stations wins rather than nobody taking it
+    assert db.get(Incident, result["incident_id"]).station_id == station_a.id
+
+
+def test_rank_stations_puts_stations_with_capacity_first(db):
+    near_full = make_station(db, name="Near Full", lat=26.165, lng=91.75,
+                            max_concurrent_cases=1)
+    far_free = make_station(db, name="Far Free", lat=26.30, lng=91.90,
+                           max_concurrent_cases=5)
+    _fill_station(db, near_full, 1)
+
+    ranked = police_network.rank_stations_for_point(db, 26.165, 91.75)
+    assert ranked[0]["station"].id == far_free.id  # capacity beats proximity
+    assert ranked[0]["has_capacity"] is True
+    assert ranked[-1]["station"].id == near_full.id
+
+
+def test_fallback_preview_endpoint(client, admin_headers, db):
+    make_station(db, name="Station A", lat=26.165, lng=91.75, max_concurrent_cases=3)
+    make_station(db, name="Station B", lat=26.30, lng=91.90)
+
+    r = client.get("/api/police-network/fallback-preview?lat=26.165&lng=91.75",
+                   headers=admin_headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert body[0]["name"] == "Station A"  # closest with capacity leads
+    assert body[0]["has_capacity"] is True
+    assert "load_pct" in body[0]
+
+
+def test_station_capacity_endpoint(client, admin_headers, db):
+    s = make_station(db, name="Station A", max_concurrent_cases=2)
+    _fill_station(db, s, 2)
+
+    r = client.get(f"/api/police-network/stations/{s.id}/capacity", headers=admin_headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "Station A"
+    assert body["open_cases"] == 2
+    assert body["has_capacity"] is False
+
+
+def test_station_capacity_endpoint_404(client, admin_headers):
+    r = client.get("/api/police-network/stations/99999/capacity", headers=admin_headers)
+    assert r.status_code == 404
+
+
+def test_dashboard_exposes_capacity_signals(client, admin_headers, db):
+    s = make_station(db, name="Station A", max_concurrent_cases=2, total_officers=17)
+    _fill_station(db, s, 2)
+
+    r = client.get("/api/police-network/dashboard", headers=admin_headers)
+    entry = next(e for e in r.json()["stations"] if e["id"] == s.id)
+    assert entry["total_officers"] == 17
+    assert entry["max_concurrent_cases"] == 2
+    assert entry["has_capacity"] is False
+    assert entry["load_pct"] == 100.0

@@ -64,6 +64,10 @@ class StationDashboardEntry(BaseModel):
     open_incidents: int
     critical_incidents: int
     incident_ids: list[int]
+    total_officers: int
+    max_concurrent_cases: int
+    has_capacity: bool
+    load_pct: float
 
 
 class CentralDashboardOut(BaseModel):
@@ -71,3 +75,27 @@ class CentralDashboardOut(BaseModel):
     stations: list[StationDashboardEntry]
     unassigned_incidents: list[int]
     total_open_incidents: int
+
+
+class StationCapacityOut(BaseModel):
+    """Live resource status for one station -- Police Station Resource
+    Fallback System (services/police_network.py)."""
+    station_id: int
+    name: str
+    open_cases: int
+    max_concurrent_cases: int
+    total_officers: int
+    has_capacity: bool
+    load_pct: float
+
+
+class StationFallbackOut(BaseModel):
+    """One entry in the ranked fallback order for a location."""
+    station_id: int
+    name: str
+    distance_km: float
+    open_cases: int
+    max_concurrent_cases: int
+    total_officers: int
+    has_capacity: bool
+    load_pct: float

@@ -119,9 +119,12 @@ def make_unit(db, name="Unit Alpha", lat=26.145, lng=91.737, available=True,
     return u
 
 
-def make_station(db, name="Central PS", zone_id=None, lat=26.145, lng=91.737):
+def make_station(db, name="Central PS", zone_id=None, lat=26.145, lng=91.737,
+                 total_officers=12, max_concurrent_cases=5):
     s = PoliceStation(name=name, zone_id=zone_id, phone="100",
-                      contact_officer="Officer", lat=lat, lng=lng)
+                      contact_officer="Officer", lat=lat, lng=lng,
+                      total_officers=total_officers,
+                      max_concurrent_cases=max_concurrent_cases)
     db.add(s)
     db.commit()
     db.refresh(s)

@@ -154,18 +154,26 @@ def seed() -> None:
 
         # ---- area-based police network: one station per zone ----
         stations = [
+            # Staffing/capacity varies by station -- a district HQ carries far
+            # more concurrent cases than a hillside outpost, which is exactly
+            # what makes the resource-fallback routing meaningful (see
+            # services/police_network.py:assign_station).
             PoliceStation(name="City Central PS", zone_id=city_zone.id, phone="100",
                           contact_officer="Inspector Rina Baruah",
-                          lat=26.1450, lng=91.7370),
+                          lat=26.1450, lng=91.7370,
+                          total_officers=32, max_concurrent_cases=8),
             PoliceStation(name="Riverside PS", zone_id=riverside_zone.id, phone="100",
                           contact_officer="Sub-Inspector Manoj Das",
-                          lat=26.1750, lng=91.7650),
+                          lat=26.1750, lng=91.7650,
+                          total_officers=22, max_concurrent_cases=5),
             PoliceStation(name="Market PS", zone_id=market_zone.id, phone="100",
                           contact_officer="Inspector Priya Nair",
-                          lat=26.1620, lng=91.7480),
+                          lat=26.1620, lng=91.7480,
+                          total_officers=28, max_concurrent_cases=6),
             PoliceStation(name="Hillside Outpost", zone_id=hillside_zone.id, phone="100",
                           contact_officer="Sub-Inspector Tenzin Lepcha",
-                          lat=26.1280, lng=91.7180),
+                          lat=26.1280, lng=91.7180,
+                          total_officers=8, max_concurrent_cases=2),
         ]
         db.add_all(stations)
 

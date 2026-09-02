@@ -37,6 +37,7 @@ from app.schemas.tourist import (
 )
 from app.services import audit, hashchain, privacy
 from app.services import passport as passport_service
+from app.services import tourist_id as tourist_id_service
 from app.services.forecast import DEFAULT_HORIZONS_MIN, forecast_risk
 from app.services.monitoring import process_ping
 from app.services.routing import recommend_route
@@ -64,6 +65,8 @@ def _serialize(t: Tourist) -> dict:
         "document_type": t.document_type,
         "document_number": t.document_number,
         "phone": t.phone,
+        "photo": t.photo,
+        "hotel": t.hotel,
         "itinerary": json.loads(t.itinerary or "[]"),
         "emergency_contacts": json.loads(t.emergency_contacts or "[]"),
         "trip_start": t.trip_start,
@@ -92,6 +95,8 @@ def register_tourist(payload: TouristCreate, db: Session = Depends(get_db)):
         document_type=payload.document_type,
         document_number=payload.document_number,
         phone=payload.phone,
+        photo=payload.photo,
+        hotel=payload.hotel,
         itinerary=json.dumps([w.model_dump() for w in payload.itinerary]),
         emergency_contacts=json.dumps([c.model_dump() for c in payload.emergency_contacts]),
         trip_start=payload.trip_start,
@@ -107,6 +112,11 @@ def register_tourist(payload: TouristCreate, db: Session = Depends(get_db)):
         "document": payload.document_number,
         "trip_end": payload.trip_end.isoformat(),
     })
+
+    # Mint the Digital Tourist Safety ID's secure QR token so the card is
+    # ready to display immediately after registration -- see
+    # services/tourist_id.py.
+    tourist_id_service.issue_token(db, tourist)
 
     # optional tourist login account
     if payload.email and payload.password:

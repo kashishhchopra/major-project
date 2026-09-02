@@ -30,10 +30,15 @@ class Tourist(Base):
     # Encrypted at rest -- see app/core/crypto.py. Reads return plaintext.
     document_number: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     phone: Mapped[str] = mapped_column(String, nullable=False)
+    # Digital Tourist Safety ID photo, as a data: URI. Not encrypted (unlike
+    # document_number) -- a face photo isn't the same class of secret as a
+    # government ID number, and the Digital ID card needs to render it directly.
+    photo: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Trip
     itinerary: Mapped[str] = mapped_column(Text, default="[]")  # JSON list of {name,lat,lng}
     emergency_contacts: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
+    hotel: Mapped[str | None] = mapped_column(String, nullable=True)
     trip_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     trip_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 

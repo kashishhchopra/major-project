@@ -17,6 +17,7 @@ from app.api import (
     incidents,
     ml,
     police_network,
+    tourist_id,
     tourists,
     ws,
     zones,
@@ -186,6 +187,7 @@ app.include_router(tourists.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(zones.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(incidents.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(police_network.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(tourist_id.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(analytics.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(ml.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(devices.router, prefix=PREFIX, dependencies=_rl)

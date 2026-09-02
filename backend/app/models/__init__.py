@@ -12,6 +12,7 @@ from app.models.password_reset import PasswordResetToken
 from app.models.police import Camera, PoliceStation, PoliceUnit
 from app.models.revoked_token import RevokedToken
 from app.models.tourist import IdBlock, LocationPing, Tourist
+from app.models.tourist_id import TouristIdScan, TouristIdToken
 from app.models.user import User
 from app.models.zone import Zone
 
@@ -36,4 +37,6 @@ __all__ = [
     "CheckIn",
     "DisasterAdvisory",
     "ChainAnchor",
+    "TouristIdToken",
+    "TouristIdScan",
 ]

@@ -10,6 +10,7 @@ import HelpTab from './tabs/HelpTab.jsx'
 import MeTab from './tabs/MeTab.jsx'
 import ReportSheet from './tabs/ReportSheet.jsx'
 import CopilotChat from '../../components/CopilotChat.jsx'
+import VoiceAssistantButton from '../../components/VoiceAssistantButton.jsx'
 
 const TAB_COMPONENTS = { home: HomeTab, plan: PlanTab, help: HelpTab, me: MeTab }
 
@@ -25,6 +26,7 @@ export default function TouristApp() {
   const [activeTab, setActiveTab] = useState('home')
   const [reportOpen, setReportOpen] = useState(false)
   const copilotRef = useRef(null)
+  const voiceRef = useRef(null)
   const data = useTouristData(tid)
 
   if (!data.ready) {
@@ -44,7 +46,8 @@ export default function TouristApp() {
         tid={tid}
         posRef={data.posRef}
       >
-        <ActiveTab data={{ ...data, tid }} onAskAI={() => copilotRef.current?.open()} />
+        <ActiveTab data={{ ...data, tid }} onAskAI={() => copilotRef.current?.open()}
+          onVoice={() => voiceRef.current?.open()} onNavigateTab={setActiveTab} />
       </TouristShell>
 
       <TouristTabBar active={activeTab} onChange={setActiveTab} />
@@ -56,9 +59,15 @@ export default function TouristApp() {
         lang={i18n.resolvedLanguage || i18n.language}
       />
 
+      {/* Always-available voice assistant: one tap to speak, on any tab. */}
+      <VoiceAssistantButton ref={voiceRef} touristId={tid} lang={i18n.resolvedLanguage || i18n.language} />
+
       <CopilotChat ref={copilotRef} endpoint={`/tourists/${tid}/copilot/ask`} title="Safety Helper"
-        placeholder="e.g. is this area safe?"
-        suggestions={['Nearest hospital?', 'Is this area safe?', 'What should I do now?']} />
+        placeholder="e.g. is this area safe?" lang={i18n.resolvedLanguage || i18n.language}
+        suggestions={[
+          'Nearest hospital?', 'Find transport', "What's my next destination?",
+          'Show my itinerary', 'Am I on the correct route?', 'Is this area safe?',
+        ]} />
     </>
   )
 }

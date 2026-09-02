@@ -8,24 +8,6 @@ import { DEFAULT_MAP, POLL_INTERVAL_MS, loadMapConfig } from '../../config'
 import HeatmapLayer from '../../components/HeatmapLayer.jsx'
 import TrajectoryOverlay from '../../components/TrajectoryOverlay.jsx'
 
-// AI Alert Prioritization: critical/high/medium/low chip, reusing the
-// project's reserved severity palette so a priority reads the same as a
-// severity badge elsewhere.
-const PRIORITY_CLS = {
-  critical: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
-  high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
-  medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
-  low: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
-}
-
-function PriorityBadge({ priority }) {
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${PRIORITY_CLS[priority] || PRIORITY_CLS.low}`}>
-      {priority}
-    </span>
-  )
-}
-
 export default function Dashboard() {
   const [tourists, setTourists] = useState([])
   const [zones, setZones] = useState([])
@@ -36,8 +18,6 @@ export default function Dashboard() {
   const [heatPoints, setHeatPoints] = useState([])
   const [showHeatmap, setShowHeatmap] = useState(true)
   const [trajectories, setTrajectories] = useState({})
-  const [prioritized, setPrioritized] = useState(false)
-  const [priorityAlerts, setPriorityAlerts] = useState([])
 
   const load = async () => {
     const [t, z, u, a, s, hist] = await Promise.all([
@@ -77,14 +57,6 @@ export default function Dashboard() {
     const iv = setInterval(load, POLL_INTERVAL_MS)
     return () => clearInterval(iv)
   }, [])
-
-  useEffect(() => {
-    if (!prioritized) return
-    const loadPriority = () => api.get('/alerts/prioritized?limit=30').then((r) => setPriorityAlerts(r.data))
-    loadPriority()
-    const iv = setInterval(loadPriority, POLL_INTERVAL_MS)
-    return () => clearInterval(iv)
-  }, [prioritized])
 
   const { connected } = useWebSocket((ev) => {
     if (ev.event === 'alert') {
@@ -170,21 +142,12 @@ export default function Dashboard() {
 
         <div className="bg-white rounded-xl shadow-sm flex flex-col" style={{ height: 520 }}>
           <div className="px-4 py-3 border-b border-slate-100 font-semibold text-slate-800 flex items-center justify-between gap-2">
-            <span>{prioritized ? 'Prioritized Alerts' : 'Live Alert Feed'}</span>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1 text-xs font-normal text-slate-500 cursor-pointer select-none">
-                <input type="checkbox" checked={prioritized}
-                  onChange={(e) => setPrioritized(e.target.checked)} />
-                By priority
-              </label>
-              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                {prioritized ? priorityAlerts.length : alerts.length}
-              </span>
-            </div>
+            <span>Live Alert Feed</span>
+            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{alerts.length}</span>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-            {!prioritized && alerts.length === 0 && <div className="p-4 text-sm text-slate-400">No alerts yet.</div>}
-            {!prioritized && alerts.map((a, i) => (
+            {alerts.length === 0 && <div className="p-4 text-sm text-slate-400">No alerts yet.</div>}
+            {alerts.map((a, i) => (
               <div key={a.id || i} className="px-4 py-2.5 hover:bg-slate-50">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium capitalize">{a.type?.replace('_', ' ')}</span>
@@ -193,20 +156,6 @@ export default function Dashboard() {
                 <div className="text-xs text-slate-600 mt-0.5">{a.message}</div>
                 <div className="text-[10px] text-slate-400 mt-0.5">
                   {a.created_at ? new Date(a.created_at).toLocaleTimeString() : ''}
-                </div>
-              </div>
-            ))}
-            {prioritized && priorityAlerts.length === 0 && <div className="p-4 text-sm text-slate-400">No alerts yet.</div>}
-            {prioritized && priorityAlerts.map((a) => (
-              <div key={a.id} className="px-4 py-2.5 hover:bg-slate-50">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium capitalize">{a.type?.replace('_', ' ')}</span>
-                  <PriorityBadge priority={a.priority} />
-                </div>
-                <div className="text-xs text-slate-600 mt-0.5">{a.message}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5 flex justify-between">
-                  <span>{a.created_at ? new Date(a.created_at).toLocaleTimeString() : ''}</span>
-                  <span>score {a.priority_score}</span>
                 </div>
               </div>
             ))}

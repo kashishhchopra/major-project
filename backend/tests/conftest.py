@@ -25,6 +25,7 @@ from app.core.security import hash_password  # noqa: E402
 from app.core.time import utc_now  # noqa: E402
 from app.db.session import Base, apply_sqlite_pragmas, get_db  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.place import PointOfInterest  # noqa: E402
 from app.models.police import Camera, PoliceStation, PoliceUnit  # noqa: E402
 from app.models.tourist import Tourist  # noqa: E402
 from app.models.user import User  # noqa: E402
@@ -137,6 +138,14 @@ def make_camera(db, label="Cam 1", zone_id=None, lat=26.145, lng=91.737, status=
     db.commit()
     db.refresh(c)
     return c
+
+
+def make_poi(db, name="Test Place", category="pharmacy", lat=26.145, lng=91.737, phone=""):
+    p = PointOfInterest(name=name, category=category, lat=lat, lng=lng, phone=phone)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
 
 
 @pytest.fixture

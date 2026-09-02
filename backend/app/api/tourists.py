@@ -40,6 +40,8 @@ from app.services import passport as passport_service
 from app.services import tourist_id as tourist_id_service
 from app.services.forecast import DEFAULT_HORIZONS_MIN, forecast_risk
 from app.services.monitoring import process_ping
+from app.services.navigation import get_navigation_guidance
+from app.services.nearby import find_nearby
 from app.services.routing import recommend_route
 from app.services.safety import compute_safety_score
 from app.services.safety_card import build_safety_card
@@ -234,6 +236,36 @@ def get_safety_card(tourist_id: int, db: Session = Depends(get_db),
     if not t:
         raise HTTPException(status_code=404, detail="Tourist not found")
     return build_safety_card(db, t)
+
+
+@router.get("/{tourist_id}/nearby")
+def get_nearby(tourist_id: int, category: str, radius_m: float = 5000,
+               db: Session = Depends(get_db), _: User = Depends(require_self_or_admin)):
+    """Every hospital/police/pharmacy/transport option near the tourist's
+    live location, distance-sorted -- see services/nearby.py. Real hospital/
+    police data (including the committed OSM import); pharmacy/transport are
+    seeded demo fixtures unless a real feed is added."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    if category not in ("hospital", "police", "pharmacy", "transport"):
+        raise HTTPException(status_code=400, detail="category must be one of: hospital, police, pharmacy, transport")
+    if t.last_lat is None:
+        return []
+    return find_nearby(db, t.last_lat, t.last_lng, category, radius_m)
+
+
+@router.get("/{tourist_id}/navigation")
+def get_navigation(tourist_id: int, db: Session = Depends(get_db),
+                   _: User = Depends(require_self_or_admin)):
+    """Voice-guidance navigation toward the tourist's next confirmed
+    itinerary stop -- see services/navigation.py. The voice assistant
+    (frontend) polls this and speaks `instruction` only when the tourist has
+    turned voice guidance on; this endpoint itself never makes any sound."""
+    t = db.get(Tourist, tourist_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tourist not found")
+    return get_navigation_guidance(t)
 
 
 @router.get("/{tourist_id}/chain", response_model=list[IdBlockOut])

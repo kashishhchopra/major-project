@@ -3,6 +3,8 @@ import { Card } from '../../../components/ui.jsx'
 import RiskForecastStrip from '../../../components/RiskForecastStrip.jsx'
 import RoutePicker from '../../../components/RoutePicker.jsx'
 import CheckInCard from '../../../components/CheckInCard.jsx'
+import ItineraryUploadCard from '../../../components/ItineraryUploadCard.jsx'
+import VoiceNavigationAssistant from '../../../components/VoiceNavigationAssistant.jsx'
 
 // Everything about planning ahead: how risk changes over the next hour,
 // picking a safer route, the itinerary, and check-in/out. The route-picker
@@ -10,18 +12,22 @@ import CheckInCard from '../../../components/CheckInCard.jsx'
 // destination-picking happens by tapping the map and only one tab is
 // mounted at a time.
 export default function PlanTab({ data }) {
-  const { t } = useTranslation()
-  const { me, riskForecast, tid, routePicker, routePickerOpen, setRoutePickerOpen } = data
+  const { t, i18n } = useTranslation()
+  const { me, riskForecast, tid, routePicker, routePickerOpen, setRoutePickerOpen, load } = data
 
   return (
     <div className="space-y-4">
       <RiskForecastStrip forecast={riskForecast} />
+
+      <VoiceNavigationAssistant touristId={tid} lang={i18n.resolvedLanguage || i18n.language} />
 
       <button onClick={() => setRoutePickerOpen((v) => !v)}
         className="w-full text-sm font-semibold text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 rounded-xl py-2">
         {routePickerOpen ? 'Hide safe route planner' : '🧭 Plan a safe route'}
       </button>
       <RoutePicker active={routePickerOpen} onToggle={() => setRoutePickerOpen(false)} state={routePicker} />
+
+      <ItineraryUploadCard touristId={tid} onConfirmed={load} />
 
       <Card title={t('itinerary.title')}>
         <ol className="space-y-2">

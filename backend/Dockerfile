@@ -7,6 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # System deps for scientific wheels are covered by manylinux wheels; keep image slim.
+# tesseract-ocr is the one real (non-Python) dependency: it powers itinerary
+# photo/scan OCR (services/itinerary_extract.py). If this package is ever
+# dropped from the image, that feature degrades gracefully to its
+# "OCR unavailable" message rather than breaking the build or the app.
+RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 

@@ -129,6 +129,38 @@ class Settings(BaseSettings):
     # this at whatever CAP 1.2 source is actually available to you.
     DISASTER_FEED_URL: str = ""
 
+    # ---- external services: maps / translation / speech ----
+    # All blank by default -- every feature that would use these has a
+    # deterministic demo/mock fallback (see services/maps.py,
+    # services/translation.py) so the app runs fully offline with no keys.
+    # A response built from the fallback is always marked demo/mock in its
+    # payload so the frontend can say so, not silently pass mock data off
+    # as live.
+    GOOGLE_MAPS_API_KEY: str = ""
+    GOOGLE_TRANSLATE_API_KEY: str = ""
+    SPEECH_TO_TEXT_API_KEY: str = ""
+    TEXT_TO_SPEECH_API_KEY: str = ""
+    # Itinerary document upload: max file size accepted for extraction.
+    ITINERARY_DOCUMENT_MAX_BYTES: int = 5_000_000  # 5 MB
+
+    # ---- open-ended assistant (see services/llm.py) ----
+    # The intent router answers safety-critical questions from real DB rows;
+    # this backs everything else, so the assistant isn't limited to a fixed
+    # command list. Default "auto": a cloud key if one is configured, else a
+    # local Ollama model (free, no key, nothing leaves the machine), else
+    # nothing -- in which case the assistant simply says what it can do.
+    LLM_ENABLED: bool = True
+    LLM_PROVIDER: str = "auto"  # auto | ollama | openai | anthropic | none
+    LLM_TIMEOUT_SECONDS: float = 30.0
+    LLM_MAX_TOKENS: int = 250  # answers are read aloud -- keep them short
+    LLM_TEMPERATURE: float = 0.3
+    OLLAMA_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3.2"
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-sonnet-5"
+
     # ---- live-feed fallback ladder (see services/feeds.py) ----
     # False = snapshot-only, no network calls at all -- the demo-venue kill
     # switch (e.g. a hackathon hall with no reliable internet).
@@ -184,6 +216,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"
+
+    @property
+    def is_test(self) -> bool:
+        return self.ENVIRONMENT.lower() == "test"
 
     @field_validator("ENVIRONMENT")
     @classmethod

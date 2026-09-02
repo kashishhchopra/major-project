@@ -25,3 +25,9 @@ psycopg[binary]==3.2.3
 apscheduler==3.11.0
 defusedxml==0.7.1
 openpyxl==3.1.5
+pypdf==6.16.2       # itinerary document upload: PDF text extraction
+python-docx==1.2.0  # itinerary document upload: DOCX text extraction
+pytesseract==0.3.13 # itinerary document upload: OCR for photo/scan uploads
+                    # (needs the `tesseract` binary on the host -- apt-get
+                    # install tesseract-ocr in production; falls back to a
+                    # clear "OCR unavailable" message if it's missing)

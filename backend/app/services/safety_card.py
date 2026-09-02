@@ -12,10 +12,13 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.models.place import PointOfInterest
 from app.models.police import PoliceUnit
 from app.models.tourist import Tourist
 from app.services import consular
 from app.services.geo import haversine_m
+
+_TRANSPORT_CATEGORIES = ("bus_stop", "metro_station", "railway_station", "taxi_stand")
 
 # National emergency numbers that work regardless of network/carrier --
 # static by design, since this is exactly the information that must be
@@ -44,15 +47,31 @@ def _nearest(tourist: Tourist, units: list[PoliceUnit]) -> dict | None:
     }
 
 
+def _nearest_poi(tourist: Tourist, places: list[PointOfInterest]) -> dict | None:
+    if not places or tourist.last_lat is None:
+        return None
+    nearest = min(places, key=lambda p: haversine_m(tourist.last_lat, tourist.last_lng, p.lat, p.lng))
+    return {
+        "name": nearest.name, "category": nearest.category, "phone": nearest.phone,
+        "lat": nearest.lat, "lng": nearest.lng,
+        "distance_km": round(haversine_m(tourist.last_lat, tourist.last_lng,
+                                         nearest.lat, nearest.lng) / 1000, 2),
+    }
+
+
 def build_safety_card(db: Session, tourist: Tourist) -> dict:
     all_units = db.query(PoliceUnit).filter(PoliceUnit.available.is_(True)).all()
     hospitals = [u for u in all_units if u.unit_type == "ambulance"]
     police = [u for u in all_units if u.unit_type == "police"]
+    pharmacies = db.query(PointOfInterest).filter(PointOfInterest.category == "pharmacy").all()
+    transport = db.query(PointOfInterest).filter(PointOfInterest.category.in_(_TRANSPORT_CATEGORIES)).all()
 
     card = {
         "digital_id": tourist.digital_id,
         "nearest_hospital": _nearest(tourist, hospitals),
         "nearest_police": _nearest(tourist, police),
+        "nearest_pharmacy": _nearest_poi(tourist, pharmacies),
+        "nearest_transport": _nearest_poi(tourist, transport),
         "emergency_numbers": EMERGENCY_NUMBERS,
         "note": (
             "This card works with no signal once loaded -- your browser caches it "

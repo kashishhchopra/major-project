@@ -24,6 +24,13 @@ class Incident(Base):
     assigned_unit_id: Mapped[int | None] = mapped_column(
         ForeignKey("police_units.id"), nullable=True
     )
+    # The station currently responsible for this case in the area-based
+    # police network -- set from the tourist's zone at open time, and moved
+    # by services/police_network.py:forward_incident() as the case travels
+    # between stations. See services/police_network.py.
+    station_id: Mapped[int | None] = mapped_column(
+        ForeignKey("police_stations.id"), nullable=True
+    )
     # escalation_stage: control_room -> emergency_contact -> responder_dispatch
     # -> acknowledged. Advanced by app/services/escalation.py:tick_escalations()
     # whenever `escalation_deadline` passes without a human acknowledgement.

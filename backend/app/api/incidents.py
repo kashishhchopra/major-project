@@ -32,7 +32,7 @@ from app.schemas.incident import (
     SOSRequest,
 )
 from app.schemas.tourist import DuressSOSRequest
-from app.services import alert_priority, audit, dispatch
+from app.services import alert_priority, audit, dispatch, police_network
 from app.services.efir import file_efir, generate_efir
 from app.services.efir_pdf import render_efir_pdf
 from app.services.monitoring import trigger_sos
@@ -311,6 +311,7 @@ def mark_missing(tourist_id: int, request: Request, db: Session = Depends(get_db
     db.add(inc)
     db.flush()
     db.add(IncidentEvent(incident_id=inc.id, status="detected", note="Marked missing"))
+    police_network.assign_station(db, inc)
     db.flush()
 
     efir = file_efir(db, inc, t)

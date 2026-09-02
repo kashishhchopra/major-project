@@ -10,6 +10,7 @@ import Dashboard from './pages/admin/Dashboard.jsx'
 import TouristSearch from './pages/admin/TouristSearch.jsx'
 import Zones from './pages/admin/Zones.jsx'
 import Incidents from './pages/admin/Incidents.jsx'
+import PoliceNetwork from './pages/admin/PoliceNetwork.jsx'
 import Analytics from './pages/admin/Analytics.jsx'
 import ModelInsights from './pages/admin/ModelInsights.jsx'
 import Devices from './pages/admin/Devices.jsx'
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="tourists" element={<TouristSearch />} />
         <Route path="zones" element={<Zones />} />
         <Route path="incidents" element={<Incidents />} />
+        <Route path="police-network" element={<PoliceNetwork />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="model-insights" element={<ModelInsights />} />
         <Route path="devices" element={<Devices />} />

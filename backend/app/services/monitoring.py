@@ -56,6 +56,8 @@ def _create_alert(db: Session, tourist_id, atype, severity, message, lat, lng,
 
 
 def _open_incident(db: Session, tourist: Tourist, itype, severity, description, lat, lng) -> Incident:
+    from app.services import police_network
+
     inc = Incident(
         tourist_id=tourist.id, type=itype, severity=severity,
         status="detected", description=description, lat=lat, lng=lng,
@@ -63,6 +65,10 @@ def _open_incident(db: Session, tourist: Tourist, itype, severity, description, 
     db.add(inc)
     db.flush()
     db.add(IncidentEvent(incident_id=inc.id, status="detected", note=description))
+    # Area-based police network: route to whichever station covers the
+    # tourist's current zone, so every incident opens already attributed to
+    # a responsible station -- see services/police_network.py.
+    station = police_network.assign_station(db, inc)
     db.flush()
     broadcast_sync({
         "event": "incident",
@@ -72,6 +78,7 @@ def _open_incident(db: Session, tourist: Tourist, itype, severity, description, 
         "severity": severity,
         "status": "detected",
         "lat": lat, "lng": lng,
+        "station_id": station.id if station else None,
     })
     return inc
 

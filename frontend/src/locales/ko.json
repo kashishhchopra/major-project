@@ -1,0 +1,53 @@
+{
+  "app": {
+    "name": "관광 안전",
+    "digital_id": "디지털 관광객 ID",
+    "logout": "로그아웃",
+    "loading": "로딩 중…"
+  },
+  "safety": {
+    "my_score": "내 안전 점수",
+    "zone": "구역",
+    "night_caution": "야간 주의",
+    "daytime": "주간"
+  },
+  "geofence": {
+    "warning_title": "지오펜스 경고",
+    "warning_body": "현재 {{zone}}({{risk}} 위험) 지역에 있습니다. 주의하시고 이 지역을 벗어나는 것을 고려하세요.",
+    "safe": "안전한 지역에 있습니다."
+  },
+  "tracking": {
+    "title": "실시간 위치 추적",
+    "subtitle": "선택 사항 — 관제 센터가 당신을 보호할 수 있게 합니다"
+  },
+  "itinerary": {
+    "title": "일정 추적기",
+    "next_stop": "다음 목적지"
+  },
+  "police": {
+    "title": "근처 경찰서"
+  },
+  "sos": {
+    "button": "SOS — 긴급 신호 보내기",
+    "sent_title": "SOS 전송됨",
+    "dispatched": "{{name}}({{station}})이 출동했습니다 — {{km}} km 거리.",
+    "contacts_notified": "비상 연락처에 알림: {{list}}",
+    "describe_title": "긴급 상황 설명 (선택 사항)",
+    "describe_placeholder": "무슨 일이 일어나고 있나요? 직접 입력하거나 아래 마이크를 사용하세요.",
+    "speak": "🎤 음성으로 말하기",
+    "listening": "● 듣는 중… 탭하여 중지",
+    "voice_unsupported": "이 기기에서는 음성 입력을 지원하지 않습니다 — 위에 직접 입력하세요.",
+    "describe_note": "이 내용은 SOS 신호와 함께 전송됩니다. 비워두셔도 아래 SOS 버튼을 누르면 즉시 전송됩니다."
+  },
+  "auth": {
+    "login_title": "로그인",
+    "email": "이메일",
+    "password": "비밀번호",
+    "sign_in": "로그인",
+    "register_prompt": "처음 방문하시나요? 여기에서 등록하세요",
+    "invalid_credentials": "이메일 또는 비밀번호가 올바르지 않습니다"
+  },
+  "lang": {
+    "label": "언어"
+  }
+}

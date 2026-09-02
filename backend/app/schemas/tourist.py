@@ -40,6 +40,14 @@ class TouristCreate(BaseModel):
     password: str | None = Field(None, max_length=128)
     email: str | None = Field(None, max_length=254)
 
+    # Foreign-tourist / visa fields -- required when document_type ==
+    # "passport" (see _checks below), otherwise left None.
+    visa_type: str | None = Field(None, max_length=40)
+    visa_number: str | None = Field(None, max_length=40)
+    visa_expiry: datetime | None = None
+    passport_expiry: datetime | None = None
+    planned_states: list[str] = Field(default_factory=list, max_length=40)
+
     @field_validator("document_type")
     @classmethod
     def _doc_type(cls, v: str) -> str:
@@ -55,6 +63,21 @@ class TouristCreate(BaseModel):
             raise ValueError("Provide both email and password to create a login, or neither.")
         if self.password:
             validate_password_strength(self.password)
+
+        if self.document_type == "passport":
+            missing = [f for f in ("visa_type", "visa_expiry") if getattr(self, f) is None]
+            if missing:
+                raise ValueError(
+                    f"Passport registration requires: {', '.join(missing)}"
+                )
+            # A visa expiring mid-trip is a real safety problem, not just a
+            # data-quality nicety -- catch it at registration rather than
+            # leaving the tourist to discover it while already travelling.
+            if self.visa_expiry < self.trip_end:
+                raise ValueError(
+                    "visa_expiry must be on or after trip_end -- this visa "
+                    "expires before the planned trip does"
+                )
         return self
 
 
@@ -81,6 +104,10 @@ class TouristOut(BaseModel):
     is_valid: bool
     preferred_language: str
     data_retention_days: int
+    nationality_code: str | None = None
+    visa_type: str | None = None
+    visa_expiry: datetime | None = None
+    passport_expiry: datetime | None = None
 
     class Config:
         from_attributes = True

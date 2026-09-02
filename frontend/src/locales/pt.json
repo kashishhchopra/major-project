@@ -1,0 +1,53 @@
+{
+  "app": {
+    "name": "Segurança do Turista",
+    "digital_id": "ID Digital do Turista",
+    "logout": "Sair",
+    "loading": "Carregando…"
+  },
+  "safety": {
+    "my_score": "Minha Pontuação de Segurança",
+    "zone": "Zona",
+    "night_caution": "Cautela noturna",
+    "daytime": "Durante o dia"
+  },
+  "geofence": {
+    "warning_title": "Alerta de Geocerca",
+    "warning_body": "Você está em {{zone}} (risco {{risk}}). Fique atento e considere deixar a área.",
+    "safe": "Você está em uma área segura."
+  },
+  "tracking": {
+    "title": "Rastreamento de Localização ao Vivo",
+    "subtitle": "Opcional — permite que a central de controle o proteja"
+  },
+  "itinerary": {
+    "title": "Rastreador de Itinerário",
+    "next_stop": "próxima parada"
+  },
+  "police": {
+    "title": "Delegacias de Polícia Próximas"
+  },
+  "sos": {
+    "button": "SOS — Enviar Alerta de Emergência",
+    "sent_title": "SOS Enviado",
+    "dispatched": "{{name}} ({{station}}) despachado — a {{km}} km de distância.",
+    "contacts_notified": "Contatos de emergência notificados: {{list}}",
+    "describe_title": "Descreva sua emergência (opcional)",
+    "describe_placeholder": "O que está acontecendo? Você pode digitar ou usar o microfone abaixo.",
+    "speak": "🎤 Falar em vez disso",
+    "listening": "● Ouvindo… toque para parar",
+    "voice_unsupported": "Entrada de voz não suportada neste dispositivo — digite acima.",
+    "describe_note": "Isso é enviado junto com seu alerta SOS. O botão SOS abaixo funciona imediatamente mesmo que você deixe isso em branco."
+  },
+  "auth": {
+    "login_title": "Entrar",
+    "email": "E-mail",
+    "password": "Senha",
+    "sign_in": "Entrar",
+    "register_prompt": "Novo turista? Cadastre-se aqui",
+    "invalid_credentials": "E-mail ou senha incorretos"
+  },
+  "lang": {
+    "label": "Idioma"
+  }
+}

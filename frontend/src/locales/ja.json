@@ -1,0 +1,53 @@
+{
+  "app": {
+    "name": "観光安全",
+    "digital_id": "デジタル観光者ID",
+    "logout": "ログアウト",
+    "loading": "読み込み中…"
+  },
+  "safety": {
+    "my_score": "私の安全スコア",
+    "zone": "ゾーン",
+    "night_caution": "夜間の注意",
+    "daytime": "日中"
+  },
+  "geofence": {
+    "warning_title": "ジオフェンス警告",
+    "warning_body": "あなたは{{zone}}（危険度：{{risk}}）にいます。警戒し、この地域から離れることを検討してください。",
+    "safe": "あなたは安全な地域にいます。"
+  },
+  "tracking": {
+    "title": "リアルタイム位置追跡",
+    "subtitle": "オプトイン — コントロールルームがあなたを保護できるようになります"
+  },
+  "itinerary": {
+    "title": "旅程トラッカー",
+    "next_stop": "次の目的地"
+  },
+  "police": {
+    "title": "近くの警察署"
+  },
+  "sos": {
+    "button": "SOS — 緊急通報を送信",
+    "sent_title": "SOSを送信しました",
+    "dispatched": "{{name}}（{{station}}）を出動させました — {{km}} km先。",
+    "contacts_notified": "緊急連絡先に通知しました：{{list}}",
+    "describe_title": "緊急事態の詳細（任意）",
+    "describe_placeholder": "何が起きていますか？入力するか、下のマイクを使用してください。",
+    "speak": "🎤 音声で入力",
+    "listening": "● 聞き取り中… タップして停止",
+    "voice_unsupported": "このデバイスでは音声入力に対応していません — 上に入力してください。",
+    "describe_note": "これはSOS通報と一緒に送信されます。空欄のままでも、下のSOSボタンを押せばすぐに送信されます。"
+  },
+  "auth": {
+    "login_title": "サインイン",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "sign_in": "サインイン",
+    "register_prompt": "初めての観光者ですか？こちらから登録",
+    "invalid_credentials": "メールアドレスまたはパスワードが正しくありません"
+  },
+  "lang": {
+    "label": "言語"
+  }
+}

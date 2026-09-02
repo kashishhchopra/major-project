@@ -74,17 +74,46 @@ def generate_movement_data(n_normal: int = 4000, n_anomaly: int = 400) -> pd.Dat
     return df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 
-def generate_safety_data(n: int = 6000) -> pd.DataFrame:
+def _ncrb_calibrated_crime_index(n: int) -> np.ndarray:
+    """Sample crime_index the way it's actually assigned in this app: a zone
+    takes one of four real-NCRB-anchored values (see
+    app/services/crime_index.py), not a continuous uniform draw that no real
+    zone could ever have. Tier frequencies are weighted toward low/medium --
+    most of a map is not a restricted zone -- plus a little Gaussian noise so
+    the feature isn't perfectly four-valued (a model trained on exactly 4
+    unique inputs would generalise poorly)."""
+    from app.services.crime_index import calibrate_zone_crime_index
+
+    tiers = ["low", "medium", "high", "restricted"]
+    tier_values = np.array([calibrate_zone_crime_index(t) for t in tiers])
+    tier_weights = [0.45, 0.30, 0.18, 0.07]
+    chosen = RNG.choice(len(tiers), size=n, p=tier_weights)
+    noise = RNG.normal(0, 3, n)
+    return np.clip(tier_values[chosen] + noise, 0, 100)
+
+
+def generate_safety_data(n: int = 6000, crime_index_source: str = "uniform") -> pd.DataFrame:
     """Rows: zone_risk, hour, anomaly_score, crime_index, weather_risk, safety_score.
 
     The target safety_score (0-100, higher=safer) is a weighted risk formula plus
     noise; the RandomForest learns to reproduce it and generalise. This mirrors the
     'weighted model' brief while giving a trainable ML target.
+
+    `crime_index_source`:
+      - "uniform" (default): the original RNG.uniform(0,100) draw. Kept as the
+        default so existing registry runs stay reproducible/comparable.
+      - "ncrb": crime_index drawn from the real NCRB-calibrated tier values
+        instead -- see _ncrb_calibrated_crime_index. Train with this via
+        `python -m app.ml.train_all --crime-index-source ncrb` to get a
+        second, real-data-grounded model version in the registry.
     """
     zone_risk = RNG.uniform(0, 100, n)
     hour = RNG.integers(0, 24, n)
     anomaly_score = RNG.uniform(0, 1, n)
-    crime_index = RNG.uniform(0, 100, n)
+    crime_index = (
+        _ncrb_calibrated_crime_index(n) if crime_index_source == "ncrb"
+        else RNG.uniform(0, 100, n)
+    )
     weather_risk = RNG.uniform(0, 100, n)
 
     night = ((hour >= 22) | (hour <= 5)).astype(float)

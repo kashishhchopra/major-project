@@ -22,7 +22,7 @@ from app.models.incident import Incident
 from app.models.police import PoliceUnit
 from app.models.tourist import Tourist
 from app.models.zone import Zone
-from app.services import dispatch
+from app.services import consular, dispatch
 from app.services.geo import haversine_m, zones_containing_point
 from app.services.safety import band_for, compute_safety_score
 
@@ -218,6 +218,25 @@ def _intent_advice(db: Session, tourist: Tourist, question: str) -> str | None:
     return advice.get(band, "Stay alert and keep tracking enabled.")
 
 
+def _intent_embassy(db: Session, tourist: Tourist, question: str) -> str | None:
+    if not re.search(r"embassy|consulate|my country|my embassy", question, re.I):
+        return None
+    country_code = consular.normalize_nationality(tourist.nationality_code or tourist.nationality)
+    if not country_code or country_code == "IN":
+        return "This is an embassy/consulate lookup for foreign tourists -- I don't have one on file for your nationality."
+    missions = consular.missions_for(country_code, tourist.last_lat, tourist.last_lng)
+    if not missions:
+        guidance = consular.guidance_for(country_code)
+        return (
+            f"I don't have a listed mission for your nationality yet. Your registered "
+            f"helpline language is {guidance['helpline_language']} -- the 24x7 tourist "
+            f"helpline (1363) can support you in that language, or call 112 for emergencies."
+        )
+    m = missions[0]
+    distance = f", about {m['distance_km']} km away" if "distance_km" in m else ""
+    return f"Nearest {m['mission_type']}: {m['country_name']} {m['mission_type']} in {m['city']}{distance}. Call {m['phone']}."
+
+
 def _intent_why_flagged_self(db: Session, tourist: Tourist, question: str) -> str | None:
     if not re.search(r"why (was|is) (i|my risk|my score)|why flagged|why am i", question, re.I):
         return None
@@ -229,7 +248,7 @@ def answer_tourist_question(db: Session, tourist: Tourist, question: str) -> dic
     """Tourist side: nearest help, area safety, plain-language guidance."""
     for handler in (
         _intent_nearest_hospital, _intent_nearest_police, _intent_area_safe,
-        _intent_why_flagged_self, _intent_advice,
+        _intent_embassy, _intent_why_flagged_self, _intent_advice,
     ):
         answer = handler(db, tourist, question)
         if answer:
@@ -237,7 +256,8 @@ def answer_tourist_question(db: Session, tourist: Tourist, question: str) -> dic
     return {
         "answer": (
             "I can help with: \"nearest hospital\", \"nearest police station\", "
-            "\"is this area safe?\", \"why was I flagged?\", or \"what should I do now?\"."
+            "\"is this area safe?\", \"my embassy\", \"why was I flagged?\", or "
+            "\"what should I do now?\"."
         ),
         "handled": False,
     }

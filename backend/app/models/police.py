@@ -21,6 +21,11 @@ class PoliceUnit(Base):
     available: Mapped[bool] = mapped_column(default=True)
     # unit_type: police / ambulance / rescue
     unit_type: Mapped[str] = mapped_column(String, default="police")
+    # OpenStreetMap node/way id, set only for units imported by
+    # services/poi.py -- lets a re-import upsert instead of duplicating.
+    osm_id: Mapped[int | None] = mapped_column(Integer, nullable=True, unique=True)
+    # "manual" (hand-written fixture) or "osm" (imported from OpenStreetMap).
+    source: Mapped[str] = mapped_column(String, default="manual", server_default="manual")
 
 
 class PoliceStation(Base):

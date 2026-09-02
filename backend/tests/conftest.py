@@ -11,7 +11,7 @@ from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -23,7 +23,7 @@ os.environ.setdefault("ENVIRONMENT", "test")
 from app.core import ratelimit  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.core.time import utc_now  # noqa: E402
-from app.db.session import Base, get_db  # noqa: E402
+from app.db.session import Base, apply_sqlite_pragmas, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.police import Camera, PoliceStation, PoliceUnit  # noqa: E402
 from app.models.tourist import Tourist  # noqa: E402
@@ -37,6 +37,7 @@ def db():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
+    event.listens_for(engine, "connect")(apply_sqlite_pragmas)
     Base.metadata.create_all(bind=engine)
     TestingSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = TestingSession()

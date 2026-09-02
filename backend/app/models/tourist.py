@@ -25,7 +25,12 @@ class Tourist(Base):
 
     # KYC
     full_name: Mapped[str] = mapped_column(String, nullable=False)
+    # Free-text demonym/country as typed at registration (e.g. "Japanese",
+    # "British") -- kept for display/back-compat. `nationality_code` below is
+    # the normalised ISO 3166-1 alpha-2 used to look up embassies/guidance
+    # (see services/consular.py::normalize_nationality).
     nationality: Mapped[str] = mapped_column(String, default="Indian")
+    nationality_code: Mapped[str | None] = mapped_column(String, nullable=True)
     document_type: Mapped[str] = mapped_column(String, default="aadhaar")  # aadhaar / passport
     # Encrypted at rest -- see app/core/crypto.py. Reads return plaintext.
     document_number: Mapped[str] = mapped_column(EncryptedString, nullable=False)
@@ -34,6 +39,14 @@ class Tourist(Base):
     # document_number) -- a face photo isn't the same class of secret as a
     # government ID number, and the Digital ID card needs to render it directly.
     photo: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Foreign-tourist / visa fields -- all nullable, only populated when
+    # document_type == "passport" (enforced in schemas/tourist.py, not here).
+    visa_type: Mapped[str | None] = mapped_column(String, nullable=True)  # e.g. e-Visa, Tourist, Business
+    visa_number: Mapped[str | None] = mapped_column(EncryptedString, nullable=True)
+    visa_expiry: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    passport_expiry: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    planned_states: Mapped[str] = mapped_column(Text, default="[]")  # JSON list of state names
 
     # Trip
     itinerary: Mapped[str] = mapped_column(Text, default="[]")  # JSON list of {name,lat,lng}

@@ -1,0 +1,53 @@
+{
+  "app": {
+    "name": "游客安全",
+    "digital_id": "数字游客身份证",
+    "logout": "登出",
+    "loading": "加载中…"
+  },
+  "safety": {
+    "my_score": "我的安全评分",
+    "zone": "区域",
+    "night_caution": "夜间注意",
+    "daytime": "白天"
+  },
+  "geofence": {
+    "warning_title": "地理围栏警告",
+    "warning_body": "您目前位于{{zone}}（{{risk}}风险）。请保持警惕，并考虑离开该区域。",
+    "safe": "您目前处于安全区域。"
+  },
+  "tracking": {
+    "title": "实时位置追踪",
+    "subtitle": "自愿开启 — 让控制中心能够保护您"
+  },
+  "itinerary": {
+    "title": "行程追踪",
+    "next_stop": "下一站"
+  },
+  "police": {
+    "title": "附近警察局"
+  },
+  "sos": {
+    "button": "SOS — 发送紧急警报",
+    "sent_title": "SOS已发送",
+    "dispatched": "已派遣{{name}}（{{station}}）— 距离{{km}}公里。",
+    "contacts_notified": "已通知紧急联系人：{{list}}",
+    "describe_title": "描述您的紧急情况（可选）",
+    "describe_placeholder": "发生了什么？您可以输入文字或使用下方的麦克风。",
+    "speak": "🎤 改用语音",
+    "listening": "● 正在聆听… 点击停止",
+    "voice_unsupported": "此设备不支持语音输入 — 请在上方输入文字。",
+    "describe_note": "此内容将随您的SOS警报一起发送。即使留空，点击下方的SOS按钮也会立即生效。"
+  },
+  "auth": {
+    "login_title": "登录",
+    "email": "电子邮箱",
+    "password": "密码",
+    "sign_in": "登录",
+    "register_prompt": "新游客？在此注册",
+    "invalid_credentials": "邮箱或密码不正确"
+  },
+  "lang": {
+    "label": "语言"
+  }
+}

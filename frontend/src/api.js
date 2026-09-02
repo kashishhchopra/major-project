@@ -1,11 +1,20 @@
 import axios from 'axios'
 import { API_BASE } from './config'
 
-const api = axios.create({ baseURL: API_BASE })
+// The access token lives in memory only, never localStorage -- an XSS bug
+// can no longer walk out with a long-lived credential. It's lost on a hard
+// reload by design; auth.jsx's AuthProvider re-derives it on mount via a
+// silent refresh against the httpOnly refresh-token cookie (see below).
+let accessToken = null
+export function setAccessToken(token) { accessToken = token }
+export function getAccessToken() { return accessToken }
+
+// withCredentials so the httpOnly refresh-token cookie (set by the backend
+// on login/refresh, scoped to /api/auth) actually gets sent.
+const api = axios.create({ baseURL: API_BASE, withCredentials: true })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
   return config
 })
 
@@ -13,11 +22,10 @@ api.interceptors.request.use((config) => {
 // through the interceptors above (that would recurse: a 401 on /auth/refresh
 // would trigger another refresh attempt). Exported so tests can mock it
 // independently of the main `api` instance.
-export const bare = axios.create({ baseURL: API_BASE })
+export const bare = axios.create({ baseURL: API_BASE, withCredentials: true })
 
 function clearSessionAndRedirect() {
-  localStorage.removeItem('token')
-  localStorage.removeItem('refreshToken')
+  setAccessToken(null)
   localStorage.removeItem('user')
   if (!location.pathname.startsWith('/login')) location.href = '/login'
 }
@@ -26,23 +34,15 @@ function clearSessionAndRedirect() {
 // call, not one per request -- they share this in-flight promise.
 let refreshPromise = null
 
-function refreshAccessToken() {
+export function refreshAccessToken() {
   if (!refreshPromise) {
-    const refreshToken = localStorage.getItem('refreshToken')
-    // Both branches MUST clear refreshPromise via .finally(), including the
-    // synchronous "no token" rejection -- an earlier version skipped that on
-    // this branch, so after the first attempt with no refresh token,
-    // refreshPromise stayed permanently set to that rejected promise and
-    // every later call (even after a fresh login) reused it forever instead
-    // of trying again.
-    refreshPromise = (refreshToken
-      ? bare.post('/auth/refresh', { refresh_token: refreshToken }).then(({ data }) => {
-          localStorage.setItem('token', data.access_token)
-          localStorage.setItem('refreshToken', data.refresh_token)
-          return data.access_token
-        })
-      : Promise.reject(new Error('No refresh token'))
-    ).finally(() => { refreshPromise = null })
+    // No body: the refresh token travels as the httpOnly cookie, not JS-
+    // readable state. `bare.post` still works with an empty body since the
+    // backend's RefreshRequest is optional (kept for a back-compat client).
+    refreshPromise = bare.post('/auth/refresh', {}).then(({ data }) => {
+      setAccessToken(data.access_token)
+      return data.access_token
+    }).finally(() => { refreshPromise = null })
   }
   return refreshPromise
 }

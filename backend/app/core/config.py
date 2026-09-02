@@ -39,6 +39,17 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
+    # ---- refresh-token cookie ----
+    # The refresh token is set as an httpOnly cookie so it's never readable
+    # by JS (unlike the access token, which the frontend keeps in memory) --
+    # closes the XSS-exfiltration path on the one token that's actually
+    # long-lived. Secure should be True behind HTTPS (i.e. always in prod);
+    # False here only so plain-HTTP local dev still works.
+    REFRESH_COOKIE_NAME: str = "refresh_token"
+    REFRESH_COOKIE_PATH: str = "/api/auth"
+    REFRESH_COOKIE_SECURE: bool = False
+    REFRESH_COOKIE_SAMESITE: str = "strict"
+
     # ---- password policy ----
     MIN_PASSWORD_LENGTH: int = 8
 
@@ -92,6 +103,16 @@ class Settings(BaseSettings):
     # How often the background job purges location history past its
     # retention window (see services/privacy.py).
     RETENTION_PURGE_TICK_SECONDS: int = 3600
+    # How often expired revoked-token rows are purged (see api/auth.py).
+    TOKEN_PURGE_TICK_SECONDS: int = 3600
+
+    # ---- scheduler / cross-worker job locking ----
+    # False disables the scheduler entirely (e.g. a worker that should never
+    # run background ticks). True is the default for a single-worker deploy;
+    # with WEB_CONCURRENCY > 1 the job lock (app/core/joblock.py) still
+    # prevents duplicate execution even though every worker has this True.
+    SCHEDULER_ENABLED: bool = True
+    JOB_LOCK_TTL_SECONDS: int = 120
 
     # ---- disaster & weather alert feeds ----
     # How often the background job refreshes area-level hazard advisories.
@@ -101,6 +122,19 @@ class Settings(BaseSettings):
     # external API/key is assumed to exist for this project. See
     # services/disaster.py.
     DISASTER_FEED_PROVIDER: str = ""
+    # A CAP 1.2 feed URL to poll when DISASTER_FEED_PROVIDER is set. No
+    # default is assumed live/stable -- NDMA SACHET's public feed is served
+    # by a JS SPA with no documented XML/JSON endpoint discoverable without
+    # provider cooperation (see services/cap.py's module docstring). Point
+    # this at whatever CAP 1.2 source is actually available to you.
+    DISASTER_FEED_URL: str = ""
+
+    # ---- live-feed fallback ladder (see services/feeds.py) ----
+    # False = snapshot-only, no network calls at all -- the demo-venue kill
+    # switch (e.g. a hackathon hall with no reliable internet).
+    FEEDS_ENABLED: bool = True
+    FEED_CACHE_DIR: str = "feed_cache"
+    FEED_TIMEOUT_SECONDS: int = 600
 
     # ---- external hash-chain anchoring ----
     # How often the background job anchors the chain's current root hash.

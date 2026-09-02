@@ -70,7 +70,7 @@ def test_tick_checkins_leaves_on_time_checkins_alone(db):
     db.commit()
 
     result = tick_checkins(db)
-    assert result == {"missed": [], "escalated": []}
+    assert result == {"missed": [], "escalated": [], "visa_warned": []}
     db.refresh(c)
     assert c.status == "planned"
 
@@ -81,3 +81,58 @@ def test_checkins_forbidden_for_other_tourist(client, tourist_headers, db):
         "destination_name": "X", "expected_return_at": utc_now().isoformat(),
     })
     assert r.status_code == 403
+
+
+# ---------------------------------------------------------------- visa expiry
+def test_visa_expiring_soon_raises_an_alert(db):
+    t = make_tourist(db)
+    t.document_type = "passport"
+    t.visa_expiry = utc_now() + timedelta(days=3)
+    db.commit()
+
+    result = tick_checkins(db)
+    assert t.id in result["visa_warned"]
+    alert = db.query(Alert).filter(Alert.tourist_id == t.id, Alert.type == "visa_expiry").first()
+    assert alert is not None
+    assert "visa expires in" in alert.message
+
+
+def test_visa_expiring_soon_does_not_re_alert_within_the_repeat_window(db):
+    t = make_tourist(db)
+    t.document_type = "passport"
+    t.visa_expiry = utc_now() + timedelta(days=3)
+    db.commit()
+
+    tick_checkins(db)
+    result = tick_checkins(db)  # second tick, immediately after
+    assert result["visa_warned"] == []
+    assert db.query(Alert).filter(Alert.tourist_id == t.id, Alert.type == "visa_expiry").count() == 1
+
+
+def test_visa_expiring_far_in_the_future_does_not_alert(db):
+    t = make_tourist(db)
+    t.document_type = "passport"
+    t.visa_expiry = utc_now() + timedelta(days=60)
+    db.commit()
+
+    result = tick_checkins(db)
+    assert result["visa_warned"] == []
+
+
+def test_aadhaar_tourist_never_gets_a_visa_alert(db):
+    make_tourist(db)  # default document_type="aadhaar", no visa_expiry
+    result = tick_checkins(db)
+    assert result["visa_warned"] == []
+
+
+def test_already_expired_visa_does_not_alert(db):
+    """Past-expiry is a different, more serious problem than 'expiring
+    soon' -- out of scope for this soft warning; not asserting further
+    behavior here, just that it doesn't double up as a same-type alert."""
+    t = make_tourist(db)
+    t.document_type = "passport"
+    t.visa_expiry = utc_now() - timedelta(days=1)
+    db.commit()
+
+    result = tick_checkins(db)
+    assert result["visa_warned"] == []

@@ -11,7 +11,7 @@ beforeEach(() => mock.reset())
 describe('DisasterBanner', () => {
   it('renders nothing when there are no active advisories', async () => {
     mock.onGet('/tourists/1/disasters').reply(200, [])
-    const { container, findByText } = render(<DisasterBanner touristId={1} />)
+    const { container } = render(<DisasterBanner touristId={1} />)
     // wait a tick for the fetch to resolve
     await new Promise((r) => setTimeout(r, 10))
     expect(container.firstChild).toBeNull()

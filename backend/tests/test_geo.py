@@ -76,3 +76,31 @@ def test_min_distance_to_route_picks_nearest_waypoint():
 def test_min_distance_to_route_detects_deviation():
     itinerary = [{"name": "Plan", "lat": 26.1445, "lng": 91.7362}]
     assert min_distance_to_route(26.30, 91.90, itinerary) > 2000
+
+
+# ---------------------------------------------------------------- zones_intersecting_polygon
+def test_zones_intersecting_polygon_finds_overlap(db):
+    from app.services.geo import zones_intersecting_polygon
+    from tests.conftest import make_zone
+
+    zone = make_zone(db, name="Target", lat=26.165, lng=91.75, d=0.02)
+    advisory_polygon = [[26.10, 91.65], [26.10, 91.85], [26.25, 91.85], [26.25, 91.65]]
+
+    matches = zones_intersecting_polygon(advisory_polygon, [zone])
+    assert matches == [zone]
+
+
+def test_zones_intersecting_polygon_excludes_non_overlapping_zones(db):
+    from app.services.geo import zones_intersecting_polygon
+    from tests.conftest import make_zone
+
+    far_zone = make_zone(db, name="Far Away", lat=10.0, lng=70.0, d=0.01)
+    advisory_polygon = [[26.10, 91.65], [26.10, 91.85], [26.25, 91.85], [26.25, 91.65]]
+
+    assert zones_intersecting_polygon(advisory_polygon, [far_zone]) == []
+
+
+def test_zones_intersecting_polygon_handles_a_degenerate_polygon():
+    from app.services.geo import zones_intersecting_polygon
+
+    assert zones_intersecting_polygon([[26.1, 91.7], [26.2, 91.8]], []) == []

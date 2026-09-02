@@ -9,7 +9,7 @@ from app.models.efir import EFIR
 from app.models.guardian import TripGuardian
 from app.models.incident import Incident, IncidentEvent
 from app.models.password_reset import PasswordResetToken
-from app.models.police import PoliceUnit
+from app.models.police import Camera, PoliceStation, PoliceUnit
 from app.models.revoked_token import RevokedToken
 from app.models.tourist import IdBlock, LocationPing, Tourist
 from app.models.user import User
@@ -25,6 +25,8 @@ __all__ = [
     "IncidentEvent",
     "Alert",
     "PoliceUnit",
+    "PoliceStation",
+    "Camera",
     "PasswordResetToken",
     "RevokedToken",
     "AuditLog",

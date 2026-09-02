@@ -8,6 +8,7 @@ const links = [
   { to: '/admin/tourists', label: 'Tourists', icon: '🧳' },
   { to: '/admin/zones', label: 'Zones', icon: '🗺️' },
   { to: '/admin/incidents', label: 'Incidents', icon: '🚨' },
+  { to: '/admin/police-network', label: 'Police Network', icon: '🚓' },
   { to: '/admin/analytics', label: 'Analytics', icon: '📊' },
   { to: '/admin/model-insights', label: 'Model Insights', icon: '🧠' },
   { to: '/admin/devices', label: 'Devices', icon: '⌚' },
@@ -24,11 +25,11 @@ export default function AdminLayout() {
           <span className="text-xl">🛡️</span>
           <span className="font-bold">Tourist Safety Control Room</span>
         </div>
-        <nav className="hidden md:flex gap-1">
+        <nav className="hidden md:flex gap-1 overflow-x-auto min-w-0">
           {links.map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end}
               className={({ isActive }) =>
-                `px-3 py-1.5 rounded-lg text-sm ${isActive ? 'bg-sky-600' : 'hover:bg-slate-700'}`}>
+                `px-3 py-1.5 rounded-lg text-sm whitespace-nowrap shrink-0 ${isActive ? 'bg-sky-600' : 'hover:bg-slate-700'}`}>
               <span className="mr-1">{l.icon}</span>{l.label}
             </NavLink>
           ))}

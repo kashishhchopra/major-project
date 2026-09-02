@@ -16,6 +16,7 @@ from app.api import (
     guardian,
     incidents,
     ml,
+    police_network,
     tourists,
     ws,
     zones,
@@ -184,6 +185,7 @@ app.include_router(auth.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(tourists.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(zones.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(incidents.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(police_network.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(analytics.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(ml.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(devices.router, prefix=PREFIX, dependencies=_rl)

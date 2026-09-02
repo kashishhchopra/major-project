@@ -21,3 +21,13 @@ html.dark body { background: #0f172a; color: #e2e8f0; }
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 .sos-pulse { animation: pulse-ring 1.5s infinite; }
+
+/* Police Network map: subtle "data flowing" pulse along the station <->
+   central-hub connection lines (Leaflet renders polylines as SVG <path>). */
+@keyframes network-flow { to { stroke-dashoffset: -24; } }
+.network-line { animation: network-flow 1.2s linear infinite; }
+
+/* CCTV demo-feed modal: a moving scanline stands in for a real video feed --
+   clearly a placeholder, not footage. */
+@keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+.cctv-scanline { animation: scanline 2.4s linear infinite; }

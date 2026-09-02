@@ -37,6 +37,7 @@ class IncidentOut(BaseModel):
     lat: float | None
     lng: float | None
     assigned_unit_id: int | None
+    station_id: int | None
     silent: bool
     escalation_stage: str
     escalation_deadline: datetime | None

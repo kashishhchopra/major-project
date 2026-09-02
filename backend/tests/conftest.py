@@ -25,7 +25,7 @@ from app.core.security import hash_password  # noqa: E402
 from app.core.time import utc_now  # noqa: E402
 from app.db.session import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models.police import PoliceUnit  # noqa: E402
+from app.models.police import Camera, PoliceStation, PoliceUnit  # noqa: E402
 from app.models.tourist import Tourist  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.models.zone import Zone  # noqa: E402
@@ -114,6 +114,23 @@ def make_unit(db, name="Unit Alpha", lat=26.145, lng=91.737, available=True,
     db.commit()
     db.refresh(u)
     return u
+
+
+def make_station(db, name="Central PS", zone_id=None, lat=26.145, lng=91.737):
+    s = PoliceStation(name=name, zone_id=zone_id, phone="100",
+                      contact_officer="Officer", lat=lat, lng=lng)
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+def make_camera(db, label="Cam 1", zone_id=None, lat=26.145, lng=91.737, status="active"):
+    c = Camera(label=label, zone_id=zone_id, lat=lat, lng=lng, status=status)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
 
 
 @pytest.fixture

@@ -100,6 +100,10 @@ export default function PoliceNetwork() {
 
   const [focusTarget, setFocusTarget] = useState(null)
   const [highlightStationId, setHighlightStationId] = useState(null)
+  // Police Station Resource Fallback: ranked "who responds here" order for
+  // whatever location is currently focused (see backend
+  // services/police_network.py:rank_stations_for_point).
+  const [fallback, setFallback] = useState([])
   const [detailStation, setDetailStation] = useState(null)
   const [contactStation, setContactStation] = useState(null)
   const [contactConnected, setContactConnected] = useState(false)
@@ -191,16 +195,33 @@ export default function PoliceNetwork() {
     const cameraCount = cameras.filter((c) => c.zone_id === station.zone_id).length
     const touristCount = station.zone_id ? (densityByZone[station.zone_id]?.tourist_count ?? 0) : 0
     const stationUnits = units.filter((u) => u.station === station.name)
-    return { entry, zone, status, openCases, meta, cameraCount, touristCount, stationUnits }
+    // Police Station Resource Fallback signals -- real capacity from the
+    // backend (services/police_network.py), recomputed against the same
+    // openCases the rest of this card shows so a simulated incident moves
+    // the load bar too.
+    const maxCases = entry.max_concurrent_cases ?? 0
+    const loadPct = maxCases ? Math.min(100, Math.round((100 * openCases) / maxCases)) : 0
+    const hasCapacity = maxCases ? openCases < maxCases : true
+    return {
+      entry, zone, status, openCases, meta, cameraCount, touristCount, stationUnits,
+      maxCases, loadPct, hasCapacity, officers: entry.total_officers ?? meta.officers,
+    }
   }
 
   const onlineCount = stations.filter((s) => statsFor(s).status !== 'critical').length
   const totalActiveUnits = stations.reduce((sum, s) => sum + statsFor(s).meta.activeUnits, 0)
   const totalOpenCases = (dashboard?.total_open_incidents || 0) + (sim ? 1 : 0)
 
+  const loadFallbackFor = (lat, lng) => {
+    api.get(`/police-network/fallback-preview?lat=${lat}&lng=${lng}`)
+      .then((r) => setFallback(r.data))
+      .catch(() => setFallback([]))
+  }
+
   const focusOnStation = (station) => {
     setHighlightStationId(station.id)
     setFocusTarget([station.lat, station.lng])
+    loadFallbackFor(station.lat, station.lng)
   }
 
   const forwardIncident = async (incidentId, fromStationId) => {
@@ -247,6 +268,7 @@ export default function PoliceNetwork() {
     })
     pushActivity(`Tourist ${touristId}`, 'Central', 'SOS button pressed')
     setFocusTarget(centroid)
+    loadFallbackFor(centroid[0], centroid[1])
 
     const steps = [
       { at: 900, run: () => pushActivity('Central', 'System', `Zone resolved: ${zone?.name || target.zone_name}`) },
@@ -470,6 +492,38 @@ export default function PoliceNetwork() {
             )}
           </Card>
 
+          {/* resource fallback order for the focused location */}
+          <Card title="Resource Fallback Order">
+            {fallback.length === 0 ? (
+              <div className="text-sm text-slate-400">
+                Select a station or zone to see who would take an emergency there.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="text-[11px] text-slate-400">
+                  Who takes an emergency at the selected location — and who it falls back to
+                  if the first station is overloaded.
+                </div>
+                {fallback.slice(0, 4).map((f, i) => (
+                  <div key={f.station_id} className="flex items-center gap-2 text-xs">
+                    <span className={`w-5 text-center font-bold ${i === 0 ? 'text-green-600' : 'text-slate-400'}`}>
+                      {i === 0 ? '1' : `${i + 1}`}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="font-medium text-slate-700 dark:text-slate-200">{f.name}</span>
+                      <span className="text-slate-400"> · {f.distance_km} km</span>
+                    </span>
+                    <span className={f.has_capacity
+                      ? 'text-[11px] text-green-600 whitespace-nowrap'
+                      : 'text-[11px] text-red-600 font-semibold whitespace-nowrap'}>
+                      {f.open_cases}/{f.max_concurrent_cases} {f.has_capacity ? 'free' : 'FULL'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {/* network activity feed */}
           <Card title="Police Network Activity">
             <div className="space-y-2.5 max-h-[360px] overflow-y-auto">
@@ -516,6 +570,28 @@ export default function PoliceNetwork() {
                   <div>👥 {st.touristCount} Tourists</div>
                   <div className={st.openCases > 0 ? 'text-red-600 font-semibold' : ''}>🚨 {st.openCases} Open Cases</div>
                 </div>
+
+                {/* Resource capacity -- a station at 100% gets routed around
+                    by the fallback system (services/police_network.py) */}
+                {st.maxCases > 0 && (
+                  <div className="pt-1">
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-slate-400">Case load</span>
+                      <span className={st.hasCapacity ? 'text-slate-500 dark:text-slate-400' : 'text-red-600 font-semibold'}>
+                        {st.openCases}/{st.maxCases} {st.hasCapacity ? '' : '· AT CAPACITY'}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          !st.hasCapacity ? 'bg-red-500' : st.loadPct >= 60 ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.max(st.loadPct, 3)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => setDetailStation(s)}
                     className="flex-1 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-1.5 rounded-lg">

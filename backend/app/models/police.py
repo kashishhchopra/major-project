@@ -49,6 +49,13 @@ class PoliceStation(Base):
     contact_officer: Mapped[str] = mapped_column(String, default="")
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lng: Mapped[float] = mapped_column(Float, nullable=False)
+    # Staffing headcount and how many concurrent open cases this station can
+    # competently run at once -- the resource signals the fallback system
+    # (services/police_network.py:assign_station) checks before routing an
+    # incident here. Deliberately generous defaults so a station only
+    # actually triggers fallback under real, demonstrable load.
+    total_officers: Mapped[int] = mapped_column(Integer, default=12, server_default="12")
+    max_concurrent_cases: Mapped[int] = mapped_column(Integer, default=5, server_default="5")
 
 
 class Camera(Base):

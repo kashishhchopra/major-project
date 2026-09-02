@@ -14,6 +14,17 @@ the incident is actually closer to a neighbouring station.
                           central dashboard (central_dashboard)
                                    |
                     station <-> station  (forward_incident)
+
+Police Station Resource Fallback System
+----------------------------------------
+`assign_station` doesn't just hand every case to its zone's station
+unconditionally -- it first checks that station's real-time capacity
+(open-case load against `PoliceStation.max_concurrent_cases`). If the zone's
+own station is at/over capacity, it automatically falls back to the next
+best-suited station network-wide, ranked by distance, current workload, and
+staffing (`rank_stations_for_point`) -- Station A -> Station B -> Station C
+-- so an emergency is never delayed just because the nearest station is
+overloaded. Every fallback hop is logged on the incident.
 """
 from __future__ import annotations
 
@@ -50,20 +61,95 @@ def station_for_point(db: Session, lat: float, lng: float) -> PoliceStation | No
     return station_for_zone(db, zone.id)
 
 
+def _station_workload(db: Session, station_id: int) -> int:
+    """Open (non-resolved) cases currently assigned to a station -- the
+    live half of its capacity check."""
+    return (
+        db.query(Incident)
+        .filter(Incident.station_id == station_id, Incident.status != "resolved")
+        .count()
+    )
+
+
+def station_capacity(db: Session, station: PoliceStation) -> dict:
+    """A station's real-time resource status: how many cases it's carrying
+    against how many it's staffed to run at once."""
+    open_cases = _station_workload(db, station.id)
+    max_cases = station.max_concurrent_cases
+    return {
+        "station_id": station.id,
+        "open_cases": open_cases,
+        "max_concurrent_cases": max_cases,
+        "total_officers": station.total_officers,
+        "has_capacity": open_cases < max_cases,
+        "load_pct": round(100 * open_cases / max_cases, 1) if max_cases else 100.0,
+    }
+
+
+def rank_stations_for_point(db: Session, lat: float, lng: float) -> list[dict]:
+    """Every station in the network, ranked for how well-suited each is to
+    respond to (lat, lng) right now: stations with spare capacity first,
+    then closest, then least loaded, then best-staffed -- the fallback
+    order Station A -> Station B -> Station C follows this list."""
+    ranked = []
+    for s in db.query(PoliceStation).all():
+        cap = station_capacity(db, s)
+        ranked.append({
+            "station": s,
+            "distance_km": round(geo.haversine_m(lat, lng, s.lat, s.lng) / 1000, 2),
+            **cap,
+        })
+    ranked.sort(key=lambda r: (not r["has_capacity"], r["distance_km"], r["load_pct"], -r["total_officers"]))
+    return ranked
+
+
 def assign_station(db: Session, incident: Incident) -> PoliceStation | None:
     """Route a freshly-opened incident to the station responsible for its
     zone, logging the hand-off. No-op (returns None) if the incident has no
-    location or falls outside every zone -- it stays with the control room."""
+    location or falls outside every zone -- it stays with the control room.
+
+    Resource-aware: if that zone's own station is at/over capacity, walks
+    the network-wide ranking (`rank_stations_for_point`) for the next
+    best-suited station with room to take the case -- see this module's
+    "Police Station Resource Fallback System" docstring. If literally every
+    station in the network is at capacity, the case still goes to the
+    nearest one rather than sit unassigned -- a busy network beats no
+    response.
+    """
     if incident.lat is None or incident.lng is None:
         return None
-    station = station_for_point(db, incident.lat, incident.lng)
-    if station is None:
+    zone = resolve_zone_for_point(db, incident.lat, incident.lng)
+    if zone is None:
         return None
+    primary = station_for_zone(db, zone.id)
+    if primary is None:
+        return None
+
+    ranked = rank_stations_for_point(db, incident.lat, incident.lng)
+    primary_entry = next((r for r in ranked if r["station"].id == primary.id), None)
+
+    if primary_entry is not None and primary_entry["has_capacity"]:
+        chosen = primary_entry
+    else:
+        with_capacity = [r for r in ranked if r["has_capacity"]]
+        # Every station full: still dispatch -- to the nearest one -- rather
+        # than leave the incident unassigned.
+        chosen = with_capacity[0] if with_capacity else ranked[0]
+
+    station = chosen["station"]
     incident.station_id = station.id
-    db.add(IncidentEvent(
-        incident_id=incident.id, status="station_assigned",
-        note=f"Routed to {station.name} (area-based police network)",
-    ))
+
+    if station.id == primary.id:
+        note = f"Routed to {station.name} (area-based police network)"
+    else:
+        note = (
+            f"{primary.name} at capacity ({primary_entry['open_cases']}/"
+            f"{primary_entry['max_concurrent_cases']} cases) -- resource fallback "
+            f"routed to {station.name} ({chosen['distance_km']} km, "
+            f"{chosen['open_cases']}/{chosen['max_concurrent_cases']} cases, "
+            f"{chosen['total_officers']} officers)"
+        )
+    db.add(IncidentEvent(incident_id=incident.id, status="station_assigned", note=note))
     return station
 
 
@@ -127,6 +213,7 @@ def central_dashboard(db: Session) -> dict:
     for s in stations:
         zone = zones_by_id.get(s.zone_id) if s.zone_id else None
         cases = by_station.get(s.id, [])
+        max_cases = s.max_concurrent_cases
         stations_out.append({
             "id": s.id, "name": s.name, "phone": s.phone,
             "contact_officer": s.contact_officer, "lat": s.lat, "lng": s.lng,
@@ -134,6 +221,12 @@ def central_dashboard(db: Session) -> dict:
             "open_incidents": len(cases),
             "critical_incidents": sum(1 for i in cases if i.severity == "critical"),
             "incident_ids": [i.id for i in cases],
+            # Resource-fallback signals (see rank_stations_for_point): a
+            # station at capacity is one an incoming case gets routed around.
+            "total_officers": s.total_officers,
+            "max_concurrent_cases": max_cases,
+            "has_capacity": len(cases) < max_cases,
+            "load_pct": round(100 * len(cases) / max_cases, 1) if max_cases else 100.0,
         })
 
     return {

@@ -19,6 +19,8 @@ from app.schemas.police_network import (
     ForwardIncidentRequest,
     PoliceStationCreate,
     PoliceStationOut,
+    StationCapacityOut,
+    StationFallbackOut,
 )
 from app.services import audit, police_network
 
@@ -77,6 +79,40 @@ def locate_station(lat: float = Query(...), lng: float = Query(...),
     if station is None:
         raise HTTPException(status_code=404, detail="No station covers this location")
     return station
+
+
+# ---------------- resource fallback ----------------
+@router.get("/stations/{station_id}/capacity", response_model=StationCapacityOut)
+def station_capacity(station_id: int, db: Session = Depends(get_db),
+                     _: User = Depends(require_admin_or_responder)):
+    """One station's live resource status -- open cases against the number
+    it's staffed to run at once. See services/police_network.py."""
+    station = db.get(PoliceStation, station_id)
+    if station is None:
+        raise HTTPException(status_code=404, detail="Station not found")
+    return {"name": station.name, **police_network.station_capacity(db, station)}
+
+
+@router.get("/fallback-preview", response_model=list[StationFallbackOut])
+def fallback_preview(lat: float = Query(...), lng: float = Query(...),
+                     db: Session = Depends(get_db),
+                     _: User = Depends(require_admin_or_responder)):
+    """The Police Station Resource Fallback order for a location: every
+    station ranked by spare capacity, distance, workload and staffing --
+    i.e. exactly who would take an emergency here, and who it would fall
+    back to (Station A -> Station B -> Station C) if the first is
+    overloaded. See services/police_network.py:rank_stations_for_point."""
+    ranked = police_network.rank_stations_for_point(db, lat, lng)
+    return [
+        {
+            "station_id": r["station_id"], "name": r["station"].name,
+            "distance_km": r["distance_km"], "open_cases": r["open_cases"],
+            "max_concurrent_cases": r["max_concurrent_cases"],
+            "total_officers": r["total_officers"], "has_capacity": r["has_capacity"],
+            "load_pct": r["load_pct"],
+        }
+        for r in ranked
+    ]
 
 
 # ---------------- inter-station hand-off ----------------

@@ -30,11 +30,13 @@ const dashboardBody = {
       id: 1, name: 'Market PS', phone: '100', contact_officer: 'Inspector Nair',
       lat: 26.16, lng: 91.75, zone_id: 2, zone_name: 'Old Market High-Risk Zone',
       open_incidents: 1, critical_incidents: 1, incident_ids: [7],
+      total_officers: 28, max_concurrent_cases: 1, has_capacity: false, load_pct: 100.0,
     },
     {
       id: 2, name: 'City Central PS', phone: '100', contact_officer: 'Inspector Baruah',
       lat: 26.145, lng: 91.737, zone_id: 4, zone_name: 'City Center Safe Zone',
       open_incidents: 0, critical_incidents: 0, incident_ids: [],
+      total_officers: 32, max_concurrent_cases: 8, has_capacity: true, load_pct: 0.0,
     },
   ],
   unassigned_incidents: [],
@@ -62,6 +64,12 @@ function mockBaseEndpoints() {
   mock.onGet('/tourists').reply(200, [])
   mock.onGet(/\/police-network\/cameras\/nearby.*/).reply(200, [
     { id: 9, label: 'Old Market Main Gate Cam 1', zone_id: 2, lat: 26.16, lng: 91.75, status: 'active', distance_m: 12 },
+  ])
+  mock.onGet(/\/police-network\/fallback-preview.*/).reply(200, [
+    { station_id: 2, name: 'City Central PS', distance_km: 2.1, open_cases: 0,
+      max_concurrent_cases: 8, total_officers: 32, has_capacity: true, load_pct: 0.0 },
+    { station_id: 1, name: 'Market PS', distance_km: 0.3, open_cases: 1,
+      max_concurrent_cases: 1, total_officers: 28, has_capacity: false, load_pct: 100.0 },
   ])
 }
 
@@ -122,5 +130,31 @@ describe('PoliceNetwork page', () => {
     await findByText('ACTIVE RESPONSE IN PROGRESS')
     await findByText(/Tourist SOS raised/)
     await findByText('Mark Resolved', {}, { timeout: 6000 })
+  })
+
+  it('shows each station case load, flagging one at capacity', async () => {
+    mockBaseEndpoints()
+    const { findAllByText, findByText } = render(<PoliceNetwork />)
+    // Market PS is 1/1 -> at capacity; City Central PS is 0/8 -> free
+    await findByText(/1\/1 · AT CAPACITY/)
+    expect((await findAllByText('Case load')).length).toBe(2)
+  })
+
+  it('loads the resource fallback order when a zone/station is selected', async () => {
+    mockBaseEndpoints()
+    const { findByText, findAllByText } = render(<PoliceNetwork />)
+    await findByText('Resource Fallback Order')
+    // nothing selected yet
+    await findByText(/Select a station or zone/)
+
+    // click the zone-coverage table row (same focusOnStation handler the
+    // station cards and map markers use)
+    const cells = await findAllByText('Old Market High-Risk Zone')
+    fireEvent.click(cells.find((el) => el.closest('tr')))
+
+    // ranked list: the station with spare capacity leads, the full one is flagged
+    await findByText(/2\.1 km/)
+    await findByText(/0\/8 free/)
+    await findByText(/1\/1 FULL/)
   })
 })

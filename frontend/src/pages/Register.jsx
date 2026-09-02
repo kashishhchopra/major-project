@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../auth.jsx'
@@ -11,7 +11,25 @@ const DOC_TYPES = [
   { value: 'pan', label: 'PAN' },
 ]
 
-const STEPS = ['Identity', 'Document', 'Trip', 'Emergency Contact', 'Account']
+const STEPS = ['Identity', 'Document', 'Photo', 'Trip', 'Emergency Contact', 'Account']
+
+// Downscales+recompresses so a phone-camera photo doesn't bloat the request
+// (stored as a data: URI column -- see backend/app/models/tourist.py).
+function _resizePhoto(dataUrl, maxSize = 480) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width * scale
+      canvas.height = img.height * scale
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', 0.85))
+    }
+    img.onerror = () => resolve(dataUrl)
+    img.src = dataUrl
+  })
+}
 
 function GlobeShell({ children }) {
   return (
@@ -52,6 +70,76 @@ function StepDots({ step }) {
   )
 }
 
+// Live camera capture -- no file upload, matching the Digital Tourist Safety
+// ID's photo requirement (a real-time capture, not an arbitrary picture).
+function LivePhotoCapture({ photo, onCapture, onRetake }) {
+  const videoRef = useRef(null)
+  const streamRef = useRef(null)
+  const [error, setError] = useState('')
+  const [ready, setReady] = useState(false)
+
+  const stop = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+  }
+
+  useEffect(() => {
+    if (photo) return undefined
+    let cancelled = false
+    setError('')
+    setReady(false)
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'user' } })
+      .then((stream) => {
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          videoRef.current.play()
+          setReady(true)
+        }
+      })
+      .catch(() => setError('Camera access is required to capture your Digital ID photo. Please allow camera access and retry.'))
+    return () => { cancelled = true; stop() }
+  }, [photo])
+
+  const capture = async () => {
+    const video = videoRef.current
+    if (!video) return
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext('2d').drawImage(video, 0, 0)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+    stop()
+    onCapture(await _resizePhoto(dataUrl))
+  }
+
+  if (photo) {
+    return (
+      <div className="flex items-center gap-4">
+        <img src={photo} alt="Captured" className="w-28 h-28 rounded-xl object-cover border border-white/20" />
+        <button type="button" onClick={onRetake}
+          className="text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2 rounded-lg">
+          Retake photo
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="relative w-full max-w-xs mx-auto rounded-xl overflow-hidden bg-black" style={{ aspectRatio: '1/1' }}>
+        <video ref={videoRef} muted playsInline className="w-full h-full object-cover -scale-x-100" />
+      </div>
+      {error && <div className="text-xs text-red-300 text-center">{error}</div>}
+      <button type="button" onClick={capture} disabled={!ready}
+        className="w-full bg-gradient-to-r from-cyan-400 to-sky-500 text-slate-900 font-bold py-2 rounded-lg disabled:opacity-50">
+        📸 Capture Photo
+      </button>
+    </div>
+  )
+}
+
 export default function Register() {
   const { login } = useAuth()
   const nav = useNavigate()
@@ -59,7 +147,7 @@ export default function Register() {
   const [f, setF] = useState({
     full_name: '', nationality: 'Indian', document_type: '',
     document_number: '', phone: '', email: '', password: '',
-    trip_start: '', trip_end: '',
+    trip_start: '', trip_end: '', hotel: '', photo: null,
   })
   const [contact, setContact] = useState({ name: '', phone: '', relation: 'family' })
   const [error, setError] = useState('')
@@ -71,6 +159,7 @@ export default function Register() {
   const validators = [
     () => f.full_name.trim().length >= 2 && f.document_type,
     () => f.document_number.trim().length >= 4 && f.phone.trim().length >= 3,
+    () => !!f.photo, // live camera capture is mandatory for the Digital ID card
     () => f.trip_start && f.trip_end && new Date(f.trip_end) > new Date(f.trip_start),
     () => true, // emergency contact is optional
     () => true, // account is optional
@@ -98,6 +187,8 @@ export default function Register() {
         document_type: f.document_type,
         document_number: f.document_number,
         phone: f.phone,
+        photo: f.photo || null,
+        hotel: f.hotel || null,
         email: f.email || null,
         password: f.password || null,
         trip_start: new Date(f.trip_start).toISOString(),
@@ -183,15 +274,29 @@ export default function Register() {
 
           {step === 2 && (
             <>
-              <label className={label}>Trip Start
-                <input type="datetime-local" className={input} value={f.trip_start} onChange={set('trip_start')} required /></label>
-              <label className={label}>Trip End
-                <input type="datetime-local" className={input} value={f.trip_end} onChange={set('trip_end')} required /></label>
-              <p className="text-xs text-slate-400">Your digital ID stays valid for exactly this window.</p>
+              <p className="text-xs text-slate-400 -mt-1 mb-2">
+                Required — a live camera capture for your Digital Tourist Safety ID card (no file uploads, to
+                make sure the photo is really of you, right now).
+              </p>
+              <LivePhotoCapture photo={f.photo}
+                onCapture={(photo) => setF((prev) => ({ ...prev, photo }))}
+                onRetake={() => setF((prev) => ({ ...prev, photo: null }))} />
             </>
           )}
 
           {step === 3 && (
+            <>
+              <label className={label}>Trip Start
+                <input type="datetime-local" className={input} value={f.trip_start} onChange={set('trip_start')} required /></label>
+              <label className={label}>Trip End
+                <input type="datetime-local" className={input} value={f.trip_end} onChange={set('trip_end')} required /></label>
+              <label className={label}>Hotel / Accommodation
+                <input className={input} value={f.hotel} onChange={set('hotel')} placeholder="e.g. ABC Residency" /></label>
+              <p className="text-xs text-slate-400">Your digital ID stays valid for exactly this window.</p>
+            </>
+          )}
+
+          {step === 4 && (
             <>
               <p className="text-xs text-slate-400 -mt-1 mb-2">Optional, but strongly recommended — notified automatically on SOS.</p>
               <label className={label}>Contact name
@@ -206,7 +311,7 @@ export default function Register() {
             </>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <>
               <p className="text-xs text-slate-400 -mt-1 mb-2">Optional — set credentials to access the tourist app after registering.</p>
               <label className={label}>Email

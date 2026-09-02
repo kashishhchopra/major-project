@@ -118,6 +118,9 @@ class Settings(BaseSettings):
     # ---- domain thresholds ----
     ROUTE_DEVIATION_THRESHOLD_M: float = 2000.0
     ANOMALY_INCIDENT_DEDUPE_MINUTES: int = 5
+    # Digital Tourist Safety ID: a trip within this many hours of its end
+    # shows as "expiring_soon" rather than "active" -- see services/tourist_id.py.
+    ID_EXPIRING_SOON_HOURS: float = 24.0
     # How far ahead (minutes) each ping's trajectory is projected to check for
     # an imminent high-risk/restricted zone crossing.
     TRAJECTORY_HORIZON_MIN: float = 15.0

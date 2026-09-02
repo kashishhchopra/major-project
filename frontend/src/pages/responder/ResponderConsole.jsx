@@ -5,6 +5,7 @@ import useWebSocket from '../../useWebSocket'
 import { sosIcon, missingIcon, policeIcon } from '../../components/mapIcons'
 import { SeverityBadge, StatusBadge, Card } from '../../components/ui.jsx'
 import { DEFAULT_MAP, loadMapConfig } from '../../config'
+import TouristIdScanner from '../../components/TouristIdScanner.jsx'
 
 // A responder's worklist: incidents assigned to the unit they represent.
 // Essential tourist info + a map pin per incident, with quick
@@ -14,6 +15,7 @@ export default function ResponderConsole() {
   const [incidents, setIncidents] = useState([])
   const [tourists, setTourists] = useState({})
   const [mapCfg, setMapCfg] = useState(DEFAULT_MAP)
+  const [scanOpen, setScanOpen] = useState(false)
 
   const load = async () => {
     const { data } = await api.get('/incidents/mine')
@@ -52,6 +54,18 @@ export default function ResponderConsole() {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">My Assigned Incidents</h2>
+
+      <div>
+        <button onClick={() => setScanOpen((o) => !o)}
+          className="w-full text-sm font-semibold text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 rounded-xl py-2">
+          {scanOpen ? 'Hide Tourist ID scanner ▲' : '🪪 Scan Tourist Safety ID'}
+        </button>
+        {scanOpen && (
+          <div className="mt-3">
+            <TouristIdScanner />
+          </div>
+        )}
+      </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden" style={{ height: 320 }}>
         <MapContainer center={mapCfg.center} zoom={mapCfg.zoom} style={{ height: '100%', width: '100%' }}>

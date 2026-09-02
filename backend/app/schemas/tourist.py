@@ -26,6 +26,12 @@ class TouristCreate(BaseModel):
     document_type: str = Field("aadhaar", max_length=20)
     document_number: str = Field(..., min_length=4, max_length=40)
     phone: str = Field(..., min_length=3, max_length=30)
+    # data: URI, e.g. "data:image/jpeg;base64,...". Required -- a live camera
+    # capture at registration, so the Digital Tourist Safety ID always has a
+    # verifiable photo (the frontend enforces "live capture", not upload;
+    # this just enforces "a photo was provided" server-side).
+    photo: str = Field(..., min_length=10, max_length=2_000_000)
+    hotel: str | None = Field(None, max_length=200)
     itinerary: list[Waypoint] = Field(default_factory=list, max_length=50)
     emergency_contacts: list[EmergencyContact] = Field(default_factory=list, max_length=10)
     trip_start: datetime
@@ -60,6 +66,8 @@ class TouristOut(BaseModel):
     document_type: str
     document_number: str
     phone: str
+    photo: str | None
+    hotel: str | None
     itinerary: list[Waypoint]
     emergency_contacts: list[EmergencyContact]
     trip_start: datetime

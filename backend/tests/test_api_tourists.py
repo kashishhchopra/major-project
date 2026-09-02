@@ -15,6 +15,7 @@ def _payload(**over):
         "document_type": "aadhaar",
         "document_number": "XXXX-XXXX-9999",
         "phone": "+91-90000-11111",
+        "photo": "data:image/png;base64,iVBORw0KGgo=",
         "itinerary": [{"name": "Stop", "lat": 26.14, "lng": 91.73}],
         "emergency_contacts": [{"name": "Kin", "phone": "+91-1", "relation": "family"}],
         "trip_start": now.isoformat(),
@@ -22,6 +23,13 @@ def _payload(**over):
     }
     base.update(over)
     return base
+
+
+def test_registration_requires_a_photo(client):
+    payload = _payload()
+    del payload["photo"]
+    r = client.post("/api/tourists", json=payload)
+    assert r.status_code == 422
 
 
 def test_registration_mints_a_digital_id(client):

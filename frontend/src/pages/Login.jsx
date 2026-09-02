@@ -11,6 +11,8 @@ const DEMO = [
   { label: 'Tourist (Aarav)', email: 'aarav@example.com', password: 'tourist123' },
 ]
 
+const ROLE_HOME = { admin: '/admin', responder: '/responder' }
+
 export default function Login() {
   const { login } = useAuth()
   const { t } = useTranslation()
@@ -26,7 +28,7 @@ export default function Login() {
     setLoading(true)
     try {
       const u = await login(email, password)
-      nav(u.role === 'admin' ? '/admin' : u.role === 'responder' ? '/responder' : '/app')
+      nav(ROLE_HOME[u.role] || '/app')
     } catch (err) {
       setError(t('auth.invalid_credentials'))
     } finally {

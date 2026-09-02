@@ -51,6 +51,18 @@ def require_admin_or_responder(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_scan_authorized(user: User = Depends(get_current_user)) -> User:
+    """Digital Tourist Safety ID: who may scan/verify a QR at all. Each
+    authorized role still gets a different, role-filtered view of the
+    verified tourist -- see services/tourist_id.py:_permitted_view. This
+    dependency only gates "may attempt a scan", not "sees everything"."""
+    from app.services.tourist_id import SCAN_AUTHORIZED_ROLES
+
+    if user.role not in SCAN_AUTHORIZED_ROLES:
+        raise HTTPException(status_code=403, detail="Not authorized to scan Tourist Safety IDs")
+    return user
+
+
 def require_self_or_admin(
     tourist_id: int = Path(...), user: User = Depends(get_current_user)
 ) -> User:

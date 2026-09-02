@@ -18,6 +18,7 @@ import RoutePicker, { RouteLayer, useRoutePicker } from '../../components/RouteP
 import { enqueueSOS, flushQueue, queueLength } from '../../lib/offlineQueue'
 import useOnlineStatus from '../../hooks/useOnlineStatus'
 import SafetyPassportCard from '../../components/SafetyPassportCard.jsx'
+import DigitalIdCard from '../../components/DigitalIdCard.jsx'
 import TripGuardianCard from '../../components/TripGuardianCard.jsx'
 import CheckInCard from '../../components/CheckInCard.jsx'
 import PrivacyCard from '../../components/PrivacyCard.jsx'
@@ -338,7 +339,8 @@ export default function TouristApp() {
         {/* Digital Safety Passport + QR -- the hub's "Profile" and
             "Wearable & Emergency Contacts" cards both jump here: this is
             where the device and emergency-contact info actually live */}
-        <div id="hub-profile">
+        <div id="hub-profile" className="space-y-3">
+          <DigitalIdCard touristId={tid} />
           <SafetyPassportCard touristId={tid} />
         </div>
 

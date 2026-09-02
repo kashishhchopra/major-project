@@ -13,13 +13,28 @@ from app.core.security import hash_password
 from app.core.time import utc_now
 from app.db.session import Base, SessionLocal
 from app.models.incident import Incident, IncidentEvent
-from app.models.police import PoliceUnit
+from app.models.police import Camera, PoliceStation, PoliceUnit
 from app.models.tourist import Tourist
 from app.models.user import User
 from app.models.zone import Zone
-from app.services import hashchain
+from app.services import hashchain, tourist_id
 
 CENTER = (26.1445, 91.7362)  # Guwahati
+
+
+def _avatar_svg(initials: str, color: str) -> str:
+    """A tiny deterministic placeholder "photo" (initials on a colour swatch)
+    so the Digital Tourist Safety ID card has something to render for every
+    seeded tourist without needing binary image assets in the repo."""
+    import base64
+
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">'
+        f'<rect width="200" height="200" fill="{color}"/>'
+        f'<text x="100" y="118" font-size="72" font-family="sans-serif" '
+        f'fill="white" text-anchor="middle">{initials}</text></svg>'
+    )
+    return f"data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}"
 
 
 def _rect(lat, lng, dlat=0.008, dlng=0.008):
@@ -98,6 +113,40 @@ def seed() -> None:
                     source="auto",
                 ))
         db.add_all(zones)
+        db.flush()
+        riverside_zone, market_zone, hillside_zone, city_zone = zones[:4]
+
+        # ---- area-based police network: one station per zone ----
+        stations = [
+            PoliceStation(name="City Central PS", zone_id=city_zone.id, phone="100",
+                          contact_officer="Inspector Rina Baruah",
+                          lat=26.1450, lng=91.7370),
+            PoliceStation(name="Riverside PS", zone_id=riverside_zone.id, phone="100",
+                          contact_officer="Sub-Inspector Manoj Das",
+                          lat=26.1750, lng=91.7650),
+            PoliceStation(name="Market PS", zone_id=market_zone.id, phone="100",
+                          contact_officer="Inspector Priya Nair",
+                          lat=26.1620, lng=91.7480),
+            PoliceStation(name="Hillside Outpost", zone_id=hillside_zone.id, phone="100",
+                          contact_officer="Sub-Inspector Tenzin Lepcha",
+                          lat=26.1280, lng=91.7180),
+        ]
+        db.add_all(stations)
+
+        # ---- CCTV/camera directory (mock, no video feed) ----
+        cameras = [
+            Camera(label="City Center Market Sq Cam 1", zone_id=city_zone.id,
+                  lat=26.1448, lng=91.7365),
+            Camera(label="City Center Bus Stand Cam 2", zone_id=city_zone.id,
+                  lat=26.1442, lng=91.7358),
+            Camera(label="Old Market Main Gate Cam 1", zone_id=market_zone.id,
+                  lat=26.1652, lng=91.7502),
+            Camera(label="Riverside Ghat Cam 1", zone_id=riverside_zone.id,
+                  lat=26.1798, lng=91.7698),
+            Camera(label="Hillside Trailhead Cam 1", zone_id=hillside_zone.id,
+                  lat=26.1252, lng=91.7152, status="offline"),
+        ]
+        db.add_all(cameras)
 
         # ---- police units ----
         units = [
@@ -131,6 +180,7 @@ def seed() -> None:
             {
                 "full_name": "Aarav Sharma", "doc": "XXXX-XXXX-4521", "phone": "+91-98765-43210",
                 "start": (26.1445, 91.7362), "email": "aarav@example.com",
+                "hotel": "City Center Residency",
                 "itin": [("Kamakhya Temple", 26.1665, 91.7055),
                          ("City Center", 26.1445, 91.7362),
                          ("Umananda Island", 26.1970, 91.7450)],
@@ -138,31 +188,33 @@ def seed() -> None:
             {
                 "full_name": "Emma Watson", "doc": "P1234567", "phone": "+44-7700-900123",
                 "start": (26.1500, 91.7400), "email": "emma@example.com", "nat": "British",
-                "doctype": "passport",
+                "doctype": "passport", "hotel": "Old Market Heritage Inn",
                 "itin": [("City Center", 26.1445, 91.7362),
                          ("Old Market", 26.1650, 91.7500)],
             },
             {
                 "full_name": "Rohan Verma", "doc": "XXXX-XXXX-8890", "phone": "+91-99887-76655",
                 "start": (26.1280, 91.7200), "email": "rohan@example.com",
+                "hotel": "Hillside Trekkers Lodge",
                 "itin": [("Hillside Trek Start", 26.1250, 91.7150),
                          ("Viewpoint", 26.1200, 91.7100)],
             },
             {
                 "full_name": "Sofia Rossi", "doc": "YA9988776", "phone": "+39-333-1234567",
                 "start": (26.1600, 91.7480), "email": "sofia@example.com", "nat": "Italian",
-                "doctype": "passport",
+                "doctype": "passport", "hotel": "Old Market Heritage Inn",
                 "itin": [("Old Market", 26.1650, 91.7500),
                          ("Riverside Walk", 26.1780, 91.7680)],
             },
             {
                 "full_name": "Kenji Tanaka", "doc": "TK5544332", "phone": "+81-90-1234-5678",
                 "start": (26.1420, 91.7340), "email": "kenji@example.com", "nat": "Japanese",
-                "doctype": "passport",
+                "doctype": "passport", "hotel": "City Center Residency",
                 "itin": [("City Center", 26.1445, 91.7362),
                          ("Kamakhya Temple", 26.1665, 91.7055)],
             },
         ]
+        _avatar_colors = ["#0ea5e9", "#f97316", "#16a34a", "#7c3aed", "#dc2626"]
 
         for i, d in enumerate(demo):
             slat, slng = d["start"]
@@ -173,6 +225,11 @@ def seed() -> None:
                 document_type=d.get("doctype", "aadhaar"),
                 document_number=d["doc"],
                 phone=d["phone"],
+                photo=_avatar_svg(
+                    "".join(w[0] for w in d["full_name"].split()[:2]).upper(),
+                    _avatar_colors[i % len(_avatar_colors)],
+                ),
+                hotel=d.get("hotel"),
                 itinerary=json.dumps([{"name": n, "lat": la, "lng": ln} for n, la, ln in d["itin"]]),
                 emergency_contacts=json.dumps([
                     {"name": "Family Contact", "phone": "+91-90000-00000", "relation": "family"},
@@ -189,6 +246,7 @@ def seed() -> None:
                 "digital_id": t.digital_id, "name": t.full_name, "document": t.document_number,
             })
             hashchain.append_block(db, t, "CHECKIN", {"location": "Arrival", "lat": slat, "lng": slng})
+            tourist_id.issue_token(db, t)  # Digital Tourist Safety ID QR token
             # tourist login account
             db.add(User(
                 email=d["email"], full_name=d["full_name"],
@@ -218,7 +276,8 @@ def seed() -> None:
         print("  Tourist login: aarav@example.com / tourist123 (and emma/rohan/sofia/kenji)")
         print("  Responder login: responder@tourism.gov.in / responder123 (Unit Alpha)")
         print(f"  Tourists: {db.query(Tourist).count()}, Zones: {db.query(Zone).count()}, "
-              f"Units: {db.query(PoliceUnit).count()}")
+              f"Units: {db.query(PoliceUnit).count()}, Stations: {db.query(PoliceStation).count()}, "
+              f"Cameras: {db.query(Camera).count()}")
     finally:
         db.close()
 

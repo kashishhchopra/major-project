@@ -84,18 +84,20 @@ def make_zone(db, name="Old Market", risk="high", lat=26.165, lng=91.75,
 
 
 def make_tourist(db, name="Test Tourist", lat=26.1445, lng=91.7362,
-                 itinerary=None, doc="XXXX-XXXX-0001") -> Tourist:
+                 itinerary=None, doc="XXXX-XXXX-0001", hotel=None,
+                 trip_start=None, trip_end=None) -> Tourist:
     import json
     now = utc_now()
     t = Tourist(
         digital_id=f"STS-TEST{db.query(Tourist).count() + 1:03d}",
         full_name=name, nationality="Indian", document_type="aadhaar",
-        document_number=doc, phone="+91-90000-00000",
+        document_number=doc, phone="+91-90000-00000", hotel=hotel,
         itinerary=json.dumps(itinerary if itinerary is not None
                              else [{"name": "Start", "lat": lat, "lng": lng}]),
         emergency_contacts=json.dumps([{"name": "Kin", "phone": "+91-1",
                                         "relation": "family"}]),
-        trip_start=now - timedelta(days=1), trip_end=now + timedelta(days=6),
+        trip_start=trip_start or (now - timedelta(days=1)),
+        trip_end=trip_end or (now + timedelta(days=6)),
         last_lat=lat, last_lng=lng, last_seen=now, safety_score=90.0,
     )
     db.add(t)

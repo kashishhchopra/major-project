@@ -107,3 +107,161 @@ def test_tourist_copilot_forbidden_for_other_tourist(client, tourist_headers, db
     r = client.post(f"/api/tourists/{other.id}/copilot/ask", headers=tourist_headers,
                     json={"question": "hi"})
     assert r.status_code == 403
+
+
+# ---------------------------------------------------------------- itinerary-aware
+def _set_itinerary(db, tourist, stops):
+    import json
+    tourist.itinerary = json.dumps(stops)
+    db.commit()
+
+
+def test_tourist_next_destination(client, tourist_headers, tourist_user, db):
+    from app.models.tourist import Tourist
+    t = db.get(Tourist, tourist_user.tourist_id)
+    _set_itinerary(db, t, [{"name": "Agra", "lat": 27.1767, "lng": 78.0081}])
+
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "what's my next destination?"})
+    assert r.status_code == 200
+    assert "Agra" in r.json()["answer"]
+
+
+def test_tourist_next_destination_no_itinerary(client, tourist_headers, tourist_user, db):
+    from app.models.tourist import Tourist
+    t = db.get(Tourist, tourist_user.tourist_id)
+    _set_itinerary(db, t, [])  # make_tourist seeds a default "Start" stop -- clear it
+
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "where am I going next?"})
+    assert r.status_code == 200
+    assert "upload" in r.json()["answer"].lower()
+
+
+def test_tourist_show_itinerary(client, tourist_headers, tourist_user, db):
+    from app.models.tourist import Tourist
+    t = db.get(Tourist, tourist_user.tourist_id)
+    _set_itinerary(db, t, [
+        {"name": "Delhi", "lat": 28.6139, "lng": 77.2090},
+        {"name": "Agra", "lat": 27.1767, "lng": 78.0081},
+    ])
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "show my itinerary"})
+    assert r.status_code == 200
+    assert "Delhi" in r.json()["answer"] and "Agra" in r.json()["answer"]
+
+
+def test_tourist_on_route_when_following_plan(client, tourist_headers, tourist_user, db):
+    from app.models.tourist import Tourist
+    t = db.get(Tourist, tourist_user.tourist_id)
+    _set_itinerary(db, t, [{"name": "Nearby Stop", "lat": t.last_lat, "lng": t.last_lng}])
+
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "am I on the correct route?"})
+    assert r.status_code == 200
+    assert "on your planned route" in r.json()["answer"]
+
+
+def test_tourist_on_route_flags_significant_deviation(client, tourist_headers, tourist_user, db):
+    from app.models.tourist import Tourist
+    t = db.get(Tourist, tourist_user.tourist_id)
+    # itinerary stop far from the tourist's current (last_lat/last_lng) position
+    _set_itinerary(db, t, [{"name": "Faraway City", "lat": 28.6139, "lng": 77.2090}])
+
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "am I on track?"})
+    assert r.status_code == 200
+    answer = r.json()["answer"]
+    assert "navigation" in answer.lower() or "km" in answer
+
+
+def test_tourist_nearest_transport(client, tourist_headers, tourist_user, db):
+    from tests.conftest import make_poi
+    make_poi(db, name="City Bus Stop", category="bus_stop",
+            lat=26.1450, lng=91.7370)
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "find transport near me"})
+    assert r.status_code == 200
+    assert "City Bus Stop" in r.json()["answer"]
+
+
+def test_tourist_nearest_pharmacy(client, tourist_headers, tourist_user, db):
+    from tests.conftest import make_poi
+    make_poi(db, name="City Pharmacy", category="pharmacy", lat=26.1450, lng=91.7370, phone="100")
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "find a pharmacy"})
+    assert r.status_code == 200
+    assert "City Pharmacy" in r.json()["answer"]
+
+
+def test_tourist_emergency_call_never_triggers_real_sos(client, tourist_headers, tourist_user, db):
+    from app.models.incident import Incident
+    before = db.query(Incident).count()
+
+    r = client.post(f"/api/tourists/{tourist_user.tourist_id}/copilot/ask", headers=tourist_headers,
+                    json={"question": "call emergency services"})
+    assert r.status_code == 200
+    assert "SOS" in r.json()["answer"]
+    assert db.query(Incident).count() == before  # no incident silently created
+
+
+# ---- complete voice-command coverage ----
+def _ask(client, headers, tourist_id, question):
+    r = client.post(f"/api/tourists/{tourist_id}/copilot/ask", headers=headers,
+                    json={"question": question})
+    assert r.status_code == 200
+    return r.json()["answer"]
+
+
+def test_tourist_find_a_cab_routes_to_taxi_stand(client, tourist_headers, tourist_user, db):
+    from tests.conftest import make_poi
+    make_poi(db, name="Paltan Bazaar Taxi Stand", category="taxi_stand", lat=26.1450, lng=91.7370)
+    answer = _ask(client, tourist_headers, tourist_user.tourist_id, "find a cab")
+    assert "Paltan Bazaar Taxi Stand" in answer
+
+
+def test_tourist_take_me_to_my_hotel(client, tourist_headers, tourist_user, db):
+    from app.models.tourist import Tourist
+    t = db.get(Tourist, tourist_user.tourist_id)
+    t.hotel = "Delhi"  # resolvable via the offline gazetteer in tests
+    db.commit()
+    answer = _ask(client, tourist_headers, tourist_user.tourist_id, "take me to my hotel")
+    assert "Delhi" in answer
+    assert "km" in answer
+
+
+def test_tourist_hotel_without_one_on_file_says_so(client, tourist_headers, tourist_user, db):
+    from app.models.tourist import Tourist
+    t = db.get(Tourist, tourist_user.tourist_id)
+    t.hotel = None
+    db.commit()
+    answer = _ask(client, tourist_headers, tourist_user.tourist_id, "take me to my hotel")
+    assert "don't have a hotel" in answer.lower()
+
+
+def test_tourist_emergency_procedure_guidance(client, tourist_headers, tourist_user):
+    answer = _ask(client, tourist_headers, tourist_user.tourist_id,
+                  "what should I do in an emergency?")
+    assert "SOS" in answer and "112" in answer
+
+
+def test_tourist_translate_asks_what_and_which_language(client, tourist_headers, tourist_user):
+    answer = _ask(client, tourist_headers, tourist_user.tourist_id, "translate this")
+    assert "Hindi" in answer  # lists the supported languages
+
+
+def test_tourist_translate_extracts_phrase_and_language_from_free_speech(
+        client, tourist_headers, tourist_user):
+    # No live translation API key in tests -- it must say so rather than
+    # inventing a translation.
+    answer = _ask(client, tourist_headers, tourist_user.tourist_id,
+                  "how do I say I need a doctor in Hindi")
+    assert "Hindi" in answer
+    assert "doctor" not in answer.lower() or "isn't configured" in answer
+
+
+def test_unmatched_question_reflects_back_what_was_heard(client, tourist_headers, tourist_user):
+    answer = _ask(client, tourist_headers, tourist_user.tourist_id,
+                  "please book me a hot air balloon ride")
+    assert "hot air balloon" in answer  # so a mis-heard voice command is obvious
+    assert "nearest hospital" in answer

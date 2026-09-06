@@ -15,10 +15,13 @@ from app.api import (
     disaster,
     guardian,
     incidents,
+    itinerary,
+    maps,
     ml,
     police_network,
     tourist_id,
     tourists,
+    translate,
     ws,
     zones,
 )
@@ -189,6 +192,9 @@ app.include_router(zones.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(incidents.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(police_network.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(tourist_id.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(itinerary.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(maps.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(translate.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(analytics.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(ml.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(devices.router, prefix=PREFIX, dependencies=_rl)

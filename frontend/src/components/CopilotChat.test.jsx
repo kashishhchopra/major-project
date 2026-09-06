@@ -1,12 +1,33 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, fireEvent, act } from '@testing-library/react'
 import MockAdapter from 'axios-mock-adapter'
 import api from '../api'
 import CopilotChat from './CopilotChat'
 
 const mock = new MockAdapter(api)
 
-beforeEach(() => mock.reset())
+// jsdom has no SpeechRecognition/SpeechSynthesis -- stub the hook/service
+// this component uses so the mic button and voice-reply toggle can be
+// exercised without a real browser speech engine.
+let mockSpeechState
+vi.mock('../hooks/useSpeechRecognition', () => ({
+  default: () => mockSpeechState,
+}))
+const speakMock = vi.fn().mockResolvedValue()
+vi.mock('../lib/voiceService', () => ({
+  speak: (...args) => speakMock(...args),
+  stopSpeaking: vi.fn(),
+  speechSynthesisSupported: () => true,
+}))
+
+beforeEach(() => {
+  mock.reset()
+  speakMock.mockClear()
+  mockSpeechState = {
+    supported: true, listening: false, transcript: '', error: null,
+    start: vi.fn(), stop: vi.fn(), reset: vi.fn(),
+  }
+})
 
 describe('CopilotChat', () => {
   it('is closed by default', () => {
@@ -52,5 +73,42 @@ describe('CopilotChat', () => {
     fireEvent.click(getByText('🤖'))
     fireEvent.click(getByText('✕'))
     expect(queryByPlaceholderText(/Ask a question/)).not.toBeInTheDocument()
+  })
+
+  it('shows the mic button and starts listening on click', () => {
+    const { getByText, getByTitle } = render(<CopilotChat endpoint="/copilot/ask" />)
+    fireEvent.click(getByText('🤖'))
+    fireEvent.click(getByTitle('Ask by voice'))
+    expect(mockSpeechState.start).toHaveBeenCalled()
+  })
+
+  it('auto-submits once a voice transcript is captured', async () => {
+    mock.onPost('/copilot/ask').reply(200, { answer: 'Voice answer.', handled: true })
+    const { getByText, findByText, rerender } = render(<CopilotChat endpoint="/copilot/ask" />)
+    fireEvent.click(getByText('🤖'))
+
+    mockSpeechState = { ...mockSpeechState, listening: false, transcript: 'nearest hospital?' }
+    rerender(<CopilotChat endpoint="/copilot/ask" />)
+
+    await findByText('nearest hospital?')
+    await findByText('Voice answer.')
+  })
+
+  it('speaks the reply aloud only when the speaker toggle is on', async () => {
+    mock.onPost('/copilot/ask').reply(200, { answer: 'Spoken answer.', handled: true })
+    const { getByText, getByPlaceholderText, findByText, getByTitle } = render(
+      <CopilotChat endpoint="/copilot/ask" lang="en" />
+    )
+    fireEvent.click(getByText('🤖'))
+    fireEvent.change(getByPlaceholderText(/Ask a question/), { target: { value: 'hi' } })
+    fireEvent.submit(getByPlaceholderText(/Ask a question/).closest('form'))
+    await findByText('Spoken answer.')
+    expect(speakMock).not.toHaveBeenCalled() // off by default
+
+    fireEvent.click(getByTitle('Voice replies off'))
+    fireEvent.change(getByPlaceholderText(/Ask a question/), { target: { value: 'hi again' } })
+    fireEvent.submit(getByPlaceholderText(/Ask a question/).closest('form'))
+    await act(async () => {})
+    expect(speakMock).toHaveBeenCalledWith('Spoken answer.', 'en')
   })
 })

@@ -41,13 +41,26 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
-    """Reject oversized request bodies early (defends against memory-exhaustion)."""
+    """Reject oversized request bodies early (defends against memory-exhaustion).
+
+    Most JSON endpoints never need more than MAX_REQUEST_BODY_BYTES (1 MB),
+    so that stays the default cap. The itinerary-document upload is a real
+    file upload (PDF/DOCX) with its own, larger, documented limit
+    (ITINERARY_DOCUMENT_MAX_BYTES) -- without this path-specific override,
+    the global 1 MB cap would reject any itinerary file between 1-5 MB
+    before it ever reached that endpoint's own size check.
+    """
 
     async def dispatch(self, request: Request, call_next):
         cl = request.headers.get("content-length")
         if cl is not None:
+            limit = settings.MAX_REQUEST_BODY_BYTES
+            if request.url.path.endswith("/itinerary-documents"):
+                # Multipart adds boundary/header overhead on top of the file
+                # itself, so allow a little headroom over the documented cap.
+                limit = settings.ITINERARY_DOCUMENT_MAX_BYTES + 50_000
             try:
-                if int(cl) > settings.MAX_REQUEST_BODY_BYTES:
+                if int(cl) > limit:
                     return JSONResponse(
                         status_code=413, content={"detail": "Request body too large"}
                     )

@@ -15,6 +15,7 @@ from app.core.security import hash_password
 from app.core.time import utc_now
 from app.db.session import Base, SessionLocal
 from app.models.incident import Incident, IncidentEvent
+from app.models.place import PointOfInterest
 from app.models.police import Camera, PoliceStation, PoliceUnit
 from app.models.tourist import Tourist
 from app.models.user import User
@@ -192,6 +193,26 @@ def seed() -> None:
         ]
         db.add_all(cameras)
 
+        # ---- pharmacy/transport directory (demo fixtures -- hospitals and
+        # police already have a real committed OSM import, see services/poi.py;
+        # these two categories don't yet, so this is clearly-labelled seed
+        # data, not a claim of live coverage) ----
+        places = [
+            PointOfInterest(name="City Center Pharmacy", category="pharmacy",
+                            lat=26.1449, lng=91.7368, phone="100"),
+            PointOfInterest(name="Old Market Medical Store", category="pharmacy",
+                            lat=26.1655, lng=91.7495, phone="100"),
+            PointOfInterest(name="Guwahati Railway Station", category="railway_station",
+                            lat=26.1809, lng=91.7378, phone="139"),
+            PointOfInterest(name="Paltan Bazaar Bus Stand", category="bus_stop",
+                            lat=26.1833, lng=91.7458),
+            PointOfInterest(name="City Center Taxi Stand", category="taxi_stand",
+                            lat=26.1452, lng=91.7372),
+            PointOfInterest(name="Old Market Auto Stand", category="taxi_stand",
+                            lat=26.1648, lng=91.7505),
+        ]
+        db.add_all(places)
+
         # ---- police units ----
         units = [
             PoliceUnit(name="Unit Alpha", station="City Central PS", phone="100",
@@ -330,7 +351,7 @@ def seed() -> None:
         print(f"  Responder login: responder@tourism.gov.in / {responder_password} (Unit Alpha)")
         print(f"  Tourists: {db.query(Tourist).count()}, Zones: {db.query(Zone).count()}, "
               f"Units: {db.query(PoliceUnit).count()}, Stations: {db.query(PoliceStation).count()}, "
-              f"Cameras: {db.query(Camera).count()}")
+              f"Cameras: {db.query(Camera).count()}, Places: {db.query(PointOfInterest).count()}")
     finally:
         db.close()
 

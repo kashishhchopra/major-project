@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import api from '../api'
 import { Card } from './ui.jsx'
 
@@ -13,6 +14,7 @@ const STATUS_CLS = {
 // time. A miss becomes a soft distress signal on its own -- see
 // services/checkin.py:tick_checkins().
 export default function CheckInCard({ touristId }) {
+  const { t } = useTranslation()
   const [checkins, setCheckins] = useState([])
   const [destination, setDestination] = useState('')
   const [returnAt, setReturnAt] = useState('')
@@ -50,27 +52,25 @@ export default function CheckInCard({ touristId }) {
   const open = checkins.filter((c) => c.status !== 'checked_in')
 
   return (
-    <Card title="Check-in / Check-out">
+    <Card title={t('checkin.card_title')}>
       <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-        Planning an outing? Tell us where you're headed and when you expect
-        to be back — if you miss it, we'll start checking on you before
-        anyone needs to press SOS.
+        {t('checkin.intro')}
       </p>
 
       <form onSubmit={create} className="flex flex-col gap-2 mb-3">
         <input value={destination} onChange={(e) => setDestination(e.target.value)}
-          placeholder="Destination (e.g. Riverside trek)"
+          placeholder={t('checkin.destination_placeholder')}
           className="border border-slate-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm" />
         <input type="datetime-local" value={returnAt} onChange={(e) => setReturnAt(e.target.value)}
           className="border border-slate-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm" />
         <button disabled={creating || !destination.trim() || !returnAt}
           className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg">
-          {creating ? 'Saving…' : '+ Plan a check-in'}
+          {creating ? t('checkin.saving') : t('checkin.plan_button')}
         </button>
       </form>
 
       <div className="space-y-2">
-        {open.length === 0 && <div className="text-xs text-slate-400">No planned outings right now.</div>}
+        {open.length === 0 && <div className="text-xs text-slate-400">{t('checkin.no_outings')}</div>}
         {open.map((c) => (
           <div key={c.id} className="border border-slate-100 dark:border-slate-700 rounded-lg p-2.5 text-sm">
             <div className="flex items-center justify-between">
@@ -80,11 +80,11 @@ export default function CheckInCard({ touristId }) {
               </span>
             </div>
             <div className="text-xs text-slate-400 mt-0.5">
-              Expected back {new Date(c.expected_return_at).toLocaleString()}
+              {t('checkin.expected_back', { when: new Date(c.expected_return_at).toLocaleString() })}
             </div>
             <button onClick={() => checkIn(c.id)}
               className="mt-2 w-full text-xs font-semibold bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg">
-              ✅ I'm back safe
+              {t('checkin.im_back_safe')}
             </button>
           </div>
         ))}

@@ -11,6 +11,7 @@ import MeTab from './tabs/MeTab.jsx'
 import ReportSheet from './tabs/ReportSheet.jsx'
 import CopilotChat from '../../components/CopilotChat.jsx'
 import VoiceAssistantButton from '../../components/VoiceAssistantButton.jsx'
+import EmergencyModeCard from '../../components/EmergencyModeCard.jsx'
 
 const TAB_COMPONENTS = { home: HomeTab, plan: PlanTab, help: HelpTab, me: MeTab }
 
@@ -58,6 +59,10 @@ export default function TouristApp() {
         data={data}
         lang={i18n.resolvedLanguage || i18n.language}
       />
+
+      {/* SOS live-location sharing: visible on any tab while an emergency
+          is active (never for a silent/duress SOS -- see the component). */}
+      <EmergencyModeCard sosSent={data.sosSent} tid={tid} posRef={data.posRef} />
 
       {/* Always-available voice assistant: one tap to speak, on any tab. */}
       <VoiceAssistantButton ref={voiceRef} touristId={tid} lang={i18n.resolvedLanguage || i18n.language} />

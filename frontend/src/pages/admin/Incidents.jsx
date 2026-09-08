@@ -64,7 +64,7 @@ export default function Incidents() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-slate-800">Incident Response Workflow</h2>
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Incident Response Workflow</h2>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
             className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
@@ -99,7 +99,7 @@ export default function Incidents() {
       <div className="space-y-3">
         {visible.length === 0 && <Card><div className="text-slate-400 text-sm">No incidents match this filter.</div></Card>}
         {visible.map((inc) => (
-          <div key={inc.id} className="bg-white rounded-xl shadow-sm p-4">
+          <div key={inc.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="font-semibold">#{inc.id}</span>

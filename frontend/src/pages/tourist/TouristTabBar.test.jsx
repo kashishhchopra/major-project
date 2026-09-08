@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
+import '../../i18n' // initializes i18next so t() resolves real strings, not raw keys
 import TouristTabBar from './TouristTabBar.jsx'
 
 describe('TouristTabBar', () => {

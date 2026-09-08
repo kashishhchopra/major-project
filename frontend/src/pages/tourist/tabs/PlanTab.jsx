@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Card } from '../../../components/ui.jsx'
+import TabHero from '../../../components/TabHero.jsx'
 import RiskForecastStrip from '../../../components/RiskForecastStrip.jsx'
 import RoutePicker from '../../../components/RoutePicker.jsx'
 import CheckInCard from '../../../components/CheckInCard.jsx'
@@ -17,25 +18,47 @@ export default function PlanTab({ data }) {
 
   return (
     <div className="space-y-4">
+      <TabHero icon="🧭" title={t('plan_hero.title')} subtitle={t('plan_hero.subtitle')}
+        gradient="from-indigo-500 via-violet-500 to-purple-600" />
+
       <RiskForecastStrip forecast={riskForecast} />
 
       <VoiceNavigationAssistant touristId={tid} lang={i18n.resolvedLanguage || i18n.language} />
 
       <button onClick={() => setRoutePickerOpen((v) => !v)}
-        className="w-full text-sm font-semibold text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 rounded-xl py-2">
-        {routePickerOpen ? 'Hide safe route planner' : '🧭 Plan a safe route'}
+        className="w-full text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 rounded-xl py-2.5 shadow-sm">
+        {routePickerOpen ? t('plan.hide_route_planner') : t('plan.plan_safe_route')}
       </button>
       <RoutePicker active={routePickerOpen} onToggle={() => setRoutePickerOpen(false)} state={routePicker} />
 
       <ItineraryUploadCard touristId={tid} onConfirmed={load} />
 
-      <Card title={t('itinerary.title')}>
-        <ol className="space-y-2">
+      <Card title={t('itinerary.title')} icon="🗺️" iconColor="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300" actions={
+        me.itinerary?.length > 0 && (
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-full px-2 py-0.5">
+            🟢 {t('itinerary.route_safe')}
+          </span>
+        )
+      }>
+        {/* A connected vertical journey line, not just a bare list -- each
+            stop is still exactly `me.itinerary[i]`, "next stop" is still
+            i === 0, nothing about the underlying data changed. */}
+        <ol className="relative">
           {me.itinerary?.map((w, i) => (
-            <li key={i} className="flex items-center gap-2 text-sm">
-              <span className={`w-2.5 h-2.5 rounded-full ${i === 0 ? 'bg-sky-500' : 'bg-slate-300'}`}></span>
-              <span className={i === 0 ? 'font-medium text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}>{w.name}</span>
-              {i === 0 && <span className="text-xs text-sky-600 ml-auto">{t('itinerary.next_stop')}</span>}
+            <li key={i} className="relative flex items-start gap-3 pb-4 last:pb-0">
+              {i < me.itinerary.length - 1 && (
+                <span className="absolute left-[9px] top-6 bottom-0 w-px bg-gradient-to-b from-indigo-200 to-slate-200 dark:from-indigo-800 dark:to-slate-700" />
+              )}
+              <span className={`mt-0.5 w-5 h-5 rounded-full shrink-0 z-10 flex items-center justify-center text-[10px] font-bold ${
+                i === 0
+                  ? 'bg-indigo-500 text-white ring-4 ring-indigo-100 dark:ring-indigo-900/40'
+                  : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-300'}`}>
+                {i + 1}
+              </span>
+              <div className="text-sm">
+                <span className={i === 0 ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}>{w.name}</span>
+                {i === 0 && <span className="block text-xs text-indigo-600 dark:text-indigo-400 font-medium">📍 {t('itinerary.next_stop')}</span>}
+              </div>
             </li>
           ))}
         </ol>

@@ -286,6 +286,12 @@ def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: 
     inc.escalation_deadline = utc_now() + timedelta(
         seconds=settings.ESCALATION_STAGE_TIMEOUT_SECONDS
     )
+    # SOS live location sharing starts immediately -- see
+    # app/services/emergency_location.py. The tourist's device begins
+    # posting position updates against this incident as soon as it sees
+    # `incident_id` in this function's return value below.
+    from app.services import emergency_location
+    emergency_location.start_tracking(db, inc)
     if nearest:
         inc.assigned_unit_id = nearest.id
         inc.status = "dispatched"
@@ -323,7 +329,10 @@ def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: 
             ),
         )
     db.commit()
+    db.refresh(inc)
 
+    from app.models.police import PoliceStation
+    station = db.get(PoliceStation, inc.station_id) if inc.station_id else None
     return {
         "incident_id": inc.id,
         "nearest_unit": {
@@ -332,4 +341,12 @@ def trigger_sos(db: Session, tourist: Tourist, lat: float, lng: float, message: 
             "distance_km": round(haversine_m(lat, lng, nearest.lat, nearest.lng) / 1000, 2),
         } if nearest else None,
         "notified_contacts": contacts,
+        # Added for SOS live location sharing (services/emergency_location.py)
+        # -- everything above this point is this function's original,
+        # pre-existing return payload, unchanged.
+        "silent": silent,
+        "status": inc.status,
+        "live_tracking_active": inc.live_tracking_active,
+        "station_id": station.id if station else None,
+        "station_name": station.name if station else None,
     }

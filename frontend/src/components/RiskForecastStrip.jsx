@@ -11,7 +11,9 @@ export default function RiskForecastStrip({ forecast }) {
       {forecast.map((f) => {
         const color = bandColor(f.score)
         return (
-          <div key={f.minutes} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-3 text-center">
+          <div key={f.minutes}
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-3 text-center border-t-2"
+            style={{ borderTopColor: color }}>
             <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
               +{f.minutes} min
             </div>

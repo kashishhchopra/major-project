@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import api from '../api'
 
 const HAZARD_ICON = { flood: '🌊', landslide: '⛰️', earthquake: '🌍', storm: '⛈️' }
@@ -13,6 +14,7 @@ const SEVERITY_CLS = {
 // the tourist is currently in. Polls GET /tourists/{id}/disasters -- see
 // services/disaster.py.
 export default function DisasterBanner({ touristId }) {
+  const { t } = useTranslation()
   const [advisories, setAdvisories] = useState([])
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export default function DisasterBanner({ touristId }) {
         <div key={a.id} className={`rounded-xl p-3 text-sm font-medium flex items-start gap-2 ${SEVERITY_CLS[a.severity] || SEVERITY_CLS.medium}`}>
           <span className="text-lg leading-none">{HAZARD_ICON[a.hazard_type] || '⚠️'}</span>
           <div>
-            <div className="font-bold uppercase text-xs tracking-wide">{a.hazard_type} advisory</div>
+            <div className="font-bold uppercase text-xs tracking-wide">{t('disaster.advisory', { type: a.hazard_type })}</div>
             <div>{a.message}</div>
           </div>
         </div>

@@ -31,6 +31,13 @@ class TouristCreate(BaseModel):
     # verifiable photo (the frontend enforces "live capture", not upload;
     # this just enforces "a photo was provided" server-side).
     photo: str = Field(..., min_length=10, max_length=2_000_000)
+    # Set by the frontend after a successful 3-step liveness check (see
+    # services/liveness.py) -- optional, since a camera/browser limitation
+    # must never block registration itself. When present and valid, it
+    # binds this exact `photo` to that check; anything else (missing,
+    # expired, already used, or for a different photo) is silently ignored
+    # rather than rejected, per the same "never block signup" rule.
+    liveness_token: str | None = Field(None, max_length=64)
     hotel: str | None = Field(None, max_length=200)
     itinerary: list[Waypoint] = Field(default_factory=list, max_length=50)
     emergency_contacts: list[EmergencyContact] = Field(default_factory=list, max_length=10)

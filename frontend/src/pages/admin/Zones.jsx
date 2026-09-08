@@ -97,7 +97,7 @@ export default function Zones() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800">Risk Zone Editor</h2>
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Risk Zone Editor</h2>
           {!drawing ? (
             <button onClick={startDrawing}
               className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">
@@ -114,8 +114,8 @@ export default function Zones() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden" style={{ height: 560 }}>
-          <MapContainer center={mapCfg.center} zoom={mapCfg.zoom} style={{ height: '100%', width: '100%' }}>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden" style={{ height: 560 }}>
+          <MapContainer center={mapCfg.center} zoom={mapCfg.zoom} style={{ height: '100%', width: '100%' }} className="map-ops-dark">
             <TileLayer attribution="&copy; OpenStreetMap"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <DrawCapture active={drawing} onPoint={(p) => setPoints((prev) => [...prev, p])} />

@@ -92,6 +92,18 @@ class Settings(BaseSettings):
     # to the next one if nobody has acknowledged it.
     ESCALATION_STAGE_TIMEOUT_SECONDS: int = 120
 
+    # ---- SOS live location sharing (see services/emergency_location.py) ----
+    # A ping older than this is still "recent enough" to call LIVE; older
+    # than OFFLINE and the police dashboard must not claim it's live at all.
+    EMERGENCY_LOCATION_LIVE_SECONDS: int = 15
+    EMERGENCY_LOCATION_STALE_SECONDS: int = 45
+    # Bounded movement trail per incident -- "recent path", not a permanent
+    # location history. Enforced by trimming older pings on every insert.
+    EMERGENCY_LOCATION_TRAIL_MAX_POINTS: int = 60
+    # A implied speed above this between two consecutive pings is physically
+    # implausible (teleportation/spoofing) -- flagged, never auto-escalated.
+    EMERGENCY_LOCATION_MAX_PLAUSIBLE_KMH: float = 250.0
+
     # ---- check-in / check-out ----
     # How often the background job re-checks planned check-ins.
     CHECKIN_TICK_SECONDS: int = 30

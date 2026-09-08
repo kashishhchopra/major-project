@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import useVoiceAssistant from '../hooks/useVoiceAssistant'
 
 // AI Safety Copilot: a small chat panel shared by the control-room (against
@@ -17,8 +18,11 @@ import useVoiceAssistant from '../hooks/useVoiceAssistant'
 // floating button can trigger it -- e.g. the tourist dashboard hub's "Ask AI"
 // card opens this exact same widget instead of duplicating a second one.
 const CopilotChat = forwardRef(function CopilotChat(
-  { endpoint, suggestions = [], title = 'Ask AI', placeholder = 'Ask a question…', lang = 'en' }, ref
+  { endpoint, suggestions = [], title, placeholder, lang = 'en' }, ref
 ) {
+  const { t } = useTranslation()
+  const displayTitle = title ?? t('copilot.title')
+  const displayPlaceholder = placeholder ?? t('copilot.placeholder')
   const [open, setOpen] = useState(false)
   useImperativeHandle(ref, () => ({ open: () => setOpen(true) }), [])
   const [input, setInput] = useState('')
@@ -52,11 +56,11 @@ const CopilotChat = forwardRef(function CopilotChat(
             className="bg-white dark:bg-slate-800 w-full md:max-w-md md:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col"
             style={{ height: 'min(600px, 85vh)' }}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-              <div className="font-semibold text-slate-800 dark:text-slate-100">🤖 {title}</div>
+              <div className="font-semibold text-slate-800 dark:text-slate-100">🤖 {displayTitle}</div>
               <div className="flex items-center gap-1">
                 {voice.ttsSupported && (
                   <button onClick={voice.toggleSpeakReplies}
-                    title={voice.speakReplies ? 'Voice replies on' : 'Voice replies off'}
+                    title={voice.speakReplies ? t('copilot.voice_replies_on') : t('copilot.voice_replies_off')}
                     className={`text-sm w-7 h-7 rounded-full flex items-center justify-center ${
                       voice.speakReplies ? 'bg-sky-100 dark:bg-sky-900/50' : 'text-slate-400'}`}>
                     {voice.speakReplies ? '🔊' : '🔈'}
@@ -69,7 +73,7 @@ const CopilotChat = forwardRef(function CopilotChat(
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.length === 0 && (
                 <div className="text-sm text-slate-400">
-                  <p className="mb-2">Try asking:</p>
+                  <p className="mb-2">{t('copilot.try_asking')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {suggestions.map((s) => (
                       <button key={s} onClick={() => ask(s)}
@@ -93,19 +97,19 @@ const CopilotChat = forwardRef(function CopilotChat(
               {loading && (
                 <div className="flex justify-start">
                   <div className="bg-slate-100 dark:bg-slate-700 rounded-2xl rounded-bl-sm px-3 py-2 text-sm text-slate-400">
-                    thinking…
+                    {t('copilot.thinking')}
                   </div>
                 </div>
               )}
               {voice.listening && (
                 <div className="flex justify-end">
                   <div className="bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 rounded-2xl rounded-br-sm px-3 py-2 text-sm flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-500 sos-pulse"></span> Listening…
+                    <span className="w-2 h-2 rounded-full bg-red-500 sos-pulse"></span> {t('copilot.listening')}
                   </div>
                 </div>
               )}
               {voice.voiceError && (
-                <div className="text-xs text-red-500 text-center">Voice input unavailable — type your question instead.</div>
+                <div className="text-xs text-red-500 text-center">{t('copilot.voice_unavailable')}</div>
               )}
             </div>
 
@@ -113,7 +117,7 @@ const CopilotChat = forwardRef(function CopilotChat(
               className="flex items-center gap-2 p-3 border-t border-slate-100 dark:border-slate-700">
               {voice.micSupported && (
                 <button type="button" onClick={voice.toggleMic}
-                  title={voice.listening ? 'Stop listening' : 'Ask by voice'}
+                  title={voice.listening ? t('copilot.stop_listening') : t('copilot.ask_by_voice')}
                   className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-lg ${
                     voice.listening
                       ? 'bg-red-100 dark:bg-red-900/50 text-red-600 sos-pulse'
@@ -121,7 +125,7 @@ const CopilotChat = forwardRef(function CopilotChat(
                   🎙️
                 </button>
               )}
-              <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={placeholder}
+              <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={displayPlaceholder}
                 className="flex-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-full px-4 py-2 text-sm" />
               <button type="submit" disabled={loading || !input.trim()}
                 className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-full w-9 h-9 flex items-center justify-center shrink-0">

@@ -77,7 +77,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-slate-800">Live Operations</h2>
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Live Operations</h2>
         <div className="flex items-center gap-4 text-sm">
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input type="checkbox" checked={showHeatmap} onChange={(e) => setShowHeatmap(e.target.checked)} />
@@ -102,8 +102,8 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm overflow-hidden" style={{ height: 520 }}>
-          <MapContainer center={mapCfg.center} zoom={mapCfg.zoom} style={{ height: '100%', width: '100%' }}>
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden" style={{ height: 520 }}>
+          <MapContainer center={mapCfg.center} zoom={mapCfg.zoom} style={{ height: '100%', width: '100%' }} className="map-ops-dark">
             <TileLayer
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -140,8 +140,8 @@ export default function Dashboard() {
           </MapContainer>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm flex flex-col" style={{ height: 520 }}>
-          <div className="px-4 py-3 border-b border-slate-100 font-semibold text-slate-800 flex items-center justify-between gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm flex flex-col" style={{ height: 520 }}>
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 font-semibold text-slate-800 dark:text-slate-100 flex items-center justify-between gap-2">
             <span>Live Alert Feed</span>
             <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{alerts.length}</span>
           </div>

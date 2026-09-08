@@ -41,6 +41,14 @@ class Incident(Base):
     # control room still sees it exactly like any other SOS -- this only
     # flags *how* it was raised, for the responder's situational awareness.
     silent: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    # SOS live location sharing (see services/emergency_location.py): True
+    # while the tourist's device is expected to keep posting position
+    # updates for this incident. Distinct from `status` on purpose -- a
+    # tourist can stop sharing their live position ("I'm safe now") without
+    # that being the same thing as police formally closing the case, which
+    # only an operator/responder may do (see update_incident's RBAC).
+    # Resolving the incident always also turns this off.
+    live_tracking_active: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     detected_at: Mapped[datetime] = mapped_column(
         DateTime, default=utc_now

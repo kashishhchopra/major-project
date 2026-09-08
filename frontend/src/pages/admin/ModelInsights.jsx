@@ -24,7 +24,7 @@ function Metric({ label, value, suffix = '' }) {
   return (
     <div>
       <div className="text-xs text-slate-500">{label}</div>
-      <div className="text-xl font-bold text-slate-800">{value}{suffix}</div>
+      <div className="text-xl font-bold text-slate-800 dark:text-slate-100">{value}{suffix}</div>
     </div>
   )
 }
@@ -79,7 +79,7 @@ export default function ModelInsights() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-lg font-bold text-slate-800">ML Model Insights</h2>
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">ML Model Insights</h2>
         <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
           status.inference_mode === 'model' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
           {status.inference_mode === 'model' ? '● Live models loaded' : '● Rule-based fallback (train models to activate)'}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import api from '../api'
 import useSpeechRecognition from './useSpeechRecognition'
 import { speak, speechSynthesisSupported, stopSpeaking } from '../lib/voiceService'
@@ -26,6 +27,7 @@ const FATAL_MIC_ERRORS = new Set(['not-allowed', 'service-not-allowed', 'audio-c
 export default function useVoiceAssistant({
   endpoint, lang = 'en', speakByDefault = false, autoListen = false,
 } = {}) {
+  const { t } = useTranslation()
   const [exchanges, setExchanges] = useState([]) // {question, answer}
   const [thinking, setThinking] = useState(false)
   const [speakReplies, setSpeakReplies] = useState(speakByDefault)
@@ -51,7 +53,7 @@ export default function useVoiceAssistant({
       }
       return data.answer
     } catch {
-      const failText = 'Sorry, I could not process that just now.'
+      const failText = t('voice_assistant.request_failed')
       setExchanges((e) => e.map((x, i) => (i === e.length - 1 ? { ...x, answer: failText } : x)))
       if (speakReplies) {
         setSpeaking(true)
@@ -61,7 +63,7 @@ export default function useVoiceAssistant({
     } finally {
       setThinking(false)
     }
-  }, [endpoint, lang, speakReplies])
+  }, [endpoint, lang, speakReplies, t])
 
   // Push-to-talk. Speaking is stopped first so the assistant never talks
   // over the tourist (and never records its own voice).

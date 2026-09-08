@@ -74,17 +74,16 @@ export default function ReportSheet({ open, onClose, data, lang }) {
 
       {sosQueued && (
         <div className="bg-orange-500 text-white rounded-xl p-4 text-sm mt-4">
-          <div className="font-bold">📡 SOS queued — no connection</div>
+          <div className="font-bold">{t('sos.queued_title')}</div>
           <div className="mt-1 text-orange-50">
-            You're offline. Your SOS was saved on this device and will be sent
-            automatically the moment you're back online.
+            {t('sos.queued_body')}
           </div>
         </div>
       )}
 
       {pendingCount > 0 && !sosQueued && (
         <div className="text-xs text-center text-orange-600 dark:text-orange-400 mt-2">
-          {pendingCount} SOS alert{pendingCount > 1 ? 's' : ''} still queued, waiting for a connection…
+          {t('sos.pending_count', { count: pendingCount })}
         </div>
       )}
     </BottomSheet>

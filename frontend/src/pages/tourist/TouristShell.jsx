@@ -10,8 +10,9 @@ export default function TouristShell({ digitalId, online, toast, onSOS, onReport
   const { t } = useTranslation()
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-40">
-      <div className="tourist-shell-header" style={{ background: '#04070d', color: '#e6f1ff' }}>
+    <div data-role-theme="tourist" className="theme-surface min-h-screen bg-slate-100 dark:bg-slate-900 pb-40">
+      <div className="tourist-shell-header"
+        style={{ background: 'linear-gradient(120deg, #0d4d47 0%, #0f766e 55%, #0e7c88 100%)', color: '#eafffb' }}>
         <div className="flex items-center justify-between px-5 py-4 max-w-md mx-auto">
           <div>
             <div className="text-xs opacity-70">{t('app.digital_id')}</div>
@@ -20,7 +21,7 @@ export default function TouristShell({ digitalId, online, toast, onSOS, onReport
           <div className="flex items-center gap-2">
             {!online && (
               <span className="text-xs bg-orange-500/90 px-2 py-1 rounded-full font-semibold">
-                📡 Offline
+                📡 {t('app.offline')}
               </span>
             )}
             <DuressLockButton touristId={tid} getPosition={() => posRef.current}
@@ -49,7 +50,7 @@ export default function TouristShell({ digitalId, online, toast, onSOS, onReport
           </button>
           <button onClick={onReport}
             className="w-full text-xs font-medium text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-lg py-1.5">
-            📝 Add details before sending
+            {t('sos.add_details')}
           </button>
         </div>
       </div>

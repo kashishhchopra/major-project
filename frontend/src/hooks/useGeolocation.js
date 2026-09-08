@@ -44,6 +44,7 @@ export default function useGeolocation({ enabled = true } = {}) {
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
           speedKmh: pos.coords.speed != null ? Math.max(0, pos.coords.speed) * 3.6 : 0,
+          heading: pos.coords.heading ?? null,
           timestamp: pos.timestamp,
         })
       },

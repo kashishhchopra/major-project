@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card } from './ui.jsx'
 import { uploadItineraryDocument, updateItineraryDocument, confirmItineraryDocument } from '../lib/itineraryService.js'
 import { geocodePlace } from '../lib/mapsService.js'
@@ -11,6 +12,7 @@ import { geocodePlace } from '../lib/mapsService.js'
 // (Tourist.itinerary, what the map/route/AI-copilot already read from);
 // extraction is a heuristic, not a guarantee, so this step is never skipped.
 export default function ItineraryUploadCard({ touristId, onConfirmed }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [doc, setDoc] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -61,7 +63,7 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
       const timedOut = err.code === 'ECONNABORTED'
       setError(
         err.response?.data?.detail
-          || (timedOut ? "This is taking too long. Try a smaller/clearer photo, or a PDF/DOCX/text file instead." : 'Upload failed. Please try again.')
+          || (timedOut ? t('itinerary_upload.upload_timeout') : t('itinerary_upload.upload_failed'))
       )
     } finally {
       setUploading(false)
@@ -122,7 +124,7 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
       setConfirmed(true)
       onConfirmed?.()
     } catch {
-      setError('Could not save your itinerary. Please try again.')
+      setError(t('itinerary_upload.save_failed'))
     } finally {
       setConfirming(false)
     }
@@ -140,19 +142,16 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
     <div>
       <button onClick={() => setOpen((v) => !v)}
         className="w-full text-sm font-semibold text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 rounded-xl py-2">
-        {open ? 'Hide itinerary upload ▲' : '📄 Upload My Itinerary'}
+        {open ? t('itinerary_upload.toggle_hide') : t('itinerary_upload.toggle_show')}
       </button>
 
       {open && (
         <div className="mt-3">
-          <Card title="Upload Itinerary Document">
+          <Card title={t('itinerary_upload.card_title')}>
             {!doc && (
               <div className="space-y-2">
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Upload a PDF, Word (.docx), text file, or a photo/scan (jpg, png) of your itinerary
-                  and we'll pull out your destinations, hotels, and transport automatically. A blurry
-                  or handwritten photo may not read perfectly — you can always fix anything wrong
-                  on the next screen.
+                  {t('itinerary_upload.intro')}
                 </p>
                 <input ref={fileRef} type="file"
                   accept=".pdf,.docx,.txt,text/plain,application/pdf,.doc,.jpg,.jpeg,.png,.webp,.bmp,.tiff,image/*"
@@ -162,7 +161,7 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
                 {uploading && (
                   <div className="text-xs text-slate-400 flex items-center gap-1.5">
                     <span className="inline-block w-3 h-3 border-2 border-slate-300 border-t-sky-500 rounded-full animate-spin" />
-                    Reading your document… photos can take up to a minute.
+                    {t('itinerary_upload.reading_document')}
                   </div>
                 )}
                 {error && <div className="text-xs text-red-600 dark:text-red-400">{error}</div>}
@@ -178,12 +177,11 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
                 )}
                 <div>
                   <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                    Destinations — edit anything that's wrong. Only stops we can place on the
-                    map (📍✓) will show up in your Itinerary Tracker and safety checks.
+                    {t('itinerary_upload.destinations_help')}
                   </div>
                   {autoProgress && (
                     <div className="text-xs text-sky-600 dark:text-sky-400 mb-1.5">
-                      📍 Locating destinations… ({autoProgress.done}/{autoProgress.total})
+                      {t('itinerary_upload.locating_progress', { done: autoProgress.done, total: autoProgress.total })}
                     </div>
                   )}
                   <div className="space-y-1.5">
@@ -194,26 +192,26 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
                           disabled={!!autoProgress}
                           className="flex-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-900 rounded-lg px-2 py-1 text-xs disabled:opacity-60" />
                         {d.lat != null ? (
-                          <span className="text-[10px] text-green-600 dark:text-green-400" title="Location found">📍✓</span>
+                          <span className="text-[10px] text-green-600 dark:text-green-400" title={t('itinerary_upload.location_found')}>📍✓</span>
                         ) : (
                           <button onClick={() => locateDestination(i)} disabled={locating === i || !!autoProgress || !d.name?.trim()}
                             className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 disabled:opacity-50 whitespace-nowrap"
-                            title="No location found for this stop yet — tap to try to locate it">
-                            {locating === i ? 'Locating…' : '📍 Locate'}
+                            title={t('itinerary_upload.locate_tooltip')}>
+                            {locating === i ? t('itinerary_upload.locating') : t('itinerary_upload.locate_button')}
                           </button>
                         )}
                         <button onClick={() => removeDestination(i)} disabled={!!autoProgress} className="text-xs text-red-500 disabled:opacity-50">✕</button>
                       </div>
                     ))}
                     {doc.extracted.destinations.length === 0 && (
-                      <div className="text-xs text-slate-400">No destinations found — add one, or type your itinerary in the Plan tab manually.</div>
+                      <div className="text-xs text-slate-400">{t('itinerary_upload.no_destinations')}</div>
                     )}
                     <div className="flex gap-3">
-                      <button onClick={addDestination} disabled={!!autoProgress} className="text-xs text-sky-600 dark:text-sky-400 font-semibold disabled:opacity-50">+ Add destination</button>
+                      <button onClick={addDestination} disabled={!!autoProgress} className="text-xs text-sky-600 dark:text-sky-400 font-semibold disabled:opacity-50">{t('itinerary_upload.add_destination')}</button>
                       {doc.extracted.destinations.some((d) => d.lat == null && d.name?.trim()) && (
                         <button onClick={() => autoLocateAll(doc.extracted.destinations)} disabled={!!autoProgress}
                           className="text-xs text-sky-600 dark:text-sky-400 font-semibold disabled:opacity-50">
-                          📍 Locate all
+                          {t('itinerary_upload.locate_all')}
                         </button>
                       )}
                     </div>
@@ -222,7 +220,7 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
 
                 {doc.extracted.hotels.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Hotels</div>
+                    <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('itinerary_upload.hotels_label')}</div>
                     {doc.extracted.hotels.map((h, i) => (
                       <div key={i} className="text-xs text-slate-600 dark:text-slate-300">🏨 {h.name}</div>
                     ))}
@@ -230,7 +228,7 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
                 )}
                 {doc.extracted.transport.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Transport</div>
+                    <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('itinerary_upload.transport_label')}</div>
                     {doc.extracted.transport.map((tp, i) => (
                       <div key={i} className="text-xs text-slate-600 dark:text-slate-300">🚄 {tp.detail}</div>
                     ))}
@@ -238,31 +236,29 @@ export default function ItineraryUploadCard({ touristId, onConfirmed }) {
                 )}
                 {(doc.extracted.trip_start || doc.extracted.trip_end) && (
                   <div className="text-xs text-slate-500 dark:text-slate-400">
-                    Trip dates: {doc.extracted.trip_start || '—'} to {doc.extracted.trip_end || '—'}
+                    {t('itinerary_upload.trip_dates', { start: doc.extracted.trip_start || '—', end: doc.extracted.trip_end || '—' })}
                   </div>
                 )}
 
                 <div className="flex gap-2 pt-1">
                   <button onClick={confirm} disabled={confirming || !!autoProgress}
                     className="flex-1 bg-sky-600 hover:bg-sky-700 disabled:opacity-60 text-white text-xs font-semibold py-2 rounded-lg">
-                    {confirming ? 'Saving…' : 'Confirm & Save Itinerary'}
+                    {confirming ? t('itinerary_upload.saving') : t('itinerary_upload.confirm_save')}
                   </button>
-                  <button onClick={reset} disabled={!!autoProgress} className="text-xs text-slate-400 disabled:opacity-50">Start over</button>
+                  <button onClick={reset} disabled={!!autoProgress} className="text-xs text-slate-400 disabled:opacity-50">{t('itinerary_upload.start_over')}</button>
                 </div>
               </div>
             )}
 
             {confirmed && (
               <div className="text-center py-2 space-y-2">
-                <div className="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Itinerary saved</div>
+                <div className="text-green-600 dark:text-green-400 text-sm font-semibold">{t('itinerary_upload.saved')}</div>
                 {unresolvedCount > 0 && (
                   <div className="text-xs text-orange-600 dark:text-orange-400 max-w-xs mx-auto">
-                    ⚠ {unresolvedCount} stop{unresolvedCount > 1 ? 's' : ''} couldn't be placed on the map,
-                    so {unresolvedCount > 1 ? "they're" : "it's"} not showing in your Itinerary Tracker yet
-                    — upload again and use "📍 Locate" to fix that.
+                    {t('itinerary_upload.unresolved_warning', { count: unresolvedCount })}
                   </div>
                 )}
-                <button onClick={reset} className="text-xs text-sky-600 dark:text-sky-400">Upload another</button>
+                <button onClick={reset} className="text-xs text-sky-600 dark:text-sky-400">{t('itinerary_upload.upload_another')}</button>
               </div>
             )}
           </Card>

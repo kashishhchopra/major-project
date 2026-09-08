@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card } from './ui.jsx'
 import { speak, speechSynthesisSupported } from '../lib/voiceService.js'
 import { listLanguages, listPhraseIds, translatePhrase as apiTranslatePhrase, translateText as apiTranslateText } from '../lib/translationService.js'
@@ -9,6 +10,7 @@ import { listLanguages, listPhraseIds, translatePhrase as apiTranslatePhrase, tr
 // unmodified) whenever no live translation API is configured, rather than
 // ever fabricating a translation.
 export default function TranslateCard() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [languages, setLanguages] = useState({})
   const [phraseIds, setPhraseIds] = useState([])
@@ -21,8 +23,8 @@ export default function TranslateCard() {
     if (!open || Object.keys(languages).length) return
     Promise.all([listLanguages(), listPhraseIds()])
       .then(([l, p]) => { setLanguages(l); setPhraseIds(p) })
-      .catch(() => setError('Translation service is unavailable right now.'))
-  }, [open, languages])
+      .catch(() => setError(t('translate.service_unavailable')))
+  }, [open, languages, t])
 
   const say = (r) => {
     if (speechSynthesisSupported() && r?.text) speak(r.text, lang)
@@ -32,7 +34,7 @@ export default function TranslateCard() {
     setError('')
     apiTranslatePhrase(phraseId, lang)
       .then((r) => { setResult(r); say(r) })
-      .catch(() => setError('Could not translate that phrase.'))
+      .catch(() => setError(t('translate.phrase_failed')))
   }
 
   const translateText = () => {
@@ -40,19 +42,19 @@ export default function TranslateCard() {
     setError('')
     apiTranslateText(text, lang)
       .then((r) => { setResult(r); say(r) })
-      .catch(() => setError('Could not translate that text.'))
+      .catch(() => setError(t('translate.text_failed')))
   }
 
   return (
     <div>
       <button onClick={() => setOpen((v) => !v)}
         className="w-full text-sm font-semibold text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 rounded-xl py-2">
-        {open ? 'Hide translate ▲' : '🌐 Translate a phrase'}
+        {open ? t('translate.toggle_hide') : t('translate.toggle_show')}
       </button>
 
       {open && (
         <div className="mt-3">
-          <Card title="Translate">
+          <Card title={t('translate.card_title')}>
             {error && <div className="text-sm text-red-600 dark:text-red-400 mb-2">{error}</div>}
 
             {Object.keys(languages).length > 0 && (
@@ -77,10 +79,10 @@ export default function TranslateCard() {
 
             <div className="flex gap-2 mb-3">
               <input value={text} onChange={(e) => setText(e.target.value)}
-                placeholder="Or type something to translate…"
+                placeholder={t('translate.input_placeholder')}
                 className="flex-1 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-lg px-2 py-1.5" />
               <button onClick={translateText}
-                className="text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white px-3 rounded-lg">Go</button>
+                className="text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white px-3 rounded-lg">{t('translate.go')}</button>
             </div>
 
             {result && (
@@ -88,7 +90,7 @@ export default function TranslateCard() {
                 <div className="font-medium text-slate-800 dark:text-slate-100">{result.text ?? result.error}</div>
                 {result.demo && (
                   <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                    ⚠ Demo mode — {result.note || 'live translation is unavailable, showing original text.'}
+                    {t('translate.demo_mode', { note: result.note || t('translate.demo_fallback_note') })}
                   </div>
                 )}
               </div>

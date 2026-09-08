@@ -32,7 +32,7 @@ from app.schemas.incident import (
     SOSRequest,
 )
 from app.schemas.tourist import DuressSOSRequest
-from app.services import alert_priority, audit, dispatch, police_network
+from app.services import alert_priority, audit, dispatch, emergency_location, police_network
 from app.services.efir import file_efir, generate_efir
 from app.services.efir_pdf import render_efir_pdf
 from app.services.monitoring import trigger_sos
@@ -259,6 +259,9 @@ def update_incident(incident_id: int, payload: IncidentStatusUpdate,
         inc.dispatched_at = now
     elif payload.status == "resolved":
         inc.resolved_at = now
+        # A closed case has nothing left to track -- see the
+        # live_tracking_active field's docstring on the Incident model.
+        emergency_location.stop_tracking(db, inc, "incident resolved")
         if inc.tourist_id:
             t = db.get(Tourist, inc.tourist_id)
             if t and t.status == "sos":

@@ -13,6 +13,7 @@ from app.api import (
     copilot,
     devices,
     disaster,
+    emergency,
     guardian,
     incidents,
     itinerary,
@@ -189,6 +190,12 @@ _rl = [Depends(global_rate_limit)]
 app.include_router(auth.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(tourists.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(zones.router, prefix=PREFIX, dependencies=_rl)
+# emergency.router (a static "/incidents/live" path) must be registered
+# BEFORE incidents.router: FastAPI matches routes in registration order, and
+# incidents.router's "/incidents/{incident_id}" would otherwise greedily
+# claim "/incidents/live" first and fail Pydantic's int coercion on "live"
+# rather than ever falling through to this router.
+app.include_router(emergency.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(incidents.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(police_network.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(tourist_id.router, prefix=PREFIX, dependencies=_rl)

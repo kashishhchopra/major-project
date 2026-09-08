@@ -1,10 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { useEffect } from 'react'
 import Register from './Register.jsx'
 
 vi.mock('../api', () => ({ default: { post: vi.fn() } }))
 vi.mock('../auth.jsx', () => ({ useAuth: () => ({ login: vi.fn() }) }))
+// The 3-step liveness check (components/LivenessCapture.jsx) has its own
+// dedicated test suite (LivenessCapture.test.jsx) covering the real
+// detection flow with MediaPipe mocked. Here it just needs to behave like
+// "unavailable in this browser" so every existing registration test below
+// exercises the pre-existing plain live-capture fallback exactly as it did
+// before this feature was added -- these tests are about the registration
+// flow, not about liveness detection.
+function MockLivenessCapture({ onUnavailable }) {
+  useEffect(() => { onUnavailable() }, [onUnavailable])
+  return null
+}
+vi.mock('../components/LivenessCapture.jsx', () => ({ default: MockLivenessCapture }))
 import api from '../api'
 
 const renderPage = () => render(<MemoryRouter><Register /></MemoryRouter>)

@@ -6,10 +6,12 @@ from app.models.checkin import CheckIn
 from app.models.device import Device
 from app.models.disaster import DisasterAdvisory
 from app.models.efir import EFIR
+from app.models.emergency_location import EmergencyLocationPing
 from app.models.guardian import TripGuardian
 from app.models.incident import Incident, IncidentEvent
 from app.models.itinerary import ItineraryDocument
 from app.models.job_lock import JobLock
+from app.models.liveness import LivenessVerification
 from app.models.password_reset import PasswordResetToken
 from app.models.place import PointOfInterest
 from app.models.police import Camera, PoliceStation, PoliceUnit
@@ -44,5 +46,7 @@ __all__ = [
     "TouristIdScan",
     "JobLock",
     "ItineraryDocument",
+    "LivenessVerification",
+    "EmergencyLocationPing",
     "PointOfInterest",
 ]

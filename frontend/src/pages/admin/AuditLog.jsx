@@ -121,7 +121,7 @@ export default function AuditLog() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-slate-800">Trust, Forensics &amp; Operations</h2>
+      <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Trust, Forensics &amp; Operations</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AnchorPanel />

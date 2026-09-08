@@ -78,7 +78,7 @@ export default function Analytics() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-lg font-bold text-slate-800">Analytics &amp; Reporting</h2>
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Analytics &amp; Reporting</h2>
         <PdfExportButton />
       </div>
 

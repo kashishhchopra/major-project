@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card } from './ui.jsx'
 import { getNavigationGuidance } from '../lib/mapsService.js'
 import { speak, stopSpeaking, speechSynthesisSupported } from '../lib/voiceService.js'
@@ -24,6 +25,7 @@ function progressKey(g) {
 // the choice sticks across visits). Always shows the current instruction
 // as text too, regardless of the toggle, so it's useful with sound off.
 export default function VoiceNavigationAssistant({ touristId, lang = 'en' }) {
+  const { t } = useTranslation()
   const storageKey = `voice-nav-enabled:${touristId}`
   const [enabled, setEnabled] = useState(() => {
     try {
@@ -68,7 +70,7 @@ export default function VoiceNavigationAssistant({ touristId, lang = 'en' }) {
             speak(g.instruction, lang)
           }
         })
-        .catch(() => !cancelled && setError('Navigation guidance is unavailable right now.'))
+        .catch(() => !cancelled && setError(t('voice_nav.guidance_unavailable')))
     }
     tick()
     const id = setInterval(tick, POLL_MS)
@@ -76,19 +78,19 @@ export default function VoiceNavigationAssistant({ touristId, lang = 'en' }) {
       cancelled = true
       clearInterval(id)
     }
-  }, [touristId, enabled, lang])
+  }, [touristId, enabled, lang, t])
 
   return (
-    <Card title="🧭 Voice Navigation">
+    <Card title={t('voice_nav.card_title')}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-slate-500 dark:text-slate-400">
-          Spoken guidance toward your next stop
+          {t('voice_nav.subtitle')}
         </span>
         <button onClick={() => setEnabled((v) => !v)}
           aria-pressed={enabled}
           className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap ${
             enabled ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
-          {enabled ? '🔊 Voice: On' : '🔈 Voice: Off'}
+          {enabled ? t('voice_nav.voice_on') : t('voice_nav.voice_off')}
         </button>
       </div>
 
@@ -96,7 +98,7 @@ export default function VoiceNavigationAssistant({ touristId, lang = 'en' }) {
 
       {!error && guidance && !guidance.has_destination && (
         <div className="text-xs text-slate-400">
-          No upcoming destination set — add or confirm an itinerary stop to get guidance.
+          {t('voice_nav.no_destination')}
         </div>
       )}
 
@@ -105,8 +107,8 @@ export default function VoiceNavigationAssistant({ touristId, lang = 'en' }) {
           <div className="font-medium text-slate-800 dark:text-slate-100">{guidance.instruction}</div>
           {!guidance.arrived && (
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {guidance.distance_km} km · ETA ~{guidance.eta_minutes} min
-              {guidance.demo && <span className="text-orange-500 dark:text-orange-400"> · estimated (no live traffic data)</span>}
+              {t('voice_nav.eta', { km: guidance.distance_km, min: guidance.eta_minutes })}
+              {guidance.demo && <span className="text-orange-500 dark:text-orange-400"> · {t('voice_nav.estimated')}</span>}
             </div>
           )}
         </div>
@@ -114,7 +116,7 @@ export default function VoiceNavigationAssistant({ touristId, lang = 'en' }) {
 
       {!speechSynthesisSupported() && (
         <div className="text-[10px] text-slate-400 mt-2">
-          Your browser doesn't support spoken guidance — showing text only.
+          {t('voice_nav.no_speech_support')}
         </div>
       )}
     </Card>

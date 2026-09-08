@@ -9,6 +9,8 @@ stable across runs. Three datasets are produced:
 """
 from __future__ import annotations
 
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -16,6 +18,23 @@ RNG = np.random.default_rng(42)
 
 # Guwahati / North-East India demo bounding box (project is India-themed)
 CENTER_LAT, CENTER_LNG = 26.1445, 91.7362
+
+
+def _synthetic_csv(name: str) -> pd.DataFrame | None:
+    """Load `<SYNTHETIC_DATA_DIR>/<name>.csv` if the env var is set and the
+    file exists, else None. This is the drop-in path documented in
+    data/README.md: point SYNTHETIC_DATA_DIR at a corpus written by
+    app.scripts.generate_synthetic_dataset and every trainer below uses it
+    instead of its parametric generator. Unset (the default), nothing changes
+    -- a fresh clone and `docker build` still train with no data files present.
+    """
+    data_dir = os.environ.get("SYNTHETIC_DATA_DIR")
+    if not data_dir:
+        return None
+    path = os.path.join(data_dir, f"{name}.csv")
+    if not os.path.exists(path):
+        return None
+    return pd.read_csv(path)
 
 
 def generate_movement_data(n_normal: int = 4000, n_anomaly: int = 400) -> pd.DataFrame:
@@ -26,6 +45,10 @@ def generate_movement_data(n_normal: int = 4000, n_anomaly: int = 400) -> pd.Dat
       - prolonged inactivity              (huge inactivity_min)
       - unusual speed (vehicle abduction) (huge speed)
     """
+    real = _synthetic_csv("ml_movement")
+    if real is not None:
+        cols = ["speed_kmh", "dist_from_prev_m", "inactivity_min", "dist_from_route_m", "label"]
+        return real[cols].reset_index(drop=True)
     # Normal walking/short-drive behaviour. A small fraction are "borderline"
     # (fast cabs, brief rests, long sightseeing loops) so the classes overlap and
     # the evaluation metrics stay realistic rather than perfectly separable.
@@ -107,6 +130,11 @@ def generate_safety_data(n: int = 6000, crime_index_source: str = "uniform") -> 
         `python -m app.ml.train_all --crime-index-source ncrb` to get a
         second, real-data-grounded model version in the registry.
     """
+    real = _synthetic_csv("ml_safety")
+    if real is not None:
+        cols = ["zone_risk", "hour", "anomaly_score", "crime_index", "weather_risk", "safety_score"]
+        return real[cols].reset_index(drop=True)
+
     zone_risk = RNG.uniform(0, 100, n)
     hour = RNG.integers(0, 24, n)
     anomaly_score = RNG.uniform(0, 1, n)
@@ -144,6 +172,10 @@ def generate_incident_points(n: int = 800) -> pd.DataFrame:
     DBSCAN recovers the dense hotspots and labels sparse points as noise; the dense
     clusters become auto-discovered high-risk zones.
     """
+    real = _synthetic_csv("ml_incident_points")
+    if real is not None:
+        return real[["lat", "lng"]].reset_index(drop=True)
+
     hotspots = [
         (26.1650, 91.7500),
         (26.1250, 91.7150),

@@ -9,11 +9,11 @@ export default function ResponderLayout() {
   const { user, logout } = useAuth()
   const nav = useNavigate()
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+    <div data-role-theme="police" className="theme-surface min-h-screen flex flex-col">
+      <header className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-sky-900/60">
         <div className="flex items-center gap-2">
           <span className="text-xl">🚓</span>
-          <span className="font-bold">Responder Console</span>
+          <span className="font-bold tracking-tight">Responder Console</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
           <span className="text-slate-300 hidden sm:inline">{user?.full_name}</span>

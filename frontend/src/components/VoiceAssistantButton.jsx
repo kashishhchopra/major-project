@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import useVoiceAssistant from '../hooks/useVoiceAssistant'
 import { SUPPORTED_LANGUAGES } from '../i18n'
 
@@ -24,12 +25,12 @@ function VoiceBars({ className = '', bars = 5 }) {
 // It deliberately accepts ANY spoken sentence: nothing is matched or
 // filtered here, the transcript goes straight to the backend assistant.
 // The examples below are hints for a first-time user, not a command list.
-const HINTS = [
-  'Where is the nearest hospital?',
-  'Find a cab.',
-  'Take me to my hotel.',
-  'Am I on the correct route?',
-  'What should I do in an emergency?',
+const HINT_KEYS = [
+  'voice_assistant.hint_hospital',
+  'voice_assistant.hint_cab',
+  'voice_assistant.hint_hotel',
+  'voice_assistant.hint_route',
+  'voice_assistant.hint_emergency',
 ]
 
 const SOUND_KEY = 'voice-assistant-speak'
@@ -45,6 +46,7 @@ function storedFlag(key, fallback) {
 }
 
 const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristId, lang = 'en' }, ref) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   // Hands-free is on by default: the mic opens when the app loads and
   // reopens after each answer, so nothing has to be tapped. It stays a
@@ -108,10 +110,10 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
         : 'idle'
 
   const STATUS_TEXT = {
-    listening: 'Listening… speak now',
-    thinking: 'Thinking…',
-    speaking: 'Speaking…',
-    idle: handsFree && !voice.autoBlocked ? 'Ready — just speak' : 'Tap the mic to speak',
+    listening: t('voice_assistant.listening_speak_now'),
+    thinking: t('voice_assistant.thinking'),
+    speaking: t('voice_assistant.speaking'),
+    idle: handsFree && !voice.autoBlocked ? t('voice_assistant.ready_just_speak') : t('voice_assistant.tap_mic_to_speak'),
   }
 
   return (
@@ -121,7 +123,7 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
           emergency button or the other assistant. */}
       <button
         onClick={startListening}
-        aria-label="Voice assistant"
+        aria-label={t('voice_assistant.aria_label')}
         className={`fixed bottom-48 right-4 md:bottom-6 md:right-24 z-[1500] rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl text-white transition-colors ${
           voice.listening
             ? 'bg-red-600 voice-listening-ring'
@@ -134,7 +136,7 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
       {open && (
         <div className="fixed inset-0 z-[2000] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-[2px]"
           onClick={() => setOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Voice assistant"
+          <div onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t('voice_assistant.aria_label')}
             className="bg-white dark:bg-slate-800 w-full md:max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden">
 
             {/* ---- header: identity, current language, controls ---- */}
@@ -143,10 +145,10 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
                 <span className="text-lg">🎙️</span>
                 <div className="min-w-0">
                   <div className="font-semibold text-slate-800 dark:text-slate-100 leading-tight">
-                    Voice Assistant
+                    {t('voice_assistant.title')}
                   </div>
                   <div className="text-[11px] text-slate-400 truncate">
-                    Speaking {languageLabel}
+                    {t('voice_assistant.speaking_lang', { lang: languageLabel })}
                   </div>
                 </div>
               </div>
@@ -154,7 +156,7 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
                 <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                   🌐 {languageLabel}
                 </span>
-                <button onClick={() => setOpen(false)} aria-label="Close"
+                <button onClick={() => setOpen(false)} aria-label={t('voice_assistant.close')}
                   className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-1 text-lg">✕</button>
               </div>
             </div>
@@ -176,19 +178,17 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
             <div className="px-4 py-3 space-y-3 max-h-[52vh] overflow-y-auto">
               {!voice.micSupported && (
                 <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/25 rounded-lg p-2.5">
-                  This browser doesn't support voice input — use the 🤖 assistant to type instead.
+                  {t('voice_assistant.no_voice_support')}
                 </div>
               )}
               {handsFree && voice.autoBlocked && (
                 <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/25 rounded-lg p-2.5">
-                  Tap the mic once to allow microphone access — after that it starts on its own
-                  every time you open the app.
+                  {t('voice_assistant.tap_mic_once')}
                 </div>
               )}
               {voice.voiceError && !voice.autoBlocked && (
                 <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/25 rounded-lg p-2.5">
-                  Microphone unavailable — check the browser's microphone permission, or type your
-                  question in the 🤖 assistant instead.
+                  {t('voice_assistant.mic_unavailable')}
                 </div>
               )}
 
@@ -223,13 +223,13 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
               {voice.exchanges.length === 0 && (
                 <div>
                   <p className="text-xs text-slate-400 mb-2">
-                    Ask anything — you're not limited to these:
+                    {t('voice_assistant.ask_anything')}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {HINTS.map((h) => (
-                      <button key={h} onClick={() => voice.ask(h)}
+                    {HINT_KEYS.map((k) => (
+                      <button key={k} onClick={() => voice.ask(t(k))}
                         className="text-xs bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/50">
-                        {h}
+                        {t(k)}
                       </button>
                     ))}
                   </div>
@@ -243,11 +243,11 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
               <div className="flex items-center justify-center gap-4">
                 {voice.exchanges.length > 0 && (
                   <button onClick={voice.clear} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-                    Clear
+                    {t('voice_assistant.clear')}
                   </button>
                 )}
                 <button onClick={voice.toggleMic} disabled={!voice.micSupported}
-                  aria-label={voice.listening ? 'Stop listening' : 'Start listening'}
+                  aria-label={voice.listening ? t('voice_assistant.stop_listening') : t('voice_assistant.start_listening')}
                   className={`relative rounded-full w-16 h-16 flex items-center justify-center text-2xl text-white shadow-lg disabled:opacity-50 transition-colors ${
                     voice.listening
                       ? 'bg-red-600 voice-listening-ring'
@@ -257,7 +257,7 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
                 {voice.speaking && (
                   <button onClick={voice.toggleSpeakReplies}
                     className="text-xs text-sky-600 dark:text-sky-400 hover:underline">
-                    Stop
+                    {t('voice_assistant.stop')}
                   </button>
                 )}
               </div>
@@ -265,22 +265,22 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
               <div className="flex items-center justify-center gap-2">
                 <button onClick={() => setHandsFree((v) => !v)}
                   aria-pressed={handsFree}
-                  title={handsFree ? 'Hands-free listening on' : 'Hands-free listening off'}
+                  title={handsFree ? t('voice_assistant.hands_free_on_title') : t('voice_assistant.hands_free_off_title')}
                   className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
                     handsFree
                       ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
                       : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
-                  {handsFree ? '♾️ Hands-free' : '👆 Tap to talk'}
+                  {handsFree ? t('voice_assistant.hands_free_on') : t('voice_assistant.hands_free_off')}
                 </button>
                 {voice.ttsSupported && (
                   <button onClick={voice.toggleSpeakReplies}
                     aria-pressed={voice.speakReplies}
-                    title={voice.speakReplies ? 'Spoken replies on' : 'Spoken replies off'}
+                    title={voice.speakReplies ? t('voice_assistant.sound_on_title') : t('voice_assistant.sound_off_title')}
                     className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
                       voice.speakReplies
                         ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
-                    {voice.speakReplies ? '🔊 Sound on' : '🔈 Sound off'}
+                    {voice.speakReplies ? t('voice_assistant.sound_on') : t('voice_assistant.sound_off')}
                   </button>
                 )}
               </div>

@@ -9,6 +9,19 @@ function systemPrefersDark() {
     : false
 }
 
+// A first-ever visit (no stored preference yet) defaults to the mode that
+// matches the section of the app being opened -- the police/admin consoles
+// read as a security operations center, the tourist app as a light travel
+// companion (see index.css's [data-role-theme] palettes). This only ever
+// picks the STARTING value: an explicit choice (stored or toggled) always
+// wins from then on, on every route, exactly as before -- the toggle itself
+// is untouched.
+function defaultThemeForRoute() {
+  const path = typeof window !== 'undefined' ? window.location.pathname : ''
+  if (path.startsWith('/admin') || path.startsWith('/responder')) return 'dark'
+  return systemPrefersDark() ? 'dark' : 'light'
+}
+
 function apply(theme) {
   document.documentElement.classList.toggle('dark', theme === 'dark')
 }
@@ -16,7 +29,7 @@ function apply(theme) {
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
-    return stored || (systemPrefersDark() ? 'dark' : 'light')
+    return stored || defaultThemeForRoute()
   })
 
   useEffect(() => {

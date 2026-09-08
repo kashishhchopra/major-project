@@ -1,53 +1,314 @@
 {
   "app": {
-    "name": "Sécurité Touristique",
     "digital_id": "ID Touristique Numérique",
+    "loading": "Chargement…",
     "logout": "Déconnexion",
-    "loading": "Chargement…"
-  },
-  "safety": {
-    "my_score": "Mon Score de Sécurité",
-    "zone": "Zone",
-    "night_caution": "Prudence nocturne",
-    "daytime": "Journée"
-  },
-  "geofence": {
-    "warning_title": "Alerte de Géorepérage",
-    "warning_body": "Vous êtes dans {{zone}} (risque {{risk}}). Restez vigilant et envisagez de quitter la zone.",
-    "safe": "Vous êtes dans une zone sûre."
-  },
-  "tracking": {
-    "title": "Suivi de Localisation en Direct",
-    "subtitle": "Optionnel — permet au centre de contrôle de vous protéger"
-  },
-  "itinerary": {
-    "title": "Suivi d'Itinéraire",
-    "next_stop": "prochaine étape"
-  },
-  "police": {
-    "title": "Postes de Police à Proximité"
-  },
-  "sos": {
-    "button": "SOS — Envoyer une Alerte d'Urgence",
-    "sent_title": "SOS Envoyé",
-    "dispatched": "{{name}} ({{station}}) envoyé — à {{km}} km.",
-    "contacts_notified": "Contacts d'urgence prévenus : {{list}}",
-    "describe_title": "Décrivez votre urgence (facultatif)",
-    "describe_placeholder": "Que se passe-t-il ? Vous pouvez taper ou utiliser le micro ci-dessous.",
-    "speak": "🎤 Parler à la place",
-    "listening": "● Écoute en cours… touchez pour arrêter",
-    "voice_unsupported": "La saisie vocale n'est pas prise en charge sur cet appareil — tapez ci-dessus.",
-    "describe_note": "Ceci est envoyé avec votre alerte SOS. Le bouton SOS ci-dessous fonctionne immédiatement même si vous laissez ce champ vide."
+    "name": "Sécurité Touristique",
+    "offline": "Hors ligne"
   },
   "auth": {
-    "login_title": "Connexion",
     "email": "E-mail",
+    "invalid_credentials": "E-mail ou mot de passe incorrect",
+    "login_title": "Se connecter",
     "password": "Mot de passe",
-    "sign_in": "Se connecter",
     "register_prompt": "Nouveau touriste ? Inscrivez-vous ici",
-    "invalid_credentials": "E-mail ou mot de passe incorrect"
+    "sign_in": "Se connecter"
+  },
+  "checkin": {
+    "card_title": "Enregistrement / Départ",
+    "destination_placeholder": "Destination (ex. randonnée en bord de rivière)",
+    "expected_back": "Retour prévu {{when}}",
+    "im_back_safe": "✅ Je suis rentré sain et sauf",
+    "intro": "Vous planifiez une sortie ? Dites-nous où vous allez et quand vous prévoyez de revenir — si vous manquez l'heure, nous commencerons à vérifier avant même qu'il ne soit nécessaire d'appuyer sur SOS.",
+    "no_outings": "Aucune sortie prévue pour le moment.",
+    "plan_button": "+ Planifier un enregistrement",
+    "saving": "Enregistrement…"
+  },
+  "consular": {
+    "card_title": "Votre ambassade / consulat",
+    "common_scams": "Arnaques courantes à surveiller",
+    "guidance_for": "Conseils pour les locuteurs {{lang}}",
+    "km_away": "à {{km}} km",
+    "reporting_steps": "Si vous devez signaler quelque chose"
+  },
+  "copilot": {
+    "ask_by_voice": "Demander à la voix",
+    "listening": "Écoute…",
+    "placeholder": "Posez une question…",
+    "stop_listening": "Arrêter l'écoute",
+    "thinking": "réflexion…",
+    "title": "Demander à l'IA",
+    "try_asking": "Essayez de demander :",
+    "voice_replies_off": "Réponses vocales désactivées",
+    "voice_replies_on": "Réponses vocales activées",
+    "voice_unavailable": "Saisie vocale indisponible — tapez votre question."
+  },
+  "digital_id": {
+    "brand": "🛡️ ID TOURSHIELD",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "hotel_label": "Hôtel :",
+    "loading": "Chargement…",
+    "photo_alt": "Photo du touriste",
+    "qr_alt": "Code QR de l'ID numérique",
+    "qr_note": "Le QR ne contient qu'un jeton sécurisé — un scanner ne voit vos informations qu'après vérification par le serveur et contrôle de son autorisation.",
+    "qr_unavailable": "QR indisponible",
+    "regenerate_confirm": "L'ancien QR cessera de fonctionner immédiatement. Continuer ?",
+    "regenerate_qr": "Régénérer le QR",
+    "regenerating": "Régénération…",
+    "status_active": "ID VÉRIFIÉ",
+    "status_expired": "EXPIRÉ",
+    "status_expiring": "EXPIRE BIENTÔT",
+    "status_invalidated": "INVALIDÉ",
+    "toggle_hide": "Masquer l'ID numérique ▲",
+    "toggle_show": "🪪 ID de sécurité touristique numérique",
+    "tourist_id_label": "ID touriste :"
+  },
+  "disaster": {
+    "advisory": "Alerte {{type}}"
+  },
+  "emergency_mode": {
+    "assigning": "Attribution en cours…",
+    "call_emergency": "Appeler les services d'urgence",
+    "cancel_emergency": "Annuler l'urgence",
+    "connection_interrupted": "Connexion interrompue — votre dernière position a été envoyée avec succès. Nous essayons de nous reconnecter.",
+    "demo_notice": "(Mode démo — position simulée, pas de vrai GPS sur cet appareil)",
+    "finding_responder": "Recherche d'un intervenant…",
+    "keep_sharing": "Non, continuer à partager",
+    "last_updated": "Dernière mise à jour",
+    "location_status": "État de la position",
+    "location_unavailable": "Position temporairement indisponible",
+    "officer_assigned": "Agent affecté",
+    "police_station": "Poste de police",
+    "resolved_body": "Le partage de position d'urgence en direct s'est arrêté.",
+    "resolved_title": "Urgence résolue",
+    "response": "Réponse",
+    "seconds_ago": "il y a {{count}} sec",
+    "sharing_notice": "📍 Votre position en direct est partagée avec les secours autorisés.",
+    "status_connecting": "CONNEXION",
+    "status_live": "EN DIRECT",
+    "status_offline": "HORS LIGNE",
+    "status_stale": "ANCIEN",
+    "status_stopped": "ARRÊTÉ",
+    "tap_again_confirm": "Touchez à nouveau pour confirmer",
+    "title": "🚨 Mode urgence"
+  },
+  "geofence": {
+    "safe": "Vous êtes dans une zone sûre.",
+    "warning_body": "Vous êtes dans {{zone}} (risque {{risk}}). Restez vigilant et envisagez de quitter la zone.",
+    "warning_title": "Avertissement de géorepérage"
+  },
+  "help": {
+    "ask_safety_helper": "💬 Demander à l'assistant de sécurité"
+  },
+  "help_hero": {
+    "subtitle": "Numéros d'urgence, aide à proximité et traduction",
+    "title": "Sécurité & Aide"
+  },
+  "home": {
+    "caution_body": "{{zone}} · zone à risque élevé",
+    "caution_title": "Vous êtes dans une zone de prudence",
+    "greeting_afternoon": "Bon après-midi",
+    "greeting_evening": "Bonsoir",
+    "greeting_fallback": "voyageur",
+    "greeting_morning": "Bonjour",
+    "quick_hospital": "Hôpital",
+    "quick_itinerary": "Itinéraire",
+    "quick_navigate": "Naviguer",
+    "quick_pharmacy": "Pharmacie",
+    "quick_translate": "Traduire",
+    "quick_transport": "Transport",
+    "quick_voice": "Voix",
+    "route_picker_hint": "🧭 Touchez la carte ci-dessous pour choisir une destination, puis allez dans l'onglet Plan pour trouver un itinéraire sûr.",
+    "safe_body": "Tous les systèmes de sécurité sont actifs",
+    "safe_title": "Vous êtes en sécurité",
+    "safety_tip_body": "Gardez votre ID de sécurité touristique prêt en cas de besoin d'assistance.",
+    "safety_tip_label": "Conseil de sécurité :",
+    "view_live_map": "Voir la carte en direct ↓"
+  },
+  "home_extra": {
+    "assistant_ask": "Me demander",
+    "assistant_hospital": "Trouver un hôpital",
+    "assistant_police": "Trouver la police",
+    "assistant_route": "Planifier un itinéraire",
+    "assistant_subtitle": "Je suis là pour vous aider à voyager en sécurité.",
+    "assistant_title": "Rencontrez votre assistant de sécurité 🤖",
+    "assistant_transport": "Trouver un transport",
+    "popular_destinations": "Destinations populaires"
+  },
+  "itinerary": {
+    "next_stop": "prochain arrêt",
+    "route_safe": "Itinéraire sûr",
+    "title": "Suivi de l'itinéraire"
+  },
+  "itinerary_upload": {
+    "add_destination": "+ Ajouter une destination",
+    "card_title": "Télécharger le document d'itinéraire",
+    "confirm_save": "Confirmer et enregistrer l'itinéraire",
+    "destinations_help": "Destinations — modifiez ce qui est incorrect. Seuls les arrêts que nous pouvons placer sur la carte (📍✓) apparaîtront dans votre suivi d'itinéraire et vos contrôles de sécurité.",
+    "hotels_label": "Hôtels",
+    "intro": "Téléchargez un PDF, Word (.docx), fichier texte, ou une photo/scan (jpg, png) de votre itinéraire et nous extrairons automatiquement vos destinations, hôtels et transports. Une photo floue ou manuscrite peut ne pas être lue parfaitement — vous pouvez toujours corriger les erreurs à l'écran suivant.",
+    "locate_all": "📍 Tout localiser",
+    "locate_button": "📍 Localiser",
+    "locate_tooltip": "Aucune position trouvée pour cet arrêt — touchez pour essayer de le localiser",
+    "locating": "Localisation…",
+    "locating_progress": "📍 Localisation des destinations… ({{done}}/{{total}})",
+    "location_found": "Position trouvée",
+    "no_destinations": "Aucune destination trouvée — ajoutez-en une, ou saisissez votre itinéraire manuellement dans l'onglet Plan.",
+    "reading_document": "Lecture de votre document… les photos peuvent prendre jusqu'à une minute.",
+    "save_failed": "Impossible d'enregistrer votre itinéraire. Veuillez réessayer.",
+    "saved": "✓ Itinéraire enregistré",
+    "saving": "Enregistrement…",
+    "start_over": "Recommencer",
+    "toggle_hide": "Masquer le téléchargement ▲",
+    "toggle_show": "📄 Télécharger mon itinéraire",
+    "transport_label": "Transport",
+    "trip_dates": "Dates du voyage : du {{start}} au {{end}}",
+    "unresolved_warning_one": "⚠ {{count}} arrêt n'a pas pu être placé sur la carte, il n'apparaît donc pas encore dans votre suivi d'itinéraire — téléchargez à nouveau et utilisez « 📍 Localiser » pour corriger cela.",
+    "unresolved_warning_other": "⚠ {{count}} arrêts n'ont pas pu être placés sur la carte, ils n'apparaissent donc pas encore dans votre suivi d'itinéraire — téléchargez à nouveau et utilisez « 📍 Localiser » pour corriger cela.",
+    "upload_another": "Télécharger un autre",
+    "upload_failed": "Échec du téléchargement. Veuillez réessayer.",
+    "upload_timeout": "Cela prend trop de temps. Essayez une photo plus petite/plus claire, ou un fichier PDF/DOCX/texte."
   },
   "lang": {
     "label": "Langue"
+  },
+  "me": {
+    "location_permission_denied": "Autorisation de localisation refusée — activez-la dans les paramètres de votre navigateur pour être suivi."
+  },
+  "me_hero": {
+    "subtitle": "ID, partage et préférences",
+    "title": "Mon profil"
+  },
+  "nav": {
+    "sections_aria": "Sections de l'application touriste",
+    "tab_help": "Aide",
+    "tab_home": "Accueil",
+    "tab_me": "Moi",
+    "tab_plan": "Plan"
+  },
+  "nearby": {
+    "call_title": "Appeler {{phone}}",
+    "card_title": "À proximité",
+    "cat_hospital": "Hôpital",
+    "cat_pharmacy": "Pharmacie",
+    "cat_police": "Police",
+    "cat_transport": "Transport",
+    "directions": "Itinéraire",
+    "empty": "Rien trouvé à proximité pour l'instant — activez le suivi de position, ou essayez une recherche plus large plus tard.",
+    "km_away": "à {{km}} km",
+    "load_error": "Impossible de charger les lieux à proximité pour le moment.",
+    "loading": "Chargement…",
+    "toggle_hide": "Masquer les ressources à proximité ▲",
+    "toggle_show": "🗺️ Hôpitaux, pharmacies et transports à proximité",
+    "verified": "vérifié"
+  },
+  "plan": {
+    "hide_route_planner": "Masquer le planificateur d'itinéraire sûr",
+    "plan_safe_route": "🧭 Planifier un itinéraire sûr"
+  },
+  "plan_hero": {
+    "subtitle": "Itinéraires sûrs, programme et check-in",
+    "title": "Planifiez votre voyage"
+  },
+  "police": {
+    "title": "Postes de police à proximité"
+  },
+  "safety": {
+    "daytime": "Journée",
+    "my_score": "Mon Score de Sécurité",
+    "night_caution": "Prudence nocturne",
+    "zone": "Zone"
+  },
+  "safety_card": {
+    "card_title": "Carte de sécurité",
+    "emergency_numbers": "Numéros d'urgence",
+    "loading": "Chargement…",
+    "nearest_hospital": "Hôpital le plus proche",
+    "nearest_police": "Poste de police le plus proche",
+    "not_available": "Non disponible.",
+    "offline_copy": "📡 Copie hors ligne",
+    "toggle_hide": "Masquer la carte de sécurité hors ligne ▲",
+    "toggle_show": "🆘 Carte de sécurité hors ligne"
+  },
+  "sos": {
+    "add_details": "📝 Ajouter des détails avant l'envoi",
+    "aria_label": "SOS — Assistance d'urgence",
+    "button": "SOS — Envoyer une alerte d'urgence",
+    "contacts_notified": "Contacts d'urgence notifiés : {{list}}",
+    "describe_note": "Ceci est envoyé avec votre alerte SOS. Appuyer sur le bouton SOS ci-dessous fonctionne immédiatement même si vous laissez ce champ vide.",
+    "describe_placeholder": "Que se passe-t-il ? Vous pouvez taper ou utiliser le micro ci-dessous.",
+    "describe_title": "Décrivez votre urgence (facultatif)",
+    "dispatched": "{{name}} ({{station}}) envoyé — à {{km}} km.",
+    "listening": "● Écoute… touchez pour arrêter",
+    "pending_count_one": "{{count}} alerte SOS toujours en attente d'une connexion…",
+    "pending_count_other": "{{count}} alertes SOS toujours en attente d'une connexion…",
+    "queued_body": "Vous êtes hors ligne. Votre SOS a été enregistré sur cet appareil et sera envoyé automatiquement dès que vous serez de nouveau en ligne.",
+    "queued_title": "📡 SOS en attente — pas de connexion",
+    "sent_title": "SOS envoyé",
+    "speak": "🎤 Parler à la place",
+    "voice_unsupported": "Saisie vocale non prise en charge sur cet appareil — tapez ci-dessus."
+  },
+  "tracking": {
+    "permission_denied": "Autorisation de localisation refusée — activez-la dans les paramètres de votre navigateur pour être suivi.",
+    "subtitle": "Optionnel — permet au centre de contrôle de vous protéger",
+    "title": "Suivi de position en direct",
+    "unsupported": "Cet appareil ne prend pas en charge les services de localisation."
+  },
+  "translate": {
+    "card_title": "Traduire",
+    "demo_fallback_note": "la traduction en direct est indisponible, texte original affiché.",
+    "demo_mode": "⚠ Mode démo — {{note}}",
+    "go": "Traduire",
+    "input_placeholder": "Ou tapez quelque chose à traduire…",
+    "phrase_failed": "Impossible de traduire cette phrase.",
+    "service_unavailable": "Le service de traduction est actuellement indisponible.",
+    "text_failed": "Impossible de traduire ce texte.",
+    "toggle_hide": "Masquer la traduction ▲",
+    "toggle_show": "🌐 Traduire une phrase"
+  },
+  "voice_assistant": {
+    "aria_label": "Assistant vocal",
+    "ask_anything": "Demandez n'importe quoi — vous n'êtes pas limité à ceci :",
+    "clear": "Effacer",
+    "close": "Fermer",
+    "hands_free_off": "👆 Toucher pour parler",
+    "hands_free_off_title": "Écoute mains libres désactivée",
+    "hands_free_on": "♾️ Mains libres",
+    "hands_free_on_title": "Écoute mains libres activée",
+    "hint_cab": "Trouver un taxi.",
+    "hint_emergency": "Que dois-je faire en cas d'urgence ?",
+    "hint_hospital": "Où est l'hôpital le plus proche ?",
+    "hint_hotel": "Emmenez-moi à mon hôtel.",
+    "hint_route": "Suis-je sur le bon itinéraire ?",
+    "listening_speak_now": "Écoute… parlez maintenant",
+    "mic_unavailable": "Microphone indisponible — vérifiez l'autorisation du navigateur, ou tapez votre question dans l'assistant 🤖.",
+    "no_voice_support": "Ce navigateur ne prend pas en charge la saisie vocale — utilisez l'assistant 🤖 pour taper.",
+    "ready_just_speak": "Prêt — parlez simplement",
+    "request_failed": "Désolé, je n'ai pas pu traiter cela pour le moment.",
+    "sound_off": "🔈 Son désactivé",
+    "sound_off_title": "Réponses vocales désactivées",
+    "sound_on": "🔊 Son activé",
+    "sound_on_title": "Réponses vocales activées",
+    "speaking": "Parle…",
+    "speaking_lang": "Parle {{lang}}",
+    "start_listening": "Commencer l'écoute",
+    "stop": "Arrêter",
+    "stop_listening": "Arrêter l'écoute",
+    "tap_mic_once": "Touchez le micro une fois pour autoriser l'accès — ensuite il démarre automatiquement à chaque ouverture de l'application.",
+    "tap_mic_to_speak": "Touchez le micro pour parler",
+    "thinking": "Réflexion…",
+    "title": "Assistant vocal"
+  },
+  "voice_nav": {
+    "card_title": "🧭 Navigation vocale",
+    "estimated": "estimé (pas de données de trafic en direct)",
+    "eta": "{{km}} km · ETA ~{{min}} min",
+    "guidance_unavailable": "Le guidage de navigation est actuellement indisponible.",
+    "no_destination": "Aucune destination à venir définie — ajoutez ou confirmez un arrêt d'itinéraire pour obtenir un guidage.",
+    "no_speech_support": "Votre navigateur ne prend pas en charge le guidage vocal — texte uniquement affiché.",
+    "subtitle": "Guidage vocal vers votre prochain arrêt",
+    "voice_off": "🔈 Voix : désactivée",
+    "voice_on": "🔊 Voix : activée"
   }
 }

@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.14",
     "axios": "^1.7.9",
     "i18next": "^24.2.3",
     "i18next-browser-languagedetector": "^8.2.1",

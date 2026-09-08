@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, fireEvent, act } from '@testing-library/react'
 import MockAdapter from 'axios-mock-adapter'
+import '../i18n' // initializes i18next so t() resolves real strings, not raw keys
 import api from '../api'
 import CopilotChat from './CopilotChat'
 

@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next'
+
 const TABS = [
-  { key: 'home', icon: '🗺️', label: 'Home' },
-  { key: 'plan', icon: '🧭', label: 'Plan' },
-  { key: 'help', icon: '🏥', label: 'Help' },
-  { key: 'me', icon: '👤', label: 'Me' },
+  { key: 'home', icon: '🗺️', labelKey: 'nav.tab_home' },
+  { key: 'plan', icon: '🧭', labelKey: 'nav.tab_plan' },
+  { key: 'help', icon: '🏥', labelKey: 'nav.tab_help' },
+  { key: 'me', icon: '👤', labelKey: 'nav.tab_me' },
 ]
 
 // Persistent bottom navigation for the tourist app. Kept separate from the
@@ -10,10 +12,11 @@ const TABS = [
 // important action on the whole screen is never one of five equal-weight
 // tab buttons.
 export default function TouristTabBar({ active, onChange }) {
+  const { t } = useTranslation()
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-[1000] bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 pb-[env(safe-area-inset-bottom)]"
-      aria-label="Tourist app sections"
+      aria-label={t('nav.sections_aria')}
     >
       <div className="max-w-md mx-auto grid grid-cols-4">
         {TABS.map((tab) => (
@@ -28,7 +31,7 @@ export default function TouristTabBar({ active, onChange }) {
             }`}
           >
             <span className="text-lg leading-none">{tab.icon}</span>
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>

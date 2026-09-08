@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../auth.jsx'
 import { COUNTRIES } from '../lib/countries.js'
+import LivenessCapture from '../components/LivenessCapture.jsx'
 
 const DOC_TYPES = [
   { value: '', label: 'Select Verification Method' },
@@ -170,9 +171,16 @@ export default function Register() {
   const [f, setF] = useState({
     full_name: '', nationality: 'Indian', document_type: '',
     document_number: '', phone: '', email: '', password: '',
-    trip_start: '', trip_end: '', hotel: '', photo: null,
+    trip_start: '', trip_end: '', hotel: '', photo: null, liveness_token: null,
     nationality_code: '', visa_type: '', visa_number: '', visa_expiry: '', passport_expiry: '',
   })
+  // Whether the 3-step liveness check ran for this attempt -- turned off
+  // permanently for the rest of this registration the moment it can't run
+  // (camera denied, model unavailable, or the tourist opts out), falling
+  // back to the existing plain live-capture step below. Never re-enabled
+  // mid-registration: retrying a half-failed camera pipeline silently is
+  // more likely to strand the tourist than to help them.
+  const [livenessAvailable, setLivenessAvailable] = useState(true)
   const steps = useMemo(() => buildSteps(f.document_type), [f.document_type])
   const [stepKey, setStepKey] = useState('identity')
   const [contact, setContact] = useState({ name: '', phone: '', relation: 'family' })
@@ -223,6 +231,7 @@ export default function Register() {
         document_number: f.document_number,
         phone: f.phone,
         photo: f.photo || null,
+        liveness_token: f.liveness_token || null,
         hotel: f.hotel || null,
         email: f.email || null,
         password: f.password || null,
@@ -343,13 +352,34 @@ export default function Register() {
 
           {stepKey === 'photo' && (
             <>
-              <p className="text-xs text-slate-400 -mt-1 mb-2">
-                Required — a live camera capture for your Digital Tourist Safety ID card (no file uploads, to
-                make sure the photo is really of you, right now).
-              </p>
-              <LivePhotoCapture photo={f.photo}
-                onCapture={(photo) => setF((prev) => ({ ...prev, photo }))}
-                onRetake={() => setF((prev) => ({ ...prev, photo: null }))} />
+              {!f.photo && livenessAvailable ? (
+                <>
+                  <p className="text-xs text-slate-400 -mt-1 mb-2">
+                    Your camera will be used briefly to verify that a real person is present and to
+                    capture your Digital Tourist Safety ID photo.
+                  </p>
+                  <LivenessCapture
+                    onCapture={(photo, meta) => setF((prev) => ({ ...prev, photo, liveness_token: meta?.livenessToken || null }))}
+                    onCancel={() => setLivenessAvailable(false)}
+                    onUnavailable={() => setLivenessAvailable(false)}
+                  />
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-slate-400 -mt-1 mb-2">
+                    Required — a live camera capture for your Digital Tourist Safety ID card (no file uploads, to
+                    make sure the photo is really of you, right now).
+                    {!livenessAvailable && !f.photo && (
+                      <span className="block mt-1 text-orange-300">
+                        Step-by-step verification isn't available in this browser — using standard live capture instead.
+                      </span>
+                    )}
+                  </p>
+                  <LivePhotoCapture photo={f.photo}
+                    onCapture={(photo) => setF((prev) => ({ ...prev, photo, liveness_token: null }))}
+                    onRetake={() => setF((prev) => ({ ...prev, photo: null }))} />
+                </>
+              )}
             </>
           )}
 

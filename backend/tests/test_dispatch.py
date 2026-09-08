@@ -90,7 +90,11 @@ def test_trigger_sos_return_shape_unchanged_after_dispatch_refactor(db):
 
     result = trigger_sos(db, t, 26.1445, 91.7362, "Help")
 
-    assert set(result.keys()) == {"incident_id", "nearest_unit", "notified_contacts"}
+    assert set(result.keys()) == {
+        "incident_id", "nearest_unit", "notified_contacts",
+        # Added for SOS live location sharing (services/emergency_location.py).
+        "silent", "status", "live_tracking_active", "station_id", "station_name",
+    }
     assert result["nearest_unit"]["name"] == "Near Unit"
     assert set(result["nearest_unit"].keys()) == {
         "name", "station", "phone", "lat", "lng", "distance_km",

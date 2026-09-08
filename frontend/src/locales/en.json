@@ -1,53 +1,314 @@
 {
   "app": {
-    "name": "Tourist Safety",
     "digital_id": "Digital Tourist ID",
+    "loading": "Loading…",
     "logout": "Logout",
-    "loading": "Loading…"
+    "name": "Tourist Safety",
+    "offline": "Offline"
   },
-  "safety": {
-    "my_score": "My Safety Score",
-    "zone": "Zone",
-    "night_caution": "Night-time caution",
-    "daytime": "Daytime"
+  "auth": {
+    "email": "Email",
+    "invalid_credentials": "Incorrect email or password",
+    "login_title": "Sign In",
+    "password": "Password",
+    "register_prompt": "New tourist? Register here",
+    "sign_in": "Sign In"
+  },
+  "checkin": {
+    "card_title": "Check-in / Check-out",
+    "destination_placeholder": "Destination (e.g. Riverside trek)",
+    "expected_back": "Expected back {{when}}",
+    "im_back_safe": "✅ I'm back safe",
+    "intro": "Planning an outing? Tell us where you're headed and when you expect to be back — if you miss it, we'll start checking on you before anyone needs to press SOS.",
+    "no_outings": "No planned outings right now.",
+    "plan_button": "+ Plan a check-in",
+    "saving": "Saving…"
+  },
+  "consular": {
+    "card_title": "Your Embassy / Consulate",
+    "common_scams": "Common scams to watch for",
+    "guidance_for": "Guidance for {{lang}} speakers",
+    "km_away": "{{km}} km away",
+    "reporting_steps": "If you need to report something"
+  },
+  "copilot": {
+    "ask_by_voice": "Ask by voice",
+    "listening": "Listening…",
+    "placeholder": "Ask a question…",
+    "stop_listening": "Stop listening",
+    "thinking": "thinking…",
+    "title": "Ask AI",
+    "try_asking": "Try asking:",
+    "voice_replies_off": "Voice replies off",
+    "voice_replies_on": "Voice replies on",
+    "voice_unavailable": "Voice input unavailable — type your question instead."
+  },
+  "digital_id": {
+    "brand": "🛡️ TOURSHIELD ID",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "hotel_label": "Hotel:",
+    "loading": "Loading…",
+    "photo_alt": "Tourist photo",
+    "qr_alt": "Digital ID QR code",
+    "qr_note": "The QR carries only a secure token — a scanner only sees your information after the backend verifies it and checks their authorization.",
+    "qr_unavailable": "QR unavailable",
+    "regenerate_confirm": "Old QR stops working immediately. Continue?",
+    "regenerate_qr": "Regenerate QR",
+    "regenerating": "Regenerating…",
+    "status_active": "ID VERIFIED",
+    "status_expired": "EXPIRED",
+    "status_expiring": "EXPIRING SOON",
+    "status_invalidated": "INVALIDATED",
+    "toggle_hide": "Hide Digital Safety ID ▲",
+    "toggle_show": "🪪 Digital Tourist Safety ID",
+    "tourist_id_label": "Tourist ID:"
+  },
+  "disaster": {
+    "advisory": "{{type}} advisory"
+  },
+  "emergency_mode": {
+    "assigning": "Assigning…",
+    "call_emergency": "Call Emergency Services",
+    "cancel_emergency": "Cancel Emergency",
+    "connection_interrupted": "Connection Interrupted — your latest location was sent successfully. We are trying to reconnect.",
+    "demo_notice": "(Demo mode — simulated position, no real GPS on this device)",
+    "finding_responder": "Finding responder…",
+    "keep_sharing": "Never mind, keep sharing",
+    "last_updated": "Last Updated",
+    "location_status": "Location Status",
+    "location_unavailable": "Location temporarily unavailable",
+    "officer_assigned": "Officer assigned",
+    "police_station": "Police Station",
+    "resolved_body": "Live emergency location sharing has stopped.",
+    "resolved_title": "Emergency Resolved",
+    "response": "Response",
+    "seconds_ago": "{{count}} sec ago",
+    "sharing_notice": "📍 Your live location is being shared with authorized emergency responders.",
+    "status_connecting": "CONNECTING",
+    "status_live": "LIVE",
+    "status_offline": "OFFLINE",
+    "status_stale": "STALE",
+    "status_stopped": "STOPPED",
+    "tap_again_confirm": "Tap again to confirm",
+    "title": "🚨 Emergency Mode"
   },
   "geofence": {
-    "warning_title": "Geo-fence Warning",
+    "safe": "You are in a safe area.",
     "warning_body": "You are in {{zone}} ({{risk}} risk). Stay alert and consider leaving the area.",
-    "safe": "You are in a safe area."
+    "warning_title": "Geo-fence Warning"
   },
-  "tracking": {
-    "title": "Live Location Tracking",
-    "subtitle": "Opt-in — lets the control room protect you"
+  "help": {
+    "ask_safety_helper": "💬 Ask the Safety Helper"
+  },
+  "help_hero": {
+    "subtitle": "Emergency numbers, nearby help & translation",
+    "title": "Safety & Help"
+  },
+  "home": {
+    "caution_body": "{{zone}} · elevated risk area",
+    "caution_title": "You're in a caution zone",
+    "greeting_afternoon": "Good afternoon",
+    "greeting_evening": "Good evening",
+    "greeting_fallback": "there",
+    "greeting_morning": "Good morning",
+    "quick_hospital": "Hospital",
+    "quick_itinerary": "Itinerary",
+    "quick_navigate": "Navigate",
+    "quick_pharmacy": "Pharmacy",
+    "quick_translate": "Translate",
+    "quick_transport": "Transport",
+    "quick_voice": "Voice",
+    "route_picker_hint": "🧭 Tap the map below to choose a destination, then go to the Plan tab to find a safe route.",
+    "safe_body": "All safety systems are active",
+    "safe_title": "You're safe",
+    "safety_tip_body": "Keep your Tourist Safety ID ready in case assistance is needed.",
+    "safety_tip_label": "Safety Tip:",
+    "view_live_map": "View Live Map ↓"
+  },
+  "home_extra": {
+    "assistant_ask": "Ask me",
+    "assistant_hospital": "Find hospital",
+    "assistant_police": "Find police",
+    "assistant_route": "Plan route",
+    "assistant_subtitle": "I'm here to help you travel safely.",
+    "assistant_title": "Meet your Safety Assistant 🤖",
+    "assistant_transport": "Find transport",
+    "popular_destinations": "Popular Destinations"
   },
   "itinerary": {
-    "title": "Itinerary Tracker",
-    "next_stop": "next stop"
+    "next_stop": "next stop",
+    "route_safe": "Route Safe",
+    "title": "Itinerary Tracker"
+  },
+  "itinerary_upload": {
+    "add_destination": "+ Add destination",
+    "card_title": "Upload Itinerary Document",
+    "confirm_save": "Confirm & Save Itinerary",
+    "destinations_help": "Destinations — edit anything that's wrong. Only stops we can place on the map (📍✓) will show up in your Itinerary Tracker and safety checks.",
+    "hotels_label": "Hotels",
+    "intro": "Upload a PDF, Word (.docx), text file, or a photo/scan (jpg, png) of your itinerary and we'll pull out your destinations, hotels, and transport automatically. A blurry or handwritten photo may not read perfectly — you can always fix anything wrong on the next screen.",
+    "locate_all": "📍 Locate all",
+    "locate_button": "📍 Locate",
+    "locate_tooltip": "No location found for this stop yet — tap to try to locate it",
+    "locating": "Locating…",
+    "locating_progress": "📍 Locating destinations… ({{done}}/{{total}})",
+    "location_found": "Location found",
+    "no_destinations": "No destinations found — add one, or type your itinerary in the Plan tab manually.",
+    "reading_document": "Reading your document… photos can take up to a minute.",
+    "save_failed": "Could not save your itinerary. Please try again.",
+    "saved": "✓ Itinerary saved",
+    "saving": "Saving…",
+    "start_over": "Start over",
+    "toggle_hide": "Hide itinerary upload ▲",
+    "toggle_show": "📄 Upload My Itinerary",
+    "transport_label": "Transport",
+    "trip_dates": "Trip dates: {{start}} to {{end}}",
+    "unresolved_warning_one": "⚠ {{count}} stop couldn't be placed on the map, so it's not showing in your Itinerary Tracker yet — upload again and use \"📍 Locate\" to fix that.",
+    "unresolved_warning_other": "⚠ {{count}} stops couldn't be placed on the map, so they're not showing in your Itinerary Tracker yet — upload again and use \"📍 Locate\" to fix that.",
+    "upload_another": "Upload another",
+    "upload_failed": "Upload failed. Please try again.",
+    "upload_timeout": "This is taking too long. Try a smaller/clearer photo, or a PDF/DOCX/text file instead."
+  },
+  "lang": {
+    "label": "Language"
+  },
+  "me": {
+    "location_permission_denied": "Location permission denied — enable it in your browser settings to be tracked."
+  },
+  "me_hero": {
+    "subtitle": "ID, sharing settings & preferences",
+    "title": "My Profile"
+  },
+  "nav": {
+    "sections_aria": "Tourist app sections",
+    "tab_help": "Help",
+    "tab_home": "Home",
+    "tab_me": "Me",
+    "tab_plan": "Plan"
+  },
+  "nearby": {
+    "call_title": "Call {{phone}}",
+    "card_title": "Nearby",
+    "cat_hospital": "Hospital",
+    "cat_pharmacy": "Pharmacy",
+    "cat_police": "Police",
+    "cat_transport": "Transport",
+    "directions": "Directions",
+    "empty": "Nothing found nearby yet — enable location tracking, or try a wider search later.",
+    "km_away": "{{km}} km away",
+    "load_error": "Could not load nearby places right now.",
+    "loading": "Loading…",
+    "toggle_hide": "Hide nearby resources ▲",
+    "toggle_show": "🗺️ Nearby Hospitals, Pharmacies & Transport",
+    "verified": "verified"
+  },
+  "plan": {
+    "hide_route_planner": "Hide safe route planner",
+    "plan_safe_route": "🧭 Plan a safe route"
+  },
+  "plan_hero": {
+    "subtitle": "Safe routes, itinerary & check-ins",
+    "title": "Plan Your Journey"
   },
   "police": {
     "title": "Nearby Police Stations"
   },
+  "safety": {
+    "daytime": "Daytime",
+    "my_score": "My Safety Score",
+    "night_caution": "Night-time caution",
+    "zone": "Zone"
+  },
+  "safety_card": {
+    "card_title": "Safety Card",
+    "emergency_numbers": "Emergency numbers",
+    "loading": "Loading…",
+    "nearest_hospital": "Nearest hospital",
+    "nearest_police": "Nearest police station",
+    "not_available": "Not available.",
+    "offline_copy": "📡 Offline copy",
+    "toggle_hide": "Hide offline safety card ▲",
+    "toggle_show": "🆘 Offline Safety Card"
+  },
   "sos": {
+    "add_details": "📝 Add details before sending",
+    "aria_label": "SOS — Emergency Assistance",
     "button": "SOS — Send Emergency Alert",
-    "sent_title": "SOS Sent",
-    "dispatched": "Dispatched {{name}} ({{station}}) — {{km}} km away.",
     "contacts_notified": "Emergency contacts notified: {{list}}",
-    "describe_title": "Describe Your Emergency (optional)",
+    "describe_note": "This is sent along with your SOS alert. Pressing the SOS button below works immediately even if you leave this blank.",
     "describe_placeholder": "What's happening? You can type or use the mic below.",
-    "speak": "🎤 Speak instead",
+    "describe_title": "Describe Your Emergency (optional)",
+    "dispatched": "Dispatched {{name}} ({{station}}) — {{km}} km away.",
     "listening": "● Listening… tap to stop",
-    "voice_unsupported": "Voice input not supported on this device — type above.",
-    "describe_note": "This is sent along with your SOS alert. Pressing the SOS button below works immediately even if you leave this blank."
+    "pending_count_one": "{{count}} SOS alert still queued, waiting for a connection…",
+    "pending_count_other": "{{count}} SOS alerts still queued, waiting for a connection…",
+    "queued_body": "You're offline. Your SOS was saved on this device and will be sent automatically the moment you're back online.",
+    "queued_title": "📡 SOS queued — no connection",
+    "sent_title": "SOS Sent",
+    "speak": "🎤 Speak instead",
+    "voice_unsupported": "Voice input not supported on this device — type above."
   },
-  "auth": {
-    "login_title": "Sign In",
-    "email": "Email",
-    "password": "Password",
-    "sign_in": "Sign In",
-    "register_prompt": "New tourist? Register here",
-    "invalid_credentials": "Incorrect email or password"
+  "tracking": {
+    "permission_denied": "Location permission denied — enable it in your browser settings to be tracked.",
+    "subtitle": "Opt-in — lets the control room protect you",
+    "title": "Live Location Tracking",
+    "unsupported": "This device doesn't support location services."
   },
-  "lang": {
-    "label": "Language"
+  "translate": {
+    "card_title": "Translate",
+    "demo_fallback_note": "live translation is unavailable, showing original text.",
+    "demo_mode": "⚠ Demo mode — {{note}}",
+    "go": "Go",
+    "input_placeholder": "Or type something to translate…",
+    "phrase_failed": "Could not translate that phrase.",
+    "service_unavailable": "Translation service is unavailable right now.",
+    "text_failed": "Could not translate that text.",
+    "toggle_hide": "Hide translate ▲",
+    "toggle_show": "🌐 Translate a phrase"
+  },
+  "voice_assistant": {
+    "aria_label": "Voice assistant",
+    "ask_anything": "Ask anything — you're not limited to these:",
+    "clear": "Clear",
+    "close": "Close",
+    "hands_free_off": "👆 Tap to talk",
+    "hands_free_off_title": "Hands-free listening off",
+    "hands_free_on": "♾️ Hands-free",
+    "hands_free_on_title": "Hands-free listening on",
+    "hint_cab": "Find a cab.",
+    "hint_emergency": "What should I do in an emergency?",
+    "hint_hospital": "Where is the nearest hospital?",
+    "hint_hotel": "Take me to my hotel.",
+    "hint_route": "Am I on the correct route?",
+    "listening_speak_now": "Listening… speak now",
+    "mic_unavailable": "Microphone unavailable — check the browser's microphone permission, or type your question in the 🤖 assistant instead.",
+    "no_voice_support": "This browser doesn't support voice input — use the 🤖 assistant to type instead.",
+    "ready_just_speak": "Ready — just speak",
+    "request_failed": "Sorry, I could not process that just now.",
+    "sound_off": "🔈 Sound off",
+    "sound_off_title": "Spoken replies off",
+    "sound_on": "🔊 Sound on",
+    "sound_on_title": "Spoken replies on",
+    "speaking": "Speaking…",
+    "speaking_lang": "Speaking {{lang}}",
+    "start_listening": "Start listening",
+    "stop": "Stop",
+    "stop_listening": "Stop listening",
+    "tap_mic_once": "Tap the mic once to allow microphone access — after that it starts on its own every time you open the app.",
+    "tap_mic_to_speak": "Tap the mic to speak",
+    "thinking": "Thinking…",
+    "title": "Voice Assistant"
+  },
+  "voice_nav": {
+    "card_title": "🧭 Voice Navigation",
+    "estimated": "estimated (no live traffic data)",
+    "eta": "{{km}} km · ETA ~{{min}} min",
+    "guidance_unavailable": "Navigation guidance is unavailable right now.",
+    "no_destination": "No upcoming destination set — add or confirm an itinerary stop to get guidance.",
+    "no_speech_support": "Your browser doesn't support spoken guidance — showing text only.",
+    "subtitle": "Spoken guidance toward your next stop",
+    "voice_off": "🔈 Voice: Off",
+    "voice_on": "🔊 Voice: On"
   }
 }

@@ -57,7 +57,7 @@ export default function TouristSearch() {
         <input value={q} onChange={(e) => setQ(e.target.value)}
           placeholder="Search by name or digital ID…"
           className="w-full border border-slate-300 rounded-lg px-3 py-2" />
-        <div className="bg-white rounded-xl shadow-sm divide-y divide-slate-100 max-h-[70vh] overflow-y-auto">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm divide-y divide-slate-100 dark:divide-slate-700 max-h-[70vh] overflow-y-auto">
           {filtered.map((t) => (
             <button key={t.id} onClick={() => open(t)}
               className={`w-full text-left px-4 py-3 hover:bg-slate-50 ${selected?.id === t.id ? 'bg-sky-50' : ''}`}>
@@ -75,7 +75,7 @@ export default function TouristSearch() {
         {!selected && <Card><div className="text-slate-400 text-sm">Select a tourist to view profile.</div></Card>}
         {selected && (
           <div className="space-y-4">
-            <div className="bg-white rounded-xl shadow-sm p-4 flex flex-col sm:flex-row gap-4 items-center">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 flex flex-col sm:flex-row gap-4 items-center">
               <ScoreGauge score={selected.safety_score} />
               <div className="flex-1">
                 <div className="flex items-center gap-2">

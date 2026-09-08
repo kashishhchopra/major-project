@@ -26,6 +26,7 @@ from app.models.tourist import IdBlock, LocationPing, Tourist
 from app.models.user import User
 from app.models.zone import Zone
 from app.schemas.checkin import CheckInCreate, CheckInOut
+from app.schemas.liveness import LivenessVerifyRequest, LivenessVerifyResponse
 from app.schemas.tourist import (
     DuressPinSet,
     IdBlockOut,
@@ -35,7 +36,7 @@ from app.schemas.tourist import (
     TouristCreate,
     TouristOut,
 )
-from app.services import audit, consular, hashchain, privacy
+from app.services import audit, consular, hashchain, liveness, privacy
 from app.services import passport as passport_service
 from app.services import tourist_id as tourist_id_service
 from app.services.forecast import DEFAULT_HORIZONS_MIN, forecast_risk
@@ -150,7 +151,28 @@ def register_tourist(payload: TouristCreate, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(tourist)
+
+    # If the frontend completed the 3-step liveness check (see
+    # services/liveness.py), bind that verification to this tourist now
+    # that its id exists. Best-effort and silent: a missing/expired/
+    # mismatched token never blocks registration, it just means this
+    # tourist's photo doesn't carry the (internal-only, never exposed via
+    # any API) liveness stamp.
+    if payload.liveness_token:
+        liveness.consume_verification(db, payload.liveness_token, payload.photo, tourist.id)
+
     return _serialize(tourist)
+
+
+@router.post("/verify-liveness", response_model=LivenessVerifyResponse,
+             dependencies=[Depends(registration_rate_limit)])
+def verify_liveness(payload: LivenessVerifyRequest, db: Session = Depends(get_db)):
+    """Called once the browser's 3-step head-movement check completes (or
+    times out) during registration, before the tourist record exists --
+    same public, rate-limited shape as POST /tourists itself. See
+    services/liveness.py for exactly what is and isn't verified server-side.
+    """
+    return liveness.verify_liveness(db, payload)
 
 
 @router.get("", response_model=list[TouristOut])

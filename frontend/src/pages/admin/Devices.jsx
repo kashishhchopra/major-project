@@ -40,14 +40,14 @@ export default function Devices() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-slate-800">IoT Smart-Band Devices</h2>
+      <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">IoT Smart-Band Devices</h2>
 
       {issuedKey && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-sm">
           <div className="font-semibold text-amber-800">
             Device {issuedKey.device_id} registered — copy this API key now, it will not be shown again:
           </div>
-          <code className="block mt-2 bg-white border border-amber-200 rounded-lg p-2 text-xs break-all">
+          <code className="block mt-2 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-lg p-2 text-xs break-all">
             {issuedKey.api_key}
           </code>
           <button onClick={() => setIssuedKey(null)} className="text-xs text-amber-700 mt-2 underline">

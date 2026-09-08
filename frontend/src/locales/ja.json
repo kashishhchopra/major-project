@@ -1,53 +1,314 @@
 {
   "app": {
-    "name": "観光安全",
     "digital_id": "デジタル観光者ID",
+    "loading": "読み込み中…",
     "logout": "ログアウト",
-    "loading": "読み込み中…"
+    "name": "観光客安全",
+    "offline": "オフライン"
   },
-  "safety": {
-    "my_score": "私の安全スコア",
-    "zone": "ゾーン",
-    "night_caution": "夜間の注意",
-    "daytime": "日中"
+  "auth": {
+    "email": "メールアドレス",
+    "invalid_credentials": "メールアドレスまたはパスワードが正しくありません",
+    "login_title": "ログイン",
+    "password": "パスワード",
+    "register_prompt": "初めての方はこちらから登録",
+    "sign_in": "ログイン"
+  },
+  "checkin": {
+    "card_title": "外出/帰着チェックイン",
+    "destination_placeholder": "目的地（例：川沿いのハイキング）",
+    "expected_back": "帰着予定 {{when}}",
+    "im_back_safe": "✅ 無事に戻りました",
+    "intro": "外出の予定はありますか？行き先と帰宅予定時刻を教えてください — 誰かがSOSを押す前に、あなたを探し始めます。",
+    "no_outings": "現在、予定されている外出はありません。",
+    "plan_button": "+ チェックインを計画",
+    "saving": "保存中…"
+  },
+  "consular": {
+    "card_title": "あなたの大使館 / 領事館",
+    "common_scams": "注意すべき一般的な詐欺",
+    "guidance_for": "{{lang}}話者向けの案内",
+    "km_away": "{{km}} km先",
+    "reporting_steps": "何かを報告する必要がある場合"
+  },
+  "copilot": {
+    "ask_by_voice": "音声で質問する",
+    "listening": "聞き取り中…",
+    "placeholder": "質問を入力…",
+    "stop_listening": "聞き取りを停止",
+    "thinking": "考え中…",
+    "title": "AIに質問",
+    "try_asking": "こう聞いてみましょう：",
+    "voice_replies_off": "音声返信オフ",
+    "voice_replies_on": "音声返信オン",
+    "voice_unavailable": "音声入力は利用できません — 質問を入力してください。"
+  },
+  "digital_id": {
+    "brand": "🛡️ TOURSHIELD ID",
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "hotel_label": "ホテル：",
+    "loading": "読み込み中…",
+    "photo_alt": "観光者の写真",
+    "qr_alt": "デジタルIDのQRコード",
+    "qr_note": "QRコードには安全なトークンのみが含まれています — スキャナーは、サーバーが確認して権限をチェックするまであなたのデータを見ることはできません。",
+    "qr_unavailable": "QRは利用できません",
+    "regenerate_confirm": "古いQRはすぐに使えなくなります。続行しますか？",
+    "regenerate_qr": "QRを再生成",
+    "regenerating": "再生成中…",
+    "status_active": "ID確認済み",
+    "status_expired": "期限切れ",
+    "status_expiring": "まもなく期限切れ",
+    "status_invalidated": "無効化済み",
+    "toggle_hide": "デジタルIDを非表示 ▲",
+    "toggle_show": "🪪 デジタル観光者安全ID",
+    "tourist_id_label": "観光者ID："
+  },
+  "disaster": {
+    "advisory": "{{type}}に関する警報"
+  },
+  "emergency_mode": {
+    "assigning": "割り当て中…",
+    "call_emergency": "緊急通報する",
+    "cancel_emergency": "緊急事態をキャンセル",
+    "connection_interrupted": "接続が中断されました — 最後の位置情報は正常に送信されました。再接続を試みています。",
+    "demo_notice": "（デモモード — シミュレートされた位置、このデバイスには実際のGPSはありません）",
+    "finding_responder": "対応者を検索中…",
+    "keep_sharing": "いいえ、共有を続ける",
+    "last_updated": "最終更新",
+    "location_status": "位置情報のステータス",
+    "location_unavailable": "位置情報は一時的に利用できません",
+    "officer_assigned": "担当者が割り当てられました",
+    "police_station": "警察署",
+    "resolved_body": "緊急時のライブ位置共有は停止されました。",
+    "resolved_title": "緊急事態は解決しました",
+    "response": "対応",
+    "seconds_ago": "{{count}}秒前",
+    "sharing_notice": "📍 あなたのライブ位置情報は認可された対応者と共有されています。",
+    "status_connecting": "接続中",
+    "status_live": "ライブ",
+    "status_offline": "オフライン",
+    "status_stale": "古い情報",
+    "status_stopped": "停止済み",
+    "tap_again_confirm": "確認するにはもう一度タップ",
+    "title": "🚨 緊急モード"
   },
   "geofence": {
-    "warning_title": "ジオフェンス警告",
-    "warning_body": "あなたは{{zone}}（危険度：{{risk}}）にいます。警戒し、この地域から離れることを検討してください。",
-    "safe": "あなたは安全な地域にいます。"
+    "safe": "安全な地域にいます。",
+    "warning_body": "{{zone}}にいます（リスク：{{risk}}）。警戒を続け、この地域から離れることを検討してください。",
+    "warning_title": "ジオフェンス警告"
   },
-  "tracking": {
-    "title": "リアルタイム位置追跡",
-    "subtitle": "オプトイン — コントロールルームがあなたを保護できるようになります"
+  "help": {
+    "ask_safety_helper": "💬 安全アシスタントに聞く"
+  },
+  "help_hero": {
+    "subtitle": "緊急連絡先、近くのヘルプ、翻訳",
+    "title": "安全とヘルプ"
+  },
+  "home": {
+    "caution_body": "{{zone}}・リスクが高い地域",
+    "caution_title": "注意ゾーンにいます",
+    "greeting_afternoon": "こんにちは",
+    "greeting_evening": "こんばんは",
+    "greeting_fallback": "旅行者",
+    "greeting_morning": "おはようございます",
+    "quick_hospital": "病院",
+    "quick_itinerary": "旅程",
+    "quick_navigate": "ナビ",
+    "quick_pharmacy": "薬局",
+    "quick_translate": "翻訳",
+    "quick_transport": "交通機関",
+    "quick_voice": "音声",
+    "route_picker_hint": "🧭 下の地図をタップして目的地を選び、プランタブで安全なルートを見つけましょう。",
+    "safe_body": "すべての安全システムが稼働中です",
+    "safe_title": "安全です",
+    "safety_tip_body": "支援が必要な場合に備えて、観光者安全IDを準備しておきましょう。",
+    "safety_tip_label": "安全のヒント：",
+    "view_live_map": "ライブマップを見る ↓"
+  },
+  "home_extra": {
+    "assistant_ask": "質問する",
+    "assistant_hospital": "病院を探す",
+    "assistant_police": "警察を探す",
+    "assistant_route": "ルートを計画",
+    "assistant_subtitle": "安全な旅をサポートするためにここにいます。",
+    "assistant_title": "あなたの安全アシスタントに会いましょう 🤖",
+    "assistant_transport": "交通機関を探す",
+    "popular_destinations": "人気の目的地"
   },
   "itinerary": {
-    "title": "旅程トラッカー",
-    "next_stop": "次の目的地"
+    "next_stop": "次の目的地",
+    "route_safe": "ルートは安全です",
+    "title": "旅程トラッカー"
+  },
+  "itinerary_upload": {
+    "add_destination": "+ 目的地を追加",
+    "card_title": "旅程書類をアップロード",
+    "confirm_save": "旅程を確認して保存",
+    "destinations_help": "目的地 — 誤りがあれば修正してください。地図上に配置できる目的地（📍✓）のみが、旅程トラッカーと安全チェックに表示されます。",
+    "hotels_label": "ホテル",
+    "intro": "旅程のPDF、Word（.docx）、テキストファイル、または写真/スキャン（jpg、png）をアップロードすると、目的地、ホテル、交通機関を自動的に抽出します。ぼやけた写真や手書きの写真は完璧に読み取れない場合があります — 次の画面でいつでも誤りを修正できます。",
+    "locate_all": "📍 すべて特定する",
+    "locate_button": "📍 特定する",
+    "locate_tooltip": "この目的地の場所はまだ見つかっていません — タップして試してください",
+    "locating": "特定中…",
+    "locating_progress": "📍 目的地を特定中…（{{done}}/{{total}}）",
+    "location_found": "場所が見つかりました",
+    "no_destinations": "目的地が見つかりません — 追加するか、プランタブで旅程を手動で入力してください。",
+    "reading_document": "書類を読み込んでいます…写真は最大1分かかる場合があります。",
+    "save_failed": "旅程を保存できませんでした。もう一度お試しください。",
+    "saved": "✓ 旅程を保存しました",
+    "saving": "保存中…",
+    "start_over": "最初からやり直す",
+    "toggle_hide": "旅程アップロードを非表示 ▲",
+    "toggle_show": "📄 旅程をアップロード",
+    "transport_label": "交通機関",
+    "trip_dates": "旅行日程：{{start}} から {{end}}",
+    "unresolved_warning_one": "⚠ {{count}}件の目的地を地図上に配置できなかったため、まだ旅程トラッカーに表示されていません — 再アップロードして「📍 特定する」を使用してください。",
+    "unresolved_warning_other": "⚠ {{count}}件の目的地を地図上に配置できなかったため、まだ旅程トラッカーに表示されていません — 再アップロードして「📍 特定する」を使用してください。",
+    "upload_another": "別のファイルをアップロード",
+    "upload_failed": "アップロードに失敗しました。もう一度お試しください。",
+    "upload_timeout": "時間がかかりすぎています。より小さい/鮮明な写真、またはPDF/DOCX/テキストファイルをお試しください。"
+  },
+  "lang": {
+    "label": "言語"
+  },
+  "me": {
+    "location_permission_denied": "位置情報の許可が拒否されました — ブラウザの設定で有効にしてください。"
+  },
+  "me_hero": {
+    "subtitle": "ID、共有設定、環境設定",
+    "title": "マイプロフィール"
+  },
+  "nav": {
+    "sections_aria": "観光客アプリのセクション",
+    "tab_help": "ヘルプ",
+    "tab_home": "ホーム",
+    "tab_me": "マイ",
+    "tab_plan": "プラン"
+  },
+  "nearby": {
+    "call_title": "{{phone}}に電話",
+    "card_title": "近く",
+    "cat_hospital": "病院",
+    "cat_pharmacy": "薬局",
+    "cat_police": "警察",
+    "cat_transport": "交通機関",
+    "directions": "道順",
+    "empty": "まだ近くに何も見つかりませんでした — 位置情報の追跡を有効にするか、後でより広い範囲で検索してください。",
+    "km_away": "{{km}} km先",
+    "load_error": "現在、近くの場所を読み込めません。",
+    "loading": "読み込み中…",
+    "toggle_hide": "近くのリソースを非表示 ▲",
+    "toggle_show": "🗺️ 近くの病院・薬局・交通機関",
+    "verified": "確認済み"
+  },
+  "plan": {
+    "hide_route_planner": "安全ルートプランナーを非表示",
+    "plan_safe_route": "🧭 安全なルートを計画"
+  },
+  "plan_hero": {
+    "subtitle": "安全なルート、旅程、チェックイン",
+    "title": "旅程を計画する"
   },
   "police": {
     "title": "近くの警察署"
   },
+  "safety": {
+    "daytime": "日中",
+    "my_score": "私の安全スコア",
+    "night_caution": "夜間の注意",
+    "zone": "ゾーン"
+  },
+  "safety_card": {
+    "card_title": "安全カード",
+    "emergency_numbers": "緊急連絡先番号",
+    "loading": "読み込み中…",
+    "nearest_hospital": "最寄りの病院",
+    "nearest_police": "最寄りの警察署",
+    "not_available": "利用できません。",
+    "offline_copy": "📡 オフラインコピー",
+    "toggle_hide": "オフライン安全カードを非表示 ▲",
+    "toggle_show": "🆘 オフライン安全カード"
+  },
   "sos": {
+    "add_details": "📝 送信前に詳細を追加",
+    "aria_label": "SOS — 緊急支援",
     "button": "SOS — 緊急通報を送信",
-    "sent_title": "SOSを送信しました",
-    "dispatched": "{{name}}（{{station}}）を出動させました — {{km}} km先。",
     "contacts_notified": "緊急連絡先に通知しました：{{list}}",
-    "describe_title": "緊急事態の詳細（任意）",
-    "describe_placeholder": "何が起きていますか？入力するか、下のマイクを使用してください。",
-    "speak": "🎤 音声で入力",
-    "listening": "● 聞き取り中… タップして停止",
-    "voice_unsupported": "このデバイスでは音声入力に対応していません — 上に入力してください。",
-    "describe_note": "これはSOS通報と一緒に送信されます。空欄のままでも、下のSOSボタンを押せばすぐに送信されます。"
+    "describe_note": "これはSOS通報と一緒に送信されます。空欄のままでも下のSOSボタンはすぐに機能します。",
+    "describe_placeholder": "何が起きていますか？入力するか、下のマイクを使用できます。",
+    "describe_title": "緊急事態の詳細を記入（任意）",
+    "dispatched": "{{name}}（{{station}}）を出動 — {{km}} km先。",
+    "listening": "● 聞き取り中…タップで停止",
+    "pending_count_one": "{{count}}件のSOSがまだ接続待ちです…",
+    "pending_count_other": "{{count}}件のSOSがまだ接続待ちです…",
+    "queued_body": "オフラインです。SOSはこの端末に保存され、再びオンラインになると自動的に送信されます。",
+    "queued_title": "📡 SOSは保留中 — 接続なし",
+    "sent_title": "SOSを送信しました",
+    "speak": "🎤 代わりに話す",
+    "voice_unsupported": "このデバイスでは音声入力に対応していません — 上に入力してください。"
   },
-  "auth": {
-    "login_title": "サインイン",
-    "email": "メールアドレス",
-    "password": "パスワード",
-    "sign_in": "サインイン",
-    "register_prompt": "初めての観光者ですか？こちらから登録",
-    "invalid_credentials": "メールアドレスまたはパスワードが正しくありません"
+  "tracking": {
+    "permission_denied": "位置情報の許可が拒否されました — ブラウザの設定で有効にしてください。",
+    "subtitle": "任意 — 司令室があなたを守れるようにします",
+    "title": "ライブ位置情報の共有",
+    "unsupported": "このデバイスは位置情報サービスに対応していません。"
   },
-  "lang": {
-    "label": "言語"
+  "translate": {
+    "card_title": "翻訳",
+    "demo_fallback_note": "リアルタイム翻訳は利用できません。元のテキストを表示しています。",
+    "demo_mode": "⚠ デモモード — {{note}}",
+    "go": "実行",
+    "input_placeholder": "または翻訳したい内容を入力…",
+    "phrase_failed": "そのフレーズを翻訳できませんでした。",
+    "service_unavailable": "翻訳サービスは現在利用できません。",
+    "text_failed": "そのテキストを翻訳できませんでした。",
+    "toggle_hide": "翻訳を非表示 ▲",
+    "toggle_show": "🌐 フレーズを翻訳"
+  },
+  "voice_assistant": {
+    "aria_label": "音声アシスタント",
+    "ask_anything": "何でも聞いてください — これに限定されません：",
+    "clear": "クリア",
+    "close": "閉じる",
+    "hands_free_off": "👆 タップして話す",
+    "hands_free_off_title": "ハンズフリー聞き取りオフ",
+    "hands_free_on": "♾️ ハンズフリー",
+    "hands_free_on_title": "ハンズフリー聞き取りオン",
+    "hint_cab": "タクシーを探す。",
+    "hint_emergency": "緊急時には何をすればいいですか？",
+    "hint_hospital": "最寄りの病院はどこですか？",
+    "hint_hotel": "ホテルまで連れて行って。",
+    "hint_route": "正しいルートを進んでいますか？",
+    "listening_speak_now": "聞き取り中…今話してください",
+    "mic_unavailable": "マイクが利用できません — ブラウザの許可を確認するか、🤖アシスタントに質問を入力してください。",
+    "no_voice_support": "このブラウザは音声入力に対応していません — 🤖アシスタントで入力してください。",
+    "ready_just_speak": "準備完了 — 話すだけでOK",
+    "request_failed": "申し訳ありませんが、今それを処理できませんでした。",
+    "sound_off": "🔈 音声オフ",
+    "sound_off_title": "音声返信オフ",
+    "sound_on": "🔊 音声オン",
+    "sound_on_title": "音声返信オン",
+    "speaking": "話しています…",
+    "speaking_lang": "{{lang}}で話しています",
+    "start_listening": "聞き取りを開始",
+    "stop": "停止",
+    "stop_listening": "聞き取りを停止",
+    "tap_mic_once": "アクセスを許可するにはマイクを一度タップしてください — その後はアプリを開くたびに自動的に開始します。",
+    "tap_mic_to_speak": "話すにはマイクをタップ",
+    "thinking": "考え中…",
+    "title": "音声アシスタント"
+  },
+  "voice_nav": {
+    "card_title": "🧭 音声ナビゲーション",
+    "estimated": "推定（リアルタイムの交通データなし）",
+    "eta": "{{km}} km・到着まで約{{min}}分",
+    "guidance_unavailable": "ナビゲーション案内は現在利用できません。",
+    "no_destination": "次の目的地が設定されていません — 案内を受けるには旅程の目的地を追加または確認してください。",
+    "no_speech_support": "お使いのブラウザは音声案内に対応していません — テキストのみ表示されます。",
+    "subtitle": "次の目的地までの音声案内",
+    "voice_off": "🔈 音声：オフ",
+    "voice_on": "🔊 音声：オン"
   }
 }

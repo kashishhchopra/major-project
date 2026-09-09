@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for the Smart Tourist Safety system."""
+"""FastAPI application entrypoint for MUSAFIR, the Smart Tourist Safety system."""
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
@@ -10,6 +10,7 @@ from app.api import (
     analytics,
     anchor,
     auth,
+    cctv,
     copilot,
     devices,
     disaster,
@@ -198,6 +199,7 @@ app.include_router(zones.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(emergency.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(incidents.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(police_network.router, prefix=PREFIX, dependencies=_rl)
+app.include_router(cctv.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(tourist_id.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(itinerary.router, prefix=PREFIX, dependencies=_rl)
 app.include_router(maps.router, prefix=PREFIX, dependencies=_rl)

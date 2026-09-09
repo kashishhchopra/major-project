@@ -11,7 +11,6 @@ const links = [
   { to: '/admin/police-network', label: 'Police Network', icon: '🚓' },
   { to: '/admin/live-emergencies', label: 'Live Emergencies', icon: '🚨' },
   { to: '/admin/analytics', label: 'Analytics', icon: '📊' },
-  { to: '/admin/model-insights', label: 'Model Insights', icon: '🧠' },
   { to: '/admin/devices', label: 'Devices', icon: '⌚' },
   { to: '/admin/audit', label: 'Audit Log', icon: '🔐' },
 ]
@@ -24,7 +23,7 @@ export default function AdminLayout() {
       <header className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-sky-900/60">
         <div className="flex items-center gap-2">
           <span className="text-xl">🛡️</span>
-          <span className="font-bold tracking-tight">Tourist Safety Control Room</span>
+          <span className="font-bold tracking-tight">MUSAFIR Control Room</span>
         </div>
         <nav className="hidden md:flex gap-1 overflow-x-auto min-w-0">
           {links.map((l) => (

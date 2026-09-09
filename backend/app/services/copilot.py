@@ -557,7 +557,7 @@ def _tourist_context(db: Session, tourist: Tourist) -> str:
     return "\n".join(lines)
 
 
-_SYSTEM_PROMPT = """You are the voice safety assistant inside a Smart Tourist Safety app used by \
+_SYSTEM_PROMPT = """You are the voice safety assistant inside MUSAFIR, a smart tourist safety app used by \
 travellers in India. You are talking directly to the tourist described below, usually out loud.
 
 Rules:
@@ -602,3 +602,53 @@ def _unmatched_reply(question: str) -> str:
         f"I heard \"{heard}\", but I don't have a way to answer that yet. "
         f"I can help with: {_CAPABILITY_LIST}."
     )
+
+
+# ---- Pre-login / public assistant -----------------------------------------
+# Used by the voice assistant on the Login/Register screens, before we know
+# who is asking. Deliberately the narrowest surface in this file: no tourist
+# row, no DB query, nothing personal ever enters this prompt -- it can only
+# describe the app and point the user at the right real action (log in,
+# register, forgot password, or call a real emergency number). Login,
+# registration and SOS themselves are never performed here; the frontend's
+# voice assistant carries those out through the actual auth/SOS APIs and
+# only ever calls this endpoint for open-ended "how does this work" style
+# questions. See frontend/src/components/LoginVoiceAssistant.jsx.
+_PUBLIC_SYSTEM_PROMPT = """You are the voice assistant on the sign-in screen of MUSAFIR, a tourist \
+safety app used in India, talking to someone who has not signed in yet -- possibly a blind or \
+low-vision traveller relying entirely on your spoken answer.
+
+Rules:
+- Answer only general questions about what MUSAFIR is and how it works (digital tourist ID, \
+live safety score, geofencing, one-tap SOS, nearby help, multilingual support).
+- Be brief: 1-3 short sentences, since your reply is read aloud. No markdown, no lists, no emoji.
+- You know nothing about any specific person -- you have no tourist data, no account information, \
+and cannot look anything up. Never invent a name, ID, location or status for anyone.
+- If asked to log in, register, recover a password, or for real emergency help, tell them the \
+app will do that directly by voice or through the visible form -- you don't perform it yourself.
+- India's all-in-one emergency number is 112; the tourist helpline is 1363. Give these if asked, \
+but make clear a real SOS in this app requires being signed in first, since it shares live \
+location with a real responder.
+- If you genuinely do not know, say so plainly."""
+
+_PUBLIC_CAPABILITY_REPLY = (
+    "MUSAFIR is a tourist safety app: a digital tourist ID, a live safety score, geofenced risk "
+    "alerts, and a one-tap SOS that shares your location with a real responder. Say \"log in\", "
+    "\"register\", \"I forgot my password\", or \"emergency\" and I'll take you there. In a real "
+    "emergency right now, India's all-in-one number is 112, and the tourist helpline is 1363."
+)
+
+
+def answer_public_question(question: str) -> dict:
+    """Pre-login assistant: general app questions only, answered by a real
+    language model when one is configured. No database access, no personal
+    data -- see the module docstring above `_PUBLIC_SYSTEM_PROMPT`."""
+    question = (question or "").strip()
+    if not question:
+        return {"answer": _PUBLIC_CAPABILITY_REPLY, "handled": False}
+    answer = llm.complete(_PUBLIC_SYSTEM_PROMPT, question)
+    if answer:
+        return {"answer": answer, "handled": True, "source": "llm"}
+    # No model configured/reachable: degrade to a real, honest description
+    # of what the app can do, never a fabricated answer.
+    return {"answer": _PUBLIC_CAPABILITY_REPLY, "handled": False}

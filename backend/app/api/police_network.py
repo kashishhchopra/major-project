@@ -9,8 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin, require_admin_or_responder
 from app.db.session import get_db
+from app.models.disaster import DisasterAdvisory
 from app.models.police import Camera, PoliceStation
 from app.models.user import User
+from app.schemas.disaster import DisasterAdvisoryOut, DisasterAdvisoryWithImpact
 from app.schemas.incident import IncidentOut
 from app.schemas.police_network import (
     CameraCreate,
@@ -22,7 +24,7 @@ from app.schemas.police_network import (
     StationCapacityOut,
     StationFallbackOut,
 )
-from app.services import audit, police_network
+from app.services import audit, disaster, police_network
 
 router = APIRouter(prefix="/police-network", tags=["police-network"])
 
@@ -113,6 +115,34 @@ def fallback_preview(lat: float = Query(...), lng: float = Query(...),
         }
         for r in ranked
     ]
+
+
+# ---------------- disaster & weather monitoring ----------------
+@router.get("/disaster-summary", response_model=list[DisasterAdvisoryWithImpact])
+def disaster_summary(db: Session = Depends(get_db),
+                     _: User = Depends(require_admin_or_responder)):
+    """Active hazard advisories enriched for the Police Network Dashboard's
+    Disaster & Weather Monitoring section: which zone, how many tourists are
+    currently inside it, and the police station responsible for that zone --
+    the same DisasterAdvisory data every tourist dashboard reads (see
+    services/disaster.py), joined onto this app's existing station/zone
+    architecture rather than a separate police-only alert list."""
+    advisories = (
+        db.query(DisasterAdvisory)
+        .filter(DisasterAdvisory.active.is_(True))
+        .order_by(DisasterAdvisory.issued_at.desc())
+        .all()
+    )
+    out = []
+    for a in advisories:
+        station = police_network.station_for_zone(db, a.zone_id)
+        out.append(DisasterAdvisoryWithImpact(
+            **DisasterAdvisoryOut.model_validate(a).model_dump(),
+            affected_tourists=disaster.affected_tourist_count(db, a),
+            station_id=station.id if station else None,
+            station_name=station.name if station else None,
+        ))
+    return out
 
 
 # ---------------- inter-station hand-off ----------------

@@ -157,6 +157,59 @@ def test_cache_expires(monkeypatch):
     assert len(calls) == 2
 
 
+# ---------------------------------------------------------------- fetch_current_conditions
+def test_fetch_current_conditions_returns_none_without_api_key(monkeypatch):
+    monkeypatch.setattr(weather.settings, "OPENWEATHER_API_KEY", "")
+    assert weather.fetch_current_conditions(26.14, 91.73) is None
+
+
+def test_fetch_current_conditions_returns_raw_fields(monkeypatch):
+    monkeypatch.setattr(weather.settings, "OPENWEATHER_API_KEY", "fake-key")
+
+    class FakeResponse:
+        def raise_for_status(self): pass
+        def json(self):
+            return {
+                "weather": [{"id": 200, "description": "thunderstorm"}],
+                "wind": {"speed": 12.0},
+                "main": {"temp": 31.0},
+                "dt": 1234567890,
+            }
+
+    monkeypatch.setattr(weather.httpx, "get", lambda *a, **k: FakeResponse())
+    c = weather.fetch_current_conditions(26.14, 91.73)
+    assert c == {
+        "weather_id": 200, "description": "thunderstorm",
+        "temp_c": 31.0, "wind_speed_ms": 12.0, "observed_at": 1234567890,
+    }
+
+
+def test_fetch_current_conditions_returns_none_on_network_failure(monkeypatch):
+    monkeypatch.setattr(weather.settings, "OPENWEATHER_API_KEY", "fake-key")
+
+    def boom(*a, **k):
+        raise httpx.ConnectTimeout("timed out")
+
+    monkeypatch.setattr(weather.httpx, "get", boom)
+    assert weather.fetch_current_conditions(26.14, 91.73) is None
+
+
+def test_fetch_current_conditions_is_cached(monkeypatch):
+    monkeypatch.setattr(weather.settings, "OPENWEATHER_API_KEY", "fake-key")
+    calls = []
+
+    class FakeResponse:
+        def raise_for_status(self): pass
+        def json(self):
+            calls.append(1)
+            return {"weather": [{"id": 800, "description": "clear"}], "wind": {}, "main": {}}
+
+    monkeypatch.setattr(weather.httpx, "get", lambda *a, **k: FakeResponse())
+    weather.fetch_current_conditions(26.140, 91.730)
+    weather.fetch_current_conditions(26.141, 91.731)  # same cache cell
+    assert len(calls) == 1
+
+
 def test_safety_score_uses_the_weather_service(db, monkeypatch):
     from app.services.safety import compute_safety_score
     from tests.conftest import make_tourist

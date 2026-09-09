@@ -4,6 +4,8 @@ import api from '../../api'
 import { Card, Stat } from '../../components/ui.jsx'
 import { touristIcon, sosIcon, stationIcon, cameraIcon, centralIcon, riskColor } from '../../components/mapIcons'
 import { DEFAULT_MAP, loadMapConfig } from '../../config'
+import CctvNetworkPanel from '../../components/CctvNetworkPanel.jsx'
+import { relativeTime } from '../../lib/relativeTime'
 
 // ---------------------------------------------------------------- demo data
 // The backend tracks named units (PoliceUnit) and real zone/camera/tourist
@@ -45,6 +47,22 @@ const STATUS_META = {
   online: { dot: 'bg-green-500', text: 'text-green-600 dark:text-green-400', label: 'ONLINE' },
   caution: { dot: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', label: 'RESPONDING' },
   critical: { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400', label: 'EMERGENCY' },
+}
+
+// Disaster & Weather Monitoring -- same hazard-icon/severity convention
+// DisasterBanner.jsx uses on the tourist side, kept in sync deliberately
+// (both read the same real DisasterAdvisory data, just via different
+// endpoints -- see services/disaster.py).
+const HAZARD_ICON = {
+  flood: '🌊', landslide: '⛰️', earthquake: '🌍', storm: '⛈️',
+  heavy_rain: '🌧️', thunderstorm: '🌩️', extreme_heat: '🔥',
+  extreme_cold: '❄️', dense_fog: '🌫️', tsunami: '🌊', cyclone: '🌪️',
+}
+const DISASTER_SEVERITY_CLS = {
+  critical: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+  low: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
 }
 
 function StatusDot({ status }) {
@@ -97,6 +115,15 @@ export default function PoliceNetwork() {
   const [cameras, setCameras] = useState([])
   const [mapCfg, setMapCfg] = useState(DEFAULT_MAP)
   const [error, setError] = useState(null)
+  // Disaster & Weather Monitoring: GET /police-network/disaster-summary --
+  // the same real, database-backed DisasterAdvisory data the tourist
+  // dashboard reads (see services/disaster.py), enriched with affected
+  // tourist counts and the responsible station. `disastersError` is kept
+  // separate from the main `error` state so an unrelated hiccup fetching
+  // this doesn't blank out the rest of an otherwise-working dashboard.
+  const [disasters, setDisasters] = useState([])
+  const [disastersLoading, setDisastersLoading] = useState(true)
+  const [disastersError, setDisastersError] = useState(false)
 
   const [focusTarget, setFocusTarget] = useState(null)
   const [highlightStationId, setHighlightStationId] = useState(null)
@@ -107,7 +134,14 @@ export default function PoliceNetwork() {
   const [detailStation, setDetailStation] = useState(null)
   const [contactStation, setContactStation] = useState(null)
   const [contactConnected, setContactConnected] = useState(false)
-  const [activeCamera, setActiveCamera] = useState(null)
+  // CCTV console state. `cctvCameras` are the records the CCTV Network
+  // panel loaded from /api/cctv (they carry live connection state and the
+  // resolved station); the map reuses them so its markers and the console
+  // can select each other. Separate from `cameras` above, which is the
+  // existing per-station proximity directory and is left untouched.
+  const [cctvCameras, setCctvCameras] = useState([])
+  const [selectedCameraId, setSelectedCameraId] = useState(null)
+  const [openCameraId, setOpenCameraId] = useState(null)
   const [forwardTarget, setForwardTarget] = useState({})
 
   const [activity, setActivity] = useState(() => {
@@ -154,6 +188,20 @@ export default function PoliceNetwork() {
     return () => { clearInterval(iv); simTimers.current.forEach(clearTimeout) }
   }, [])
 
+  // Disaster & Weather Monitoring: polls independently of the main
+  // dashboard load() above so a hiccup here never blanks the rest of the
+  // page. Same 15s cadence as everything else on this dashboard.
+  useEffect(() => {
+    const loadDisasters = () =>
+      api.get('/police-network/disaster-summary')
+        .then((r) => { setDisasters(r.data); setDisastersError(false) })
+        .catch(() => setDisastersError(true))
+        .finally(() => setDisastersLoading(false))
+    loadDisasters()
+    const iv = setInterval(loadDisasters, 15000)
+    return () => clearInterval(iv)
+  }, [])
+
   // Real CCTV coverage near each station, merged/deduped -- the "Nearby
   // CCTV" section and each station's camera count both come from here.
   useEffect(() => {
@@ -171,6 +219,12 @@ export default function PoliceNetwork() {
   }, [stations])
 
   const zoneById = useMemo(() => Object.fromEntries(zones.map((z) => [z.id, z])), [zones])
+  // Map viz for Disaster & Weather Monitoring: which zones currently have
+  // an active advisory, so their polygon is drawn distinctly (dashed red)
+  // rather than the plain risk-level outline every zone always gets.
+  const disastersByZone = useMemo(
+    () => Object.fromEntries(disasters.map((d) => [d.zone_id, d])), [disasters],
+  )
   const densityByZone = useMemo(() => Object.fromEntries(density.map((d) => [d.zone_id, d])), [density])
   const dashByStation = useMemo(
     () => Object.fromEntries((dashboard?.stations || []).map((s) => [s.id, s])), [dashboard]
@@ -222,6 +276,18 @@ export default function PoliceNetwork() {
     setHighlightStationId(station.id)
     setFocusTarget([station.lat, station.lng])
     loadFallbackFor(station.lat, station.lng)
+  }
+
+  // Selecting a zone (its map polygon) previews the fallback order for a
+  // point inside it, same as selecting a station -- highlights whichever
+  // station currently owns that zone so the two selection paths agree.
+  const focusOnZone = (zone) => {
+    const centroid = polygonCentroid(zone.polygon)
+    if (!centroid) return
+    const owner = stations.find((s) => s.zone_id === zone.id)
+    setHighlightStationId(owner ? owner.id : null)
+    setFocusTarget(centroid)
+    loadFallbackFor(centroid[0], centroid[1])
   }
 
   const forwardIncident = async (incidentId, fromStationId) => {
@@ -338,12 +404,24 @@ export default function PoliceNetwork() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <FlyTo target={focusTarget} />
 
-              {zones.map((z) => (
-                <Polygon key={z.id} positions={z.polygon}
-                  pathOptions={{ color: riskColor[z.risk_level], fillOpacity: 0.12, weight: 1.5 }}>
-                  <Popup><b>{z.name}</b><br />Risk: {z.risk_level}</Popup>
-                </Polygon>
-              ))}
+              {zones.map((z) => {
+                const hazard = disastersByZone[z.id]
+                return (
+                  <Polygon key={z.id} positions={z.polygon}
+                    pathOptions={hazard
+                      ? { color: '#dc2626', fillOpacity: 0.2, weight: 2.5, dashArray: '6 6' }
+                      : { color: riskColor[z.risk_level], fillOpacity: 0.12, weight: 1.5 }}
+                    eventHandlers={{ click: () => focusOnZone(z) }}>
+                    <Popup>
+                      <b>{z.name}</b><br />Risk: {z.risk_level}
+                      {hazard && (
+                        <><br />{HAZARD_ICON[hazard.hazard_type] || '⚠️'} <b>{hazard.title || hazard.hazard_type}</b>
+                        ({hazard.severity}) — {hazard.affected_tourists} tourist(s) affected</>
+                      )}
+                    </Popup>
+                  </Polygon>
+                )
+              })}
 
               {/* hub-and-spoke: every station <-> the Central Safety Dashboard */}
               {central && stations.map((s) => (
@@ -385,9 +463,21 @@ export default function PoliceNetwork() {
                   </Marker>
                 )
               })}
-              {cameras.map((c) => (
-                <Marker key={`cam${c.id}`} position={[c.lat, c.lng]} icon={cameraIcon}>
-                  <Popup><b>{c.label}</b><br />{c.status}</Popup>
+              {/* Camera markers are generated from the coordinates the API
+                  returns -- never a hardcoded marker list. Prefer the CCTV
+                  console's records (they carry live status + station) and
+                  fall back to the proximity directory before it loads. */}
+              {(cctvCameras.length > 0 ? cctvCameras : cameras).map((c) => (
+                <Marker key={`cam${c.id}`} position={[c.lat, c.lng]} icon={cameraIcon}
+                  eventHandlers={{ click: () => { setSelectedCameraId(c.id); setOpenCameraId(c.id) } }}>
+                  <Popup>
+                    <b>{c.label}</b><br />
+                    {c.connection ? `Feed: ${c.connection}` : c.status}
+                    <br />
+                    <button type="button"
+                      onClick={() => { setSelectedCameraId(c.id); setOpenCameraId(c.id) }}
+                      className="text-sky-600 underline">View feed</button>
+                  </Popup>
                 </Marker>
               ))}
               {tourists.filter((t) => t.last_lat).map((t) => (
@@ -399,6 +489,10 @@ export default function PoliceNetwork() {
                 <Popup><b>{sim.touristId}</b> — simulated SOS</Popup>
               </Marker>}
             </MapContainer>
+          </div>
+          <div className="text-[11px] text-slate-400 -mt-2 px-1">
+            Click a zone shape or station marker on the map — or a row in Zone Coverage below —
+            to preview its Resource Fallback Order.
           </div>
 
           <Card title="Zone Coverage & Assignment">
@@ -445,6 +539,50 @@ export default function PoliceNetwork() {
         </div>
 
         <div className="space-y-4">
+          {/* Disaster & Weather Monitoring -- real DisasterAdvisory data
+              (services/disaster.py), same source the tourist dashboard
+              reads, enriched here with affected-tourist counts and the
+              responsible station. */}
+          <Card title="Disaster & Weather Monitoring">
+            {disastersLoading ? (
+              <div className="text-sm text-slate-400">Fetching weather &amp; disaster alerts…</div>
+            ) : disastersError ? (
+              <div className="text-sm text-red-500">
+                Weather &amp; Disaster Alert Service Unavailable
+                <button onClick={() => { setDisastersLoading(true); setDisastersError(false) }}
+                  className="ml-2 text-sky-600 underline">Retry</button>
+              </div>
+            ) : disasters.length === 0 ? (
+              <div className="text-sm text-slate-400">No active weather or disaster alerts in your area.</div>
+            ) : (
+              <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                {disasters.map((d) => (
+                  <div key={d.id} className="border-b border-slate-50 dark:border-slate-700/50 last:border-0 pb-2 last:pb-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium flex items-center gap-1.5 min-w-0">
+                        <span>{HAZARD_ICON[d.hazard_type] || '⚠️'}</span>
+                        <span className="truncate">{d.title || d.hazard_type}</span>
+                      </span>
+                      <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full whitespace-nowrap ${DISASTER_SEVERITY_CLS[d.severity] || DISASTER_SEVERITY_CLS.medium}`}>
+                        {d.severity}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      📍 {d.zone_name || `Zone #${d.zone_id}`}
+                      {d.station_name && <> · 🚓 {d.station_name}</>}
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 mt-0.5">
+                      <span className={d.affected_tourists > 0 ? 'font-semibold text-orange-600 dark:text-orange-400' : ''}>
+                        👥 {d.affected_tourists} affected tourist{d.affected_tourists === 1 ? '' : 's'}
+                      </span>
+                      <span>{d.source} · {relativeTime(d.issued_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {/* live response */}
           <Card title="Live Response">
             {sim ? (
@@ -496,7 +634,8 @@ export default function PoliceNetwork() {
           <Card title="Resource Fallback Order">
             {fallback.length === 0 ? (
               <div className="text-sm text-slate-400">
-                Select a station or zone to see who would take an emergency there.
+                Click a zone or station marker on the map, or a row in Zone Coverage below,
+                to see who would take an emergency there.
               </div>
             ) : (
               <div className="space-y-2">
@@ -608,36 +747,15 @@ export default function PoliceNetwork() {
         })}
       </div>
 
-      {/* ---- nearby CCTV ---- */}
-      <Card title="Nearby CCTV">
-        {cameras.length === 0 ? (
-          <div className="text-sm text-slate-400">No cameras registered yet.</div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {cameras.map((c) => (
-              <button key={c.id} onClick={() => setActiveCamera(c)}
-                className="text-left bg-slate-900 rounded-lg overflow-hidden border border-slate-700 hover:border-sky-500 transition">
-                <div className="relative h-16 bg-slate-950 overflow-hidden">
-                  {c.status === 'active' ? (
-                    <div className="cctv-scanline absolute inset-x-0 h-6 bg-gradient-to-b from-sky-400/0 via-sky-400/20 to-sky-400/0" />
-                  ) : null}
-                  <span className={`absolute top-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded
-                    ${c.status === 'active' ? 'bg-red-600 text-white' : 'bg-slate-600 text-slate-300'}`}>
-                    {c.status === 'active' ? 'LIVE' : 'OFFLINE'}
-                  </span>
-                </div>
-                <div className="px-2 py-1.5">
-                  <div className="text-[11px] font-semibold text-slate-100 truncate">CAM-{String(c.id).padStart(3, '0')}</div>
-                  <div className="text-[10px] text-slate-400 truncate">{c.label}</div>
-                  <div className={`text-[10px] mt-0.5 ${c.status === 'active' ? 'text-green-400' : 'text-slate-500'}`}>
-                    {c.status === 'active' ? '🟢 Online' : '⚪ Offline'}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </Card>
+      {/* ---- CCTV surveillance console (real feeds from /api/cctv) ---- */}
+      <CctvNetworkPanel
+        stations={stations}
+        selectedCameraId={selectedCameraId}
+        openCameraId={openCameraId}
+        onOpenHandled={() => setOpenCameraId(null)}
+        onCamerasLoaded={setCctvCameras}
+        onFocusCamera={(cam) => { setSelectedCameraId(cam.id); setFocusTarget([cam.lat, cam.lng]) }}
+      />
 
       {/* ---- station detail modal ---- */}
       {detailStation && (() => {
@@ -771,33 +889,6 @@ export default function PoliceNetwork() {
         </div>
       )}
 
-      {/* ---- camera modal ---- */}
-      {activeCamera && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[2000] p-4"
-          onClick={() => setActiveCamera(null)}>
-          <div className="bg-slate-900 rounded-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="relative h-52 bg-slate-950 overflow-hidden flex items-center justify-center">
-              {activeCamera.status === 'active' ? (
-                <>
-                  <div className="cctv-scanline absolute inset-x-0 h-16 bg-gradient-to-b from-sky-400/0 via-sky-400/15 to-sky-400/0" />
-                  <span className="absolute top-2 left-2 text-[10px] font-bold bg-red-600 text-white px-2 py-0.5 rounded">● DEMO LIVE</span>
-                  <span className="text-slate-600 text-xs">Simulated feed — no live video source</span>
-                </>
-              ) : (
-                <span className="text-slate-500 text-xs">📵 Camera offline</span>
-              )}
-            </div>
-            <div className="p-4 text-sm">
-              <div className="font-bold text-slate-100">CAM-{String(activeCamera.id).padStart(3, '0')}</div>
-              <div className="text-slate-400">{activeCamera.label}</div>
-              <button onClick={() => setActiveCamera(null)}
-                className="mt-3 w-full bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-semibold py-2 rounded-lg">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

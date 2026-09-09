@@ -1,7 +1,9 @@
 """Schemas for the area-based police network endpoints (app/api/police_network.py)."""
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.services.cctv import STREAM_TYPES
 
 
 class PoliceStationOut(BaseModel):
@@ -34,6 +36,12 @@ class CameraOut(BaseModel):
     lng: float
     status: str
     distance_m: float | None = None
+    # Optional real video feed. Null on a camera that is only a coverage
+    # record -- see models/police.py::Camera and services/cctv.py.
+    stream_url: str | None = None
+    stream_type: str = "none"
+    feed_source: str = "manual"
+    assigned_station_id: int | None = None
 
     class Config:
         from_attributes = True
@@ -45,6 +53,23 @@ class CameraCreate(BaseModel):
     lat: float
     lng: float
     status: str = "active"
+    # How an operator onboards a camera that actually has a feed. Left unset
+    # the camera stays a coverage-only directory entry, exactly as before.
+    stream_url: str | None = Field(None, max_length=2000)
+    stream_type: str | None = Field(None, max_length=16)
+    feed_source: str = Field("manual", max_length=100)
+    source_url: str | None = Field(None, max_length=2000)
+    attribution: str | None = Field(None, max_length=300)
+    assigned_station_id: int | None = None
+
+    @field_validator("stream_type")
+    @classmethod
+    def _known_stream_type(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if v not in STREAM_TYPES:
+            raise ValueError(f"stream_type must be one of {', '.join(STREAM_TYPES)}")
+        return v
 
 
 class ForwardIncidentRequest(BaseModel):

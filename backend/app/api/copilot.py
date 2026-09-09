@@ -9,6 +9,7 @@ from app.models.tourist import Tourist
 from app.models.user import User
 from app.schemas.copilot import CopilotAnswer, CopilotQuestion
 from app.services import copilot
+from app.services.safety_card import EMERGENCY_NUMBERS
 
 router = APIRouter(tags=["copilot"])
 
@@ -26,3 +27,22 @@ def ask_tourist_copilot(tourist_id: int, payload: CopilotQuestion, db: Session =
     if not t:
         raise HTTPException(status_code=404, detail="Tourist not found")
     return copilot.answer_tourist_question(db, t, payload.question)
+
+
+@router.post("/copilot/public", response_model=CopilotAnswer)
+def ask_public_copilot(payload: CopilotQuestion):
+    """Pre-login voice assistant (Login/Register screens) -- intentionally
+    the only copilot route with no auth dependency, and the only one backed
+    by a handler that never touches the database. See
+    services/copilot.py::answer_public_question for what that guarantees."""
+    return copilot.answer_public_question(payload.question)
+
+
+@router.get("/copilot/public/emergency-numbers")
+def get_public_emergency_numbers():
+    """The same real, static national emergency numbers the authenticated
+    Safety Card uses (services/safety_card.py) -- reused here, not
+    reauthored, so the pre-login voice assistant can speak them (see
+    LoginVoiceAssistant.jsx) without a locale file ever hardcoding a number
+    that a bad translation could get wrong."""
+    return EMERGENCY_NUMBERS

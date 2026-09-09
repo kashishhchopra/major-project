@@ -132,8 +132,13 @@ def make_station(db, name="Central PS", zone_id=None, lat=26.145, lng=91.737,
     return s
 
 
-def make_camera(db, label="Cam 1", zone_id=None, lat=26.145, lng=91.737, status="active"):
-    c = Camera(label=label, zone_id=zone_id, lat=lat, lng=lng, status=status)
+def make_camera(db, label="Cam 1", zone_id=None, lat=26.145, lng=91.737, status="active",
+                stream_url=None, stream_type="none", feed_source="manual",
+                assigned_station_id=None, source_url=None, attribution=None):
+    c = Camera(label=label, zone_id=zone_id, lat=lat, lng=lng, status=status,
+               stream_url=stream_url, stream_type=stream_type,
+               feed_source=feed_source, assigned_station_id=assigned_station_id,
+               source_url=source_url, attribution=attribution)
     db.add(c)
     db.commit()
     db.refresh(c)

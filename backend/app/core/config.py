@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # ---- environment ----
     ENVIRONMENT: str = "development"  # development | production
-    PROJECT_NAME: str = "Smart Tourist Safety Monitoring & Incident Response System"
+    PROJECT_NAME: str = "MUSAFIR — Smart Tourist Safety Monitoring & Incident Response System"
     API_V1_PREFIX: str = "/api"
 
     # ---- database ----
@@ -140,6 +140,49 @@ class Settings(BaseSettings):
     # provider cooperation (see services/cap.py's module docstring). Point
     # this at whatever CAP 1.2 source is actually available to you.
     DISASTER_FEED_URL: str = ""
+
+    # ---- CCTV network (services/cctv.py) ----
+    # Where camera records come from. "" (default) means the database is the
+    # only source: an operator registers each camera and its real stream URL
+    # through POST /police-network/cameras, exactly as a real police network
+    # would. Setting a provider lets POST /cctv/refresh additionally import
+    # camera metadata from an external open-data/public-camera API.
+    #
+    # Nothing here is populated with invented cameras or invented stream
+    # URLs: with no provider configured and nothing registered, /cctv simply
+    # returns an empty list and the dashboard says so.
+    CCTV_PROVIDER: str = ""            # "" (db only) | "json"
+    CCTV_PROVIDER_URL: str = ""        # feed URL when CCTV_PROVIDER is set
+    CCTV_API_KEY: str = ""             # sent as the provider's API key when required
+    # Upper bound on one import, so pointing at a national feed of tens of
+    # thousands of cameras can't flood the directory (or the probe budget).
+    CCTV_PROVIDER_MAX_CAMERAS: int = 40
+    # Only import cameras inside this area of responsibility, as
+    # "minLat,minLng,maxLat,maxLng". Empty = import from anywhere in the
+    # feed. A national feed covers far more ground than one force polices.
+    CCTV_PROVIDER_BBOX: str = ""
+    # Probe each candidate during import and store only the ones that
+    # actually answer, so the directory doesn't fill with dead URLs the feed
+    # still lists. Bounded by CCTV_PROVIDER_PROBE_BUDGET.
+    CCTV_PROVIDER_VALIDATE: bool = True
+    CCTV_PROVIDER_PROBE_BUDGET: int = 120
+    # A camera's LIVE/OFFLINE state is probed against its real stream, never
+    # read off the stored row. These bound that probe and how long its result
+    # is reused before re-probing.
+    CCTV_PROBE_TIMEOUT_SECONDS: float = 4.0
+    CCTV_STATUS_CACHE_SECONDS: int = 30
+    # Hard ceiling on how long the camera listing will wait for stale
+    # statuses to re-probe. Anything slower keeps its previous state and is
+    # picked up by the next poll -- the dashboard must never hang on the
+    # slowest camera in the network.
+    CCTV_LIST_PROBE_DEADLINE_SECONDS: float = 3.0
+    # A still-image camera whose frame is this dominated by a single shade is
+    # an operator "camera unavailable" notice card, not a view. Measured on
+    # real feeds: notice cards ~0.79, actual camera frames 0.02-0.05.
+    CCTV_IMAGE_FLAT_RATIO: float = 0.5
+    # How often the dashboard re-polls camera status (seconds), served to the
+    # frontend so the interval is configured in one place.
+    CCTV_REFRESH_INTERVAL_SECONDS: int = 30
 
     # ---- external services: maps / translation / speech ----
     # All blank by default -- every feature that would use these has a

@@ -3,7 +3,7 @@
     "digital_id": "数字游客身份证",
     "loading": "加载中…",
     "logout": "退出登录",
-    "name": "游客安全",
+    "name": "MUSAFIR",
     "offline": "离线"
   },
   "auth": {
@@ -12,7 +12,8 @@
     "login_title": "登录",
     "password": "密码",
     "register_prompt": "新游客？在此注册",
-    "sign_in": "登录"
+    "sign_in": "登录",
+    "tagline": "每一次旅行，安全相伴"
   },
   "checkin": {
     "card_title": "外出/返回签到",
@@ -65,7 +66,15 @@
     "tourist_id_label": "游客编号："
   },
   "disaster": {
-    "advisory": "{{type}}警报"
+    "advisory": "{{type}}警报",
+    "severity": "{{level}}严重程度",
+    "source": "来源",
+    "issued": "发布时间",
+    "updated": "更新时间",
+    "expires": "过期时间",
+    "affected_area": "受影响区域",
+    "instructions": "安全须知",
+    "translating": "翻译中…"
   },
   "emergency_mode": {
     "assigning": "分配中…",
@@ -267,6 +276,10 @@
     "toggle_hide": "隐藏翻译 ▲",
     "toggle_show": "🌐 翻译短语"
   },
+  "voice_action": {
+    "opening": "正在打开{{tab}}。",
+    "sending_sos": "正在发送带有您实时位置的SOS。"
+  },
   "voice_assistant": {
     "aria_label": "语音助手",
     "ask_anything": "您可以问任何问题 — 不限于以下内容：",
@@ -299,6 +312,40 @@
     "tap_mic_to_speak": "点击麦克风开始说话",
     "thinking": "思考中…",
     "title": "语音助手"
+  },
+  "voice_login": {
+    "aria_label": "语音助手 — 点击说话",
+    "ask_email": "您的邮箱地址是什么？",
+    "ask_password": "我已填入您的邮箱。现在请输入密码并按回车键——如果您愿意，也可以说出来。",
+    "assistant_unavailable": "我现在无法回答该问题。您可以说\"登录\"、\"注册\"、\"忘记密码\"或\"紧急情况\"。",
+    "current_step": "第 {{index}} 步，共 {{total}} 步：{{step}}。",
+    "did_not_hear": "我没听懂。请重试。",
+    "emergency_info": "如果现在是真正的紧急情况，请拨打{{all}}——印度的综合紧急电话——或拨打游客热线{{helpline}}。要通过本应用发送带有实时位置的SOS，您需要先登录。请说\"登录\"，我现在就帮您办理。",
+    "examples_label": "试着这样说",
+    "examples_login": "\"登录\"、\"注册\"、\"我忘记密码了\"、\"这是如何运作的？\"、\"紧急情况\"",
+    "examples_register": "\"下一步\"、\"返回\"、\"朗读此步骤\"、\"紧急情况\"",
+    "going_to_forgot_password": "好的，正在带您前往密码找回页面。",
+    "going_to_login": "正在带您前往登录页面。",
+    "going_to_register": "好的，正在带您前往注册页面。",
+    "greeting": "欢迎使用MUSAFIR。您可以通过语音登录、注册、获取帮助或获取紧急援助。",
+    "hide_text": "隐藏文字输入",
+    "login_success": "您已登录。正在带您前往仪表盘。",
+    "mic_error": "我没能听清楚。请重试，或改用文字选项。",
+    "mic_unsupported": "此浏览器不支持语音输入。您可以使用上方的文字选项，或下方的常规邮箱/密码表单。",
+    "register_greeting": "让我们开始为您注册。说\"下一步\"进入下一步骤，或让我朗读当前步骤。",
+    "send": "发送",
+    "signing_in": "正在为您登录…",
+    "state_error": "出了点问题 — 请重试或使用文字",
+    "state_idle": "已就绪 — 点击麦克风说话",
+    "state_listening": "正在聆听…",
+    "state_speaking": "正在说话…",
+    "state_thinking": "思考中…",
+    "step_advanced": "当前步骤：{{step}}。",
+    "stop_listening": "停止聆听",
+    "title": "语音助手",
+    "type_placeholder": "改为输入指令…",
+    "use_text_instead": "改用文字输入",
+    "you_said": "您说的是"
   },
   "voice_nav": {
     "card_title": "🧭 语音导航",

@@ -103,5 +103,56 @@ def get_weather_risk(lat: float, lng: float) -> float:
     return risk
 
 
+_conditions_cache: dict[tuple[float, float], tuple[dict, float]] = {}  # (lat,lng) -> (conditions, expires_at)
+
+
+def fetch_current_conditions(lat: float, lng: float) -> dict | None:
+    """Real current-weather conditions at a coordinate -- the raw fields
+    (condition code, description, temperature, wind speed), not the
+    collapsed 0-100 risk number `get_weather_risk` returns. Used by
+    services/disaster.py to derive genuine weather-hazard advisories
+    (extreme heat, dense fog, thunderstorm, ...) straight from what
+    OpenWeatherMap actually reported for that spot.
+
+    None when no API key is configured or the request fails -- callers must
+    treat that as "no data", never synthesize a hazard from nothing. Cached
+    briefly (same TTL as the risk score) so scanning every zone on a
+    disaster-feed tick doesn't multiply into one call per zone per minute.
+    """
+    if not settings.OPENWEATHER_API_KEY:
+        return None
+
+    key = _cache_key(lat, lng)
+    cached = _conditions_cache.get(key)
+    now = time.monotonic()
+    if cached and cached[1] > now:
+        return cached[0]
+
+    try:
+        resp = httpx.get(
+            "https://api.openweathermap.org/data/2.5/weather",
+            params={"lat": lat, "lon": lng, "appid": settings.OPENWEATHER_API_KEY,
+                   "units": "metric"},
+            timeout=settings.OPENWEATHER_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (httpx.HTTPError, ValueError) as e:
+        logger.warning("OpenWeatherMap conditions request failed: %s", e)
+        return None
+
+    weather = (data.get("weather") or [{}])[0]
+    conditions = {
+        "weather_id": weather.get("id", 800),
+        "description": weather.get("description", ""),
+        "temp_c": (data.get("main") or {}).get("temp"),
+        "wind_speed_ms": (data.get("wind") or {}).get("speed", 0.0),
+        "observed_at": data.get("dt"),
+    }
+    _conditions_cache[key] = (conditions, now + settings.WEATHER_CACHE_TTL_SECONDS)
+    return conditions
+
+
 def clear_cache() -> None:
     _cache.clear()
+    _conditions_cache.clear()

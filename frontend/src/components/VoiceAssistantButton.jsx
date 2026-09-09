@@ -45,7 +45,11 @@ function storedFlag(key, fallback) {
   }
 }
 
-const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristId, lang = 'en' }, ref) {
+// `onAction` (optional) lets the host screen carry out a real in-app action
+// for a recognised command -- switching tab, raising an actual SOS -- rather
+// than answering it as a question. Omitted, everything behaves exactly as
+// before: whatever was said goes straight to the backend assistant.
+const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristId, lang = 'en', onAction }, ref) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   // Hands-free is on by default: the mic opens when the app loads and
@@ -58,6 +62,7 @@ const VoiceAssistantButton = forwardRef(function VoiceAssistantButton({ touristI
     lang,
     speakByDefault: storedFlag(SOUND_KEY, true),
     autoListen: handsFree,
+    onAction,
   })
 
   useEffect(() => {

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../auth.jsx'
+import { detectIntent, INTENTS } from '../../lib/voiceIntent'
 import useTouristData from './useTouristData.js'
 import TouristShell from './TouristShell.jsx'
 import TouristTabBar from './TouristTabBar.jsx'
@@ -22,13 +23,49 @@ const TAB_COMPONENTS = { home: HomeTab, plan: PlanTab, help: HelpTab, me: MeTab 
 // useTouristData so this component stays a thin shell.
 export default function TouristApp() {
   const { user } = useAuth()
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const tid = user.tourist_id
   const [activeTab, setActiveTab] = useState('home')
   const [reportOpen, setReportOpen] = useState(false)
   const copilotRef = useRef(null)
   const voiceRef = useRef(null)
   const data = useTouristData(tid)
+  const { sendSOS } = data
+
+  // Voice action router: only commands the app itself must *carry out*
+  // (switch tab, raise a real SOS) are handled here -- everything else,
+  // including every question about real data ("nearest hospital", "am I on
+  // the right route"), returns null and falls through untouched to the
+  // backend assistant that answers those from the database. Nothing is
+  // fabricated here: the SOS goes through the very same sendSOS() the SOS
+  // button calls, and the spoken confirmation reports its real response.
+  const handleVoiceAction = useCallback(async (text) => {
+    switch (detectIntent(text, i18n.resolvedLanguage || i18n.language)) {
+      case INTENTS.SHOW_TOURIST_ID:
+        setActiveTab('me')
+        return t('voice_action.opening', { tab: t('nav.tab_me') })
+      case INTENTS.SHOW_ITINERARY:
+        setActiveTab('plan')
+        return t('voice_action.opening', { tab: t('nav.tab_plan') })
+      case INTENTS.GO_HOME:
+      case INTENTS.GO_BACK:
+        setActiveTab('home')
+        return t('voice_action.opening', { tab: t('nav.tab_home') })
+      case INTENTS.SEND_SOS: {
+        const result = await sendSOS()
+        if (result?.queued) return `${t('sos.queued_title')} ${t('sos.queued_body')}`
+        const unit = result?.nearest_unit
+        if (unit) {
+          return `${t('sos.sent_title')}. ${t('sos.dispatched', {
+            name: unit.name, station: unit.station, km: unit.distance_km,
+          })}`
+        }
+        return t('sos.sent_title')
+      }
+      default:
+        return null
+    }
+  }, [t, i18n.resolvedLanguage, i18n.language, sendSOS])
 
   if (!data.ready) {
     return <div className="p-6 text-center text-slate-500 dark:text-slate-400">{i18n.t('app.loading')}</div>
@@ -65,7 +102,8 @@ export default function TouristApp() {
       <EmergencyModeCard sosSent={data.sosSent} tid={tid} posRef={data.posRef} />
 
       {/* Always-available voice assistant: one tap to speak, on any tab. */}
-      <VoiceAssistantButton ref={voiceRef} touristId={tid} lang={i18n.resolvedLanguage || i18n.language} />
+      <VoiceAssistantButton ref={voiceRef} touristId={tid} lang={i18n.resolvedLanguage || i18n.language}
+        onAction={handleVoiceAction} />
 
       <CopilotChat ref={copilotRef} endpoint={`/tourists/${tid}/copilot/ask`} title="Safety Helper"
         placeholder="e.g. is this area safe?" lang={i18n.resolvedLanguage || i18n.language}

@@ -3,7 +3,7 @@
     "digital_id": "ID Touristique Numérique",
     "loading": "Chargement…",
     "logout": "Déconnexion",
-    "name": "Sécurité Touristique",
+    "name": "MUSAFIR",
     "offline": "Hors ligne"
   },
   "auth": {
@@ -12,7 +12,8 @@
     "login_title": "Se connecter",
     "password": "Mot de passe",
     "register_prompt": "Nouveau touriste ? Inscrivez-vous ici",
-    "sign_in": "Se connecter"
+    "sign_in": "Se connecter",
+    "tagline": "Chaque voyage, en toute sécurité"
   },
   "checkin": {
     "card_title": "Enregistrement / Départ",
@@ -65,7 +66,15 @@
     "tourist_id_label": "ID touriste :"
   },
   "disaster": {
-    "advisory": "Alerte {{type}}"
+    "advisory": "Alerte {{type}}",
+    "severity": "Gravité {{level}}",
+    "source": "Source",
+    "issued": "Émis",
+    "updated": "Mis à jour",
+    "expires": "Expire",
+    "affected_area": "Zone touchée",
+    "instructions": "Consignes de sécurité",
+    "translating": "Traduction en cours…"
   },
   "emergency_mode": {
     "assigning": "Attribution en cours…",
@@ -267,6 +276,10 @@
     "toggle_hide": "Masquer la traduction ▲",
     "toggle_show": "🌐 Traduire une phrase"
   },
+  "voice_action": {
+    "opening": "Ouverture de {{tab}}.",
+    "sending_sos": "Envoi d'un SOS avec votre position en direct."
+  },
   "voice_assistant": {
     "aria_label": "Assistant vocal",
     "ask_anything": "Demandez n'importe quoi — vous n'êtes pas limité à ceci :",
@@ -299,6 +312,40 @@
     "tap_mic_to_speak": "Touchez le micro pour parler",
     "thinking": "Réflexion…",
     "title": "Assistant vocal"
+  },
+  "voice_login": {
+    "aria_label": "Assistant vocal — appuyez pour parler",
+    "ask_email": "Quelle est votre adresse e-mail ?",
+    "ask_password": "J'ai rempli votre e-mail. Saisissez maintenant votre mot de passe et appuyez sur Entrée — ou dites-le à voix haute si vous préférez.",
+    "assistant_unavailable": "Je ne peux pas répondre à cela pour le moment. Vous pouvez dire « connexion », « inscription », « mot de passe oublié », ou « urgence ».",
+    "current_step": "Étape {{index}} sur {{total}} : {{step}}.",
+    "did_not_hear": "Je n'ai pas compris. Veuillez réessayer.",
+    "emergency_info": "En cas d'urgence réelle, appelez le {{all}} — le numéro d'urgence unique de l'Inde — ou la ligne d'assistance touristique au {{helpline}}. Pour envoyer un SOS avec votre position en direct via cette application, vous devez d'abord vous connecter. Dites « connexion » et je vous aiderai tout de suite.",
+    "examples_label": "Essayez de dire",
+    "examples_login": "« connexion », « inscription », « j'ai oublié mon mot de passe », « comment ça marche ? », « urgence »",
+    "examples_register": "« suivant », « retour », « lis cette étape », « urgence »",
+    "going_to_forgot_password": "D'accord, direction la récupération de mot de passe.",
+    "going_to_login": "Direction l'écran de connexion.",
+    "going_to_register": "D'accord, direction l'inscription.",
+    "greeting": "Bienvenue sur MUSAFIR. Vous pouvez utiliser votre voix pour vous connecter, vous inscrire, obtenir de l'aide ou accéder à une assistance d'urgence.",
+    "hide_text": "Masquer la saisie de texte",
+    "login_success": "Vous êtes connecté. Direction votre tableau de bord.",
+    "mic_error": "Je ne vous ai pas entendu clairement. Veuillez réessayer, ou utilisez l'option texte à la place.",
+    "mic_unsupported": "La saisie vocale n'est pas prise en charge par ce navigateur. Vous pouvez utiliser l'option texte ci-dessus, ou le formulaire e-mail/mot de passe habituel ci-dessous.",
+    "register_greeting": "Inscrivons-vous. Dites « suivant » pour passer à l'étape suivante, ou demandez-moi de lire l'étape actuelle.",
+    "send": "Envoyer",
+    "signing_in": "Connexion en cours…",
+    "state_error": "Une erreur s'est produite — réessayez ou utilisez le texte",
+    "state_idle": "Prêt — appuyez sur le micro pour parler",
+    "state_listening": "Écoute en cours…",
+    "state_speaking": "Parle…",
+    "state_thinking": "Réflexion en cours…",
+    "step_advanced": "Vous êtes maintenant à : {{step}}.",
+    "stop_listening": "Arrêter l'écoute",
+    "title": "Assistant vocal",
+    "type_placeholder": "Ou tapez une commande…",
+    "use_text_instead": "Utiliser le texte à la place",
+    "you_said": "Vous avez dit"
   },
   "voice_nav": {
     "card_title": "🧭 Navigation vocale",

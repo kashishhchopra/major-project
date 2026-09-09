@@ -12,8 +12,8 @@ export default defineConfig({
       // and make hot-reload/proxying behave unpredictably.
       devOptions: { enabled: false },
       manifest: {
-        name: 'Smart Tourist Safety',
-        short_name: 'TouristSafety',
+        name: 'MUSAFIR',
+        short_name: 'MUSAFIR',
         description: 'Digital tourist ID, safety score, geofencing, and one-tap SOS.',
         theme_color: '#0284c7',
         background_color: '#0284c7',

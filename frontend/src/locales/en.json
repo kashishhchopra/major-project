@@ -3,7 +3,7 @@
     "digital_id": "Digital Tourist ID",
     "loading": "Loading…",
     "logout": "Logout",
-    "name": "Tourist Safety",
+    "name": "MUSAFIR",
     "offline": "Offline"
   },
   "auth": {
@@ -12,7 +12,8 @@
     "login_title": "Sign In",
     "password": "Password",
     "register_prompt": "New tourist? Register here",
-    "sign_in": "Sign In"
+    "sign_in": "Sign In",
+    "tagline": "Every Trip, Safety in Grip"
   },
   "checkin": {
     "card_title": "Check-in / Check-out",
@@ -65,7 +66,15 @@
     "tourist_id_label": "Tourist ID:"
   },
   "disaster": {
-    "advisory": "{{type}} advisory"
+    "advisory": "{{type}} advisory",
+    "severity": "{{level}} severity",
+    "source": "Source",
+    "issued": "Issued",
+    "updated": "Updated",
+    "expires": "Expires",
+    "affected_area": "Affected area",
+    "instructions": "Safety instructions",
+    "translating": "Translating…"
   },
   "emergency_mode": {
     "assigning": "Assigning…",
@@ -267,6 +276,10 @@
     "toggle_hide": "Hide translate ▲",
     "toggle_show": "🌐 Translate a phrase"
   },
+  "voice_action": {
+    "opening": "Opening {{tab}}.",
+    "sending_sos": "Sending an SOS now with your live location."
+  },
   "voice_assistant": {
     "aria_label": "Voice assistant",
     "ask_anything": "Ask anything — you're not limited to these:",
@@ -299,6 +312,40 @@
     "tap_mic_to_speak": "Tap the mic to speak",
     "thinking": "Thinking…",
     "title": "Voice Assistant"
+  },
+  "voice_login": {
+    "aria_label": "Voice assistant — tap to speak",
+    "ask_email": "What's your email address?",
+    "ask_password": "I've filled in your email. Now type your password and press Enter — or say it aloud if you prefer.",
+    "assistant_unavailable": "I'm not able to answer that right now. You can say \"log in\", \"register\", \"forgot password\", or \"emergency\".",
+    "current_step": "Step {{index}} of {{total}}: {{step}}.",
+    "did_not_hear": "I didn't catch that. Please try again.",
+    "emergency_info": "In a real emergency right now, call {{all}} — India's all-in-one emergency number — or {{helpline}}, the tourist helpline. To send an SOS through this app with your live location, you'll need to sign in first. Say \"log in\" and I'll help you do that now.",
+    "examples_label": "Try saying",
+    "examples_login": "\"log in\", \"register\", \"I forgot my password\", \"how does this work?\", \"emergency\"",
+    "examples_register": "\"next\", \"go back\", \"read this step\", \"emergency\"",
+    "going_to_forgot_password": "Sure, taking you to password recovery.",
+    "going_to_login": "Taking you to the login screen.",
+    "going_to_register": "Sure, taking you to registration.",
+    "greeting": "Welcome to MUSAFIR. You can use your voice to log in, register, get help, or access emergency assistance.",
+    "hide_text": "Hide text input",
+    "login_success": "You're signed in. Taking you to your dashboard.",
+    "mic_error": "I couldn't hear you clearly. Please try again, or use the text option instead.",
+    "mic_unsupported": "Voice input isn't supported on this browser. You can still use the text option above, or the regular email/password form below.",
+    "register_greeting": "Let's get you registered. Say next to move to the next step, or ask me to read the current step.",
+    "send": "Send",
+    "signing_in": "Signing you in…",
+    "state_error": "Something went wrong — try again or use text",
+    "state_idle": "Ready — tap the microphone to speak",
+    "state_listening": "Listening…",
+    "state_speaking": "Speaking…",
+    "state_thinking": "Thinking…",
+    "step_advanced": "Now on: {{step}}.",
+    "stop_listening": "Stop listening",
+    "title": "Voice Assistant",
+    "type_placeholder": "Type a command instead…",
+    "use_text_instead": "Use text instead",
+    "you_said": "You said"
   },
   "voice_nav": {
     "card_title": "🧭 Voice Navigation",

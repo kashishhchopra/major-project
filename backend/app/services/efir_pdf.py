@@ -92,7 +92,7 @@ def render_efir_pdf(efir: EFIR, tourist: Tourist) -> bytes:
         [[
             [
                 Paragraph("ELECTRONIC FIRST INFORMATION REPORT", title_style),
-                Paragraph("Smart Tourist Safety Monitoring &amp; Incident Response System",
+                Paragraph("MUSAFIR — Smart Tourist Safety Monitoring &amp; Incident Response System",
                          subtitle_style),
             ],
             _qr_image(efir.fir_number, efir.document_hash),

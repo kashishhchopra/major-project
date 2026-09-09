@@ -36,7 +36,7 @@ from app.models.incident import Incident, IncidentEvent
 from app.models.incident_transfer import IncidentTransfer
 from app.models.police import Camera, PoliceStation
 from app.models.zone import Zone
-from app.services import geo
+from app.services import cctv, geo
 
 
 def resolve_zone_for_point(db: Session, lat: float, lng: float) -> Zone | None:
@@ -414,6 +414,14 @@ def nearby_cameras(db: Session, lat: float, lng: float, radius_m: float = 1000) 
                 "id": c.id, "label": c.label, "zone_id": c.zone_id,
                 "lat": c.lat, "lng": c.lng, "status": c.status,
                 "distance_m": round(dist, 1),
+                # Stream metadata so a responder looking at nearby coverage
+                # can tell which of those cameras actually has a feed. The
+                # live connection state is NOT probed here -- that is
+                # /cctv's job (services/cctv.py), which does it properly.
+                "stream_url": cctv.strip_credentials(c.stream_url),
+                "stream_type": c.stream_type or "none",
+                "feed_source": c.feed_source or "manual",
+                "assigned_station_id": cctv.resolve_station_id(db, c),
             })
     out.sort(key=lambda c: c["distance_m"])
     return out

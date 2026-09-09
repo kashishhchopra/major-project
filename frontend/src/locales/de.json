@@ -3,7 +3,7 @@
     "digital_id": "Digitale Touristen-ID",
     "loading": "Wird geladen…",
     "logout": "Abmelden",
-    "name": "Touristensicherheit",
+    "name": "MUSAFIR",
     "offline": "Offline"
   },
   "auth": {
@@ -12,7 +12,8 @@
     "login_title": "Anmelden",
     "password": "Passwort",
     "register_prompt": "Neuer Tourist? Hier registrieren",
-    "sign_in": "Anmelden"
+    "sign_in": "Anmelden",
+    "tagline": "Jede Reise, sicher begleitet"
   },
   "checkin": {
     "card_title": "Ein-/Auschecken",
@@ -65,7 +66,15 @@
     "tourist_id_label": "Touristen-ID:"
   },
   "disaster": {
-    "advisory": "{{type}}-Warnung"
+    "advisory": "{{type}}-Warnung",
+    "severity": "{{level}} Schweregrad",
+    "source": "Quelle",
+    "issued": "Ausgegeben",
+    "updated": "Aktualisiert",
+    "expires": "Läuft ab",
+    "affected_area": "Betroffenes Gebiet",
+    "instructions": "Sicherheitshinweise",
+    "translating": "Übersetzung läuft…"
   },
   "emergency_mode": {
     "assigning": "Wird zugewiesen…",
@@ -267,6 +276,10 @@
     "toggle_hide": "Übersetzung ausblenden ▲",
     "toggle_show": "🌐 Einen Satz übersetzen"
   },
+  "voice_action": {
+    "opening": "{{tab}} wird geöffnet.",
+    "sending_sos": "SOS wird jetzt mit Ihrem aktuellen Standort gesendet."
+  },
   "voice_assistant": {
     "aria_label": "Sprachassistent",
     "ask_anything": "Fragen Sie alles — Sie sind nicht darauf beschränkt:",
@@ -299,6 +312,40 @@
     "tap_mic_to_speak": "Zum Sprechen Mikrofon antippen",
     "thinking": "Denkt nach…",
     "title": "Sprachassistent"
+  },
+  "voice_login": {
+    "aria_label": "Sprachassistent — zum Sprechen tippen",
+    "ask_email": "Wie lautet Ihre E-Mail-Adresse?",
+    "ask_password": "Ich habe Ihre E-Mail eingetragen. Geben Sie jetzt Ihr Passwort ein und drücken Sie die Eingabetaste — oder sprechen Sie es, wenn Ihnen das lieber ist.",
+    "assistant_unavailable": "Das kann ich gerade nicht beantworten. Sie können „anmelden“, „registrieren“, „Passwort vergessen“ oder „Notfall“ sagen.",
+    "current_step": "Schritt {{index}} von {{total}}: {{step}}.",
+    "did_not_hear": "Das habe ich nicht verstanden. Bitte versuchen Sie es erneut.",
+    "emergency_info": "Bei einem echten Notfall rufen Sie jetzt {{all}} an — Indiens zentrale Notrufnummer — oder die Touristen-Hotline {{helpline}}. Um über diese App einen SOS mit Ihrem aktuellen Standort zu senden, müssen Sie sich zunächst anmelden. Sagen Sie „anmelden“, und ich helfe Ihnen sofort weiter.",
+    "examples_label": "Versuchen Sie zu sagen",
+    "examples_login": "„anmelden“, „registrieren“, „ich habe mein Passwort vergessen“, „wie funktioniert das?“, „Notfall“",
+    "examples_register": "„weiter“, „zurück“, „lies diesen Schritt vor“, „Notfall“",
+    "going_to_forgot_password": "Alles klar, Sie werden zur Passwort-Wiederherstellung weitergeleitet.",
+    "going_to_login": "Sie werden zum Anmeldebildschirm weitergeleitet.",
+    "going_to_register": "Alles klar, Sie werden zur Registrierung weitergeleitet.",
+    "greeting": "Willkommen bei MUSAFIR. Sie können sich per Sprache anmelden, registrieren, Hilfe erhalten oder Notfallhilfe in Anspruch nehmen.",
+    "hide_text": "Texteingabe ausblenden",
+    "login_success": "Sie sind angemeldet. Sie werden zu Ihrem Dashboard weitergeleitet.",
+    "mic_error": "Ich konnte Sie nicht klar verstehen. Bitte versuchen Sie es erneut oder nutzen Sie stattdessen die Textoption.",
+    "mic_unsupported": "Spracheingabe wird in diesem Browser nicht unterstützt. Sie können die Textoption oben oder das normale E-Mail-/Passwort-Formular unten verwenden.",
+    "register_greeting": "Lassen Sie uns Sie registrieren. Sagen Sie „weiter“, um zum nächsten Schritt zu gelangen, oder bitten Sie mich, den aktuellen Schritt vorzulesen.",
+    "send": "Senden",
+    "signing_in": "Sie werden angemeldet…",
+    "state_error": "Etwas ist schiefgelaufen — versuchen Sie es erneut oder nutzen Sie Text",
+    "state_idle": "Bereit — zum Sprechen aufs Mikrofon tippen",
+    "state_listening": "Hört zu…",
+    "state_speaking": "Spricht…",
+    "state_thinking": "Denkt nach…",
+    "step_advanced": "Jetzt bei: {{step}}.",
+    "stop_listening": "Zuhören beenden",
+    "title": "Sprachassistent",
+    "type_placeholder": "Oder geben Sie einen Befehl ein…",
+    "use_text_instead": "Stattdessen Text verwenden",
+    "you_said": "Sie sagten"
   },
   "voice_nav": {
     "card_title": "🧭 Sprachnavigation",

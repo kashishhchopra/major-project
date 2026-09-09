@@ -26,6 +26,14 @@ const FATAL_MIC_ERRORS = new Set(['not-allowed', 'service-not-allowed', 'audio-c
 
 export default function useVoiceAssistant({
   endpoint, lang = 'en', speakByDefault = false, autoListen = false,
+  // Optional action router. When supplied, a transcript is offered to it
+  // FIRST; if it returns a string, that string is the answer and no
+  // backend call is made -- this is how "send an SOS" or "open my
+  // itinerary" perform a real in-app action instead of being answered as
+  // a question. Returning null/undefined (or omitting the prop entirely,
+  // as every pre-existing caller does) leaves behaviour exactly as before:
+  // everything goes to the Q&A endpoint, nothing is filtered client-side.
+  onAction,
 } = {}) {
   const { t } = useTranslation()
   const [exchanges, setExchanges] = useState([]) // {question, answer}
@@ -44,6 +52,22 @@ export default function useVoiceAssistant({
     if (!text) return null
     setExchanges((e) => [...e, { question: text, answer: null }])
     setThinking(true)
+
+    // An action the app itself can carry out (navigate, raise a real SOS)
+    // short-circuits the Q&A round trip -- see `onAction` above.
+    if (onAction) {
+      const actionAnswer = await onAction(text)
+      if (actionAnswer) {
+        setExchanges((e) => e.map((x, i) => (i === e.length - 1 ? { ...x, answer: actionAnswer } : x)))
+        if (speakReplies) {
+          setSpeaking(true)
+          speak(actionAnswer, lang).finally(() => setSpeaking(false))
+        }
+        setThinking(false)
+        return actionAnswer
+      }
+    }
+
     try {
       const { data } = await api.post(endpoint, { question: text })
       setExchanges((e) => e.map((x, i) => (i === e.length - 1 ? { ...x, answer: data.answer } : x)))
@@ -63,7 +87,7 @@ export default function useVoiceAssistant({
     } finally {
       setThinking(false)
     }
-  }, [endpoint, lang, speakReplies, t])
+  }, [endpoint, lang, speakReplies, t, onAction])
 
   // Push-to-talk. Speaking is stopped first so the assistant never talks
   // over the tourist (and never records its own voice).

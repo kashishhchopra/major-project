@@ -115,14 +115,20 @@ export default function useTouristData(tid) {
 
   const postSOS = (payload) => api.post(`/tourists/${tid}/sos`, payload)
 
+  // Returns the real dispatch response ({queued: true} when it had to be
+  // queued offline) so a caller that needs to report the outcome -- the
+  // voice assistant reads it aloud -- can use the actual result rather than
+  // waiting on state. Existing button callers ignore the return value.
   const sendSOS = async () => {
     const [lat, lng] = posRef.current
     const message = emergencyMessage.trim() || 'Emergency! Need help.'
     const payload = { lat, lng, message }
+    let result = null
     try {
       const { data } = await postSOS(payload)
       setSosSent(data)
       setSosQueued(false)
+      result = data
     } catch (err) {
       // No response at all (offline, DNS failure, connection refused) means
       // the request never reached the server -- queue it rather than lose
@@ -132,12 +138,14 @@ export default function useTouristData(tid) {
         enqueueSOS(payload)
         setPendingCount(queueLength())
         setSosQueued(true)
+        result = { queued: true }
       } else {
         throw err
       }
     }
     setEmergencyMessage('')
     load()
+    return result
   }
 
   // Flush any queued SOS the moment connectivity returns, and once on mount

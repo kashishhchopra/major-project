@@ -3,7 +3,7 @@
     "digital_id": "ID Digitale del Turista",
     "loading": "Caricamento…",
     "logout": "Esci",
-    "name": "Sicurezza del Turista",
+    "name": "MUSAFIR",
     "offline": "Offline"
   },
   "auth": {
@@ -12,7 +12,8 @@
     "login_title": "Accedi",
     "password": "Password",
     "register_prompt": "Nuovo turista? Registrati qui",
-    "sign_in": "Accedi"
+    "sign_in": "Accedi",
+    "tagline": "Ogni viaggio, in sicurezza"
   },
   "checkin": {
     "card_title": "Check-in/Check-out",
@@ -65,7 +66,15 @@
     "tourist_id_label": "ID turista:"
   },
   "disaster": {
-    "advisory": "Avviso di {{type}}"
+    "advisory": "Avviso di {{type}}",
+    "severity": "Gravità {{level}}",
+    "source": "Fonte",
+    "issued": "Emesso",
+    "updated": "Aggiornato",
+    "expires": "Scade",
+    "affected_area": "Area interessata",
+    "instructions": "Istruzioni di sicurezza",
+    "translating": "Traduzione in corso…"
   },
   "emergency_mode": {
     "assigning": "Assegnazione…",
@@ -267,6 +276,10 @@
     "toggle_hide": "Nascondi traduzione ▲",
     "toggle_show": "🌐 Traduci una frase"
   },
+  "voice_action": {
+    "opening": "Apertura di {{tab}}.",
+    "sending_sos": "Invio di un SOS ora con la tua posizione in tempo reale."
+  },
   "voice_assistant": {
     "aria_label": "Assistente vocale",
     "ask_anything": "Chiedi qualsiasi cosa — non sei limitato a questo:",
@@ -299,6 +312,40 @@
     "tap_mic_to_speak": "Tocca il microfono per parlare",
     "thinking": "Sto pensando…",
     "title": "Assistente vocale"
+  },
+  "voice_login": {
+    "aria_label": "Assistente vocale — tocca per parlare",
+    "ask_email": "Qual è il tuo indirizzo email?",
+    "ask_password": "Ho inserito la tua email. Ora digita la password e premi Invio — oppure pronunciala, se preferisci.",
+    "assistant_unavailable": "Non posso rispondere a questo ora. Puoi dire \"accedi\", \"registrati\", \"ho dimenticato la password\", o \"emergenza\".",
+    "current_step": "Passaggio {{index}} di {{total}}: {{step}}.",
+    "did_not_hear": "Non ho capito. Riprova per favore.",
+    "emergency_info": "In una vera emergenza in questo momento, chiama il {{all}} — il numero di emergenza unico dell'India — o la linea di assistenza turistica {{helpline}}. Per inviare un SOS con la tua posizione in tempo reale tramite questa app, devi prima accedere. Di' \"accedi\" e ti aiuterò subito.",
+    "examples_label": "Prova a dire",
+    "examples_login": "\"accedi\", \"registrati\", \"ho dimenticato la password\", \"come funziona?\", \"emergenza\"",
+    "examples_register": "\"avanti\", \"indietro\", \"leggi questo passaggio\", \"emergenza\"",
+    "going_to_forgot_password": "Va bene, ti porto al recupero password.",
+    "going_to_login": "Ti porto alla schermata di accesso.",
+    "going_to_register": "Va bene, ti porto alla registrazione.",
+    "greeting": "Benvenuto su MUSAFIR. Puoi usare la voce per accedere, registrarti, ottenere aiuto o accedere all'assistenza di emergenza.",
+    "hide_text": "Nascondi input di testo",
+    "login_success": "Hai effettuato l'accesso. Ti sto portando alla tua dashboard.",
+    "mic_error": "Non ti ho sentito chiaramente. Riprova, oppure usa l'opzione testo.",
+    "mic_unsupported": "L'input vocale non è supportato su questo browser. Puoi usare l'opzione testo qui sopra, o il normale modulo email/password qui sotto.",
+    "register_greeting": "Iniziamo la registrazione. Di' \"avanti\" per passare al passaggio successivo, o chiedimi di leggere il passaggio attuale.",
+    "send": "Invia",
+    "signing_in": "Accesso in corso…",
+    "state_error": "Qualcosa è andato storto — riprova o usa il testo",
+    "state_idle": "Pronto — tocca il microfono per parlare",
+    "state_listening": "In ascolto…",
+    "state_speaking": "Sto parlando…",
+    "state_thinking": "Sto pensando…",
+    "step_advanced": "Ora sei a: {{step}}.",
+    "stop_listening": "Interrompi ascolto",
+    "title": "Assistente vocale",
+    "type_placeholder": "Oppure digita un comando…",
+    "use_text_instead": "Usa invece il testo",
+    "you_said": "Hai detto"
   },
   "voice_nav": {
     "card_title": "🧭 Navigazione vocale",

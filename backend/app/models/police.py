@@ -1,5 +1,5 @@
-"""Mock police units, area stations, and CCTV assets for SOS dispatch and
-the area-based police network (see services/police_network.py)."""
+"""Police units, area stations, and CCTV assets for SOS dispatch and
+the area-based police network (see services/police_network.py, services/cctv.py)."""
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
@@ -59,11 +59,21 @@ class PoliceStation(Base):
 
 
 class Camera(Base):
-    """Mock CCTV/camera asset positioned inside a zone.
+    """A CCTV/camera asset positioned inside a zone.
 
-    Purely a directory entry (no video feed) -- lets a responder see what
-    camera coverage exists near an incident. See
-    `services/police_network.py:nearby_cameras`.
+    Started as a directory entry (what camera coverage exists near an
+    incident -- see `services/police_network.py:nearby_cameras`). The
+    `stream_*` columns below add an optional real video feed on top of that
+    directory, without changing what the directory already did: a camera
+    with no `stream_url` is still a perfectly valid coverage record, it just
+    has no viewable feed.
+
+    Nothing here is ever populated with an invented stream: a URL gets here
+    either because an operator registered it (POST /police-network/cameras)
+    or because a configured external provider supplied it
+    (`services/cctv.py`). LIVE/OFFLINE is never read off `stream_status`
+    alone by the API -- it is probed against the real stream and only cached
+    here. See `services/cctv.py:camera_status`.
     """
     __tablename__ = "cameras"
 
@@ -72,6 +82,32 @@ class Camera(Base):
     zone_id: Mapped[int | None] = mapped_column(ForeignKey("zones.id"), nullable=True)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lng: Mapped[float] = mapped_column(Float, nullable=False)
-    # status: active / offline
+    # status: active / offline -- the operator's own enable/disable flag for
+    # this asset. Deliberately NOT the live connection state (see below).
     status: Mapped[str] = mapped_column(String, default="active")
     installed_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    # ---- optional real video feed ----
+    # Null when this camera is a coverage record with no viewable stream.
+    stream_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # hls | mjpeg | webrtc | mp4 | none -- decides which player renders it.
+    stream_type: Mapped[str] = mapped_column(
+        String, default="none", server_default="none", nullable=False
+    )
+    # Who the feed comes from, for attribution ("manual" when an operator
+    # registered it directly), plus a link to the source's own page.
+    feed_source: Mapped[str] = mapped_column(
+        String, default="manual", server_default="manual", nullable=False
+    )
+    source_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    attribution: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Explicit station assignment. Null means "derive it from the zone this
+    # camera sits in", which is the existing Zone -> PoliceStation
+    # relationship -- so this only ever overrides, never replaces, that.
+    assigned_station_id: Mapped[int | None] = mapped_column(
+        ForeignKey("police_stations.id"), nullable=True
+    )
+    # Cached result of the last real reachability probe. Cache only: the API
+    # re-probes when it goes stale rather than trusting what is stored here.
+    stream_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    stream_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

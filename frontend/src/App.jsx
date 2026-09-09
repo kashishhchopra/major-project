@@ -3,7 +3,6 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from './auth.jsx'
 import { RTL_LANGUAGES } from './i18n.js'
-import Landing from './pages/Landing.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
@@ -16,7 +15,6 @@ import Incidents from './pages/admin/Incidents.jsx'
 import PoliceNetwork from './pages/admin/PoliceNetwork.jsx'
 import LiveEmergencies from './pages/admin/LiveEmergencies.jsx'
 import Analytics from './pages/admin/Analytics.jsx'
-import ModelInsights from './pages/admin/ModelInsights.jsx'
 import Devices from './pages/admin/Devices.jsx'
 import AuditLog from './pages/admin/AuditLog.jsx'
 import TouristApp from './pages/tourist/TouristApp.jsx'
@@ -36,9 +34,12 @@ function Protected({ role, children }) {
   return children
 }
 
+// The app opens straight into the login screen -- no marketing/landing page
+// in front of it. A logged-in user hitting "/" (or anything unmatched, via
+// the catch-all route below) still lands on their own console.
 function Home() {
   const { user } = useAuth()
-  if (!user) return <Landing />
+  if (!user) return <Navigate to="/login" replace />
   if (user.role === 'admin') return <Navigate to="/admin" replace />
   if (user.role === 'responder') return <Navigate to="/responder" replace />
   return <Navigate to="/app" replace />
@@ -79,7 +80,6 @@ export default function App() {
         <Route path="police-network" element={<PoliceNetwork />} />
         <Route path="live-emergencies" element={<LiveEmergencies />} />
         <Route path="analytics" element={<Analytics />} />
-        <Route path="model-insights" element={<ModelInsights />} />
         <Route path="devices" element={<Devices />} />
         <Route path="audit" element={<AuditLog />} />
       </Route>

@@ -10,6 +10,22 @@ from app.models.zone import Zone
 EARTH_RADIUS_M = 6_371_000.0
 
 
+def zone_centroid(zone: Zone) -> tuple[float, float] | None:
+    """Plain average of a zone's polygon vertices -- good enough for "roughly
+    where this zone is" (weather lookups, map pin placement for an
+    area-level advisory), not a true geometric centroid. Returns None for a
+    zone with no/empty polygon."""
+    try:
+        points = json.loads(zone.polygon or "[]")
+    except (ValueError, TypeError):
+        return None
+    if not points:
+        return None
+    lat = sum(p[0] for p in points) / len(points)
+    lng = sum(p[1] for p in points) / len(points)
+    return (lat, lng)
+
+
 def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Great-circle distance between two lat/lng points, in metres."""
     p1, p2 = math.radians(lat1), math.radians(lat2)

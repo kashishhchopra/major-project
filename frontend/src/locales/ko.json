@@ -3,7 +3,7 @@
     "digital_id": "디지털 관광객 신분증",
     "loading": "로딩 중…",
     "logout": "로그아웃",
-    "name": "관광객 안전",
+    "name": "MUSAFIR",
     "offline": "오프라인"
   },
   "auth": {
@@ -12,7 +12,8 @@
     "login_title": "로그인",
     "password": "비밀번호",
     "register_prompt": "신규 관광객이신가요? 여기서 등록하세요",
-    "sign_in": "로그인"
+    "sign_in": "로그인",
+    "tagline": "모든 여정에, 안전을 함께"
   },
   "checkin": {
     "card_title": "외출/복귀 체크인",
@@ -65,7 +66,15 @@
     "tourist_id_label": "관광객 ID:"
   },
   "disaster": {
-    "advisory": "{{type}} 경보"
+    "advisory": "{{type}} 경보",
+    "severity": "{{level}} 심각도",
+    "source": "출처",
+    "issued": "발표",
+    "updated": "업데이트됨",
+    "expires": "만료",
+    "affected_area": "영향 지역",
+    "instructions": "안전 지침",
+    "translating": "번역 중…"
   },
   "emergency_mode": {
     "assigning": "배정 중…",
@@ -267,6 +276,10 @@
     "toggle_hide": "번역 숨기기 ▲",
     "toggle_show": "🌐 문구 번역하기"
   },
+  "voice_action": {
+    "opening": "{{tab}}을(를) 엽니다.",
+    "sending_sos": "실시간 위치와 함께 지금 SOS를 보내고 있습니다."
+  },
   "voice_assistant": {
     "aria_label": "음성 도우미",
     "ask_anything": "무엇이든 물어보세요 — 이 목록에 국한되지 않습니다:",
@@ -299,6 +312,40 @@
     "tap_mic_to_speak": "말하려면 마이크를 탭하세요",
     "thinking": "생각 중…",
     "title": "음성 도우미"
+  },
+  "voice_login": {
+    "aria_label": "음성 도우미 — 탭하여 말하기",
+    "ask_email": "이메일 주소가 무엇인가요?",
+    "ask_password": "이메일을 입력했습니다. 이제 비밀번호를 입력하고 Enter를 누르세요 — 원하시면 말씀하셔도 됩니다.",
+    "assistant_unavailable": "지금은 답변드릴 수 없습니다. \"로그인\", \"등록\", \"비밀번호를 잊었어요\", 또는 \"긴급상황\"이라고 말씀하실 수 있습니다.",
+    "current_step": "{{total}}단계 중 {{index}}단계: {{step}}.",
+    "did_not_hear": "알아듣지 못했습니다. 다시 시도해 주세요.",
+    "emergency_info": "지금 실제 응급 상황이라면 인도의 통합 응급 번호 {{all}}번, 또는 관광객 헬프라인 {{helpline}}번으로 전화하세요. 이 앱을 통해 실시간 위치와 함께 SOS를 보내려면 먼저 로그인해야 합니다. '로그인'이라고 말씀하시면 지금 도와드리겠습니다.",
+    "examples_label": "이렇게 말해보세요",
+    "examples_login": "\"로그인\", \"등록\", \"비밀번호를 잊었어요\", \"어떻게 작동하나요?\", \"긴급상황\"",
+    "examples_register": "\"다음\", \"뒤로\", \"이 단계 읽어줘\", \"긴급상황\"",
+    "going_to_forgot_password": "네, 비밀번호 찾기 화면으로 이동합니다.",
+    "going_to_login": "로그인 화면으로 이동합니다.",
+    "going_to_register": "네, 등록 화면으로 이동합니다.",
+    "greeting": "MUSAFIR에 오신 것을 환영합니다. 음성으로 로그인, 등록, 도움말 받기, 또는 긴급 지원 이용이 가능합니다.",
+    "hide_text": "텍스트 입력 숨기기",
+    "login_success": "로그인되었습니다. 대시보드로 이동합니다.",
+    "mic_error": "명확하게 들리지 않았습니다. 다시 시도하거나 대신 텍스트 옵션을 사용하세요.",
+    "mic_unsupported": "이 브라우저에서는 음성 입력이 지원되지 않습니다. 위의 텍스트 옵션이나 아래의 일반 이메일/비밀번호 양식을 사용할 수 있습니다.",
+    "register_greeting": "등록을 시작하겠습니다. 다음 단계로 이동하려면 '다음'이라고 말하거나, 현재 단계를 읽어달라고 요청하세요.",
+    "send": "보내기",
+    "signing_in": "로그인하는 중…",
+    "state_error": "문제가 발생했습니다 — 다시 시도하거나 텍스트를 사용하세요",
+    "state_idle": "준비됨 — 말하려면 마이크를 탭하세요",
+    "state_listening": "듣고 있습니다…",
+    "state_speaking": "말하는 중…",
+    "state_thinking": "생각 중…",
+    "step_advanced": "현재 단계: {{step}}.",
+    "stop_listening": "듣기 중지",
+    "title": "음성 도우미",
+    "type_placeholder": "대신 명령어를 입력하세요…",
+    "use_text_instead": "대신 텍스트 사용",
+    "you_said": "말씀하신 내용"
   },
   "voice_nav": {
     "card_title": "🧭 음성 내비게이션",

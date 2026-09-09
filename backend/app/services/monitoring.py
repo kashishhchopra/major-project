@@ -28,10 +28,12 @@ _RISK_SEVERITY = {"low": "low", "medium": "medium", "high": "high", "restricted"
 
 
 def _create_alert(db: Session, tourist_id, atype, severity, message, lat, lng,
-                  zone_id: int | None = None, notify_self: bool = True) -> Alert:
+                  zone_id: int | None = None, notify_self: bool = True,
+                  disaster_advisory_id: int | None = None) -> Alert:
     alert = Alert(
         tourist_id=tourist_id, type=atype, severity=severity,
         message=message, lat=lat, lng=lng, zone_id=zone_id,
+        disaster_advisory_id=disaster_advisory_id,
     )
     db.add(alert)
     db.flush()
@@ -44,6 +46,7 @@ def _create_alert(db: Session, tourist_id, atype, severity, message, lat, lng,
         "severity": severity,
         "message": message,
         "lat": lat, "lng": lng,
+        "disaster_advisory_id": disaster_advisory_id,
         "created_at": alert.created_at.isoformat(),
     }
     broadcast_sync(payload)  # admin control-room feed: every tourist's alerts
@@ -168,6 +171,16 @@ def process_ping(db: Session, tourist: Tourist, lat: float, lng: float,
                       f"Entered {z.risk_level} risk zone: {z.name}", lat, lng,
                       zone_id=z.id)
         alerts_raised.append("geofence")
+
+    # ---- disaster & weather advisories ----
+    # tick_disaster_feed (services/disaster.py) notifies tourists only at
+    # the moment an advisory is first issued; this covers the other case --
+    # a tourist entering a zone that already has an active advisory. Dedups
+    # per (advisory, tourist) itself, so this is safe to call on every ping.
+    from app.services import disaster  # local import: avoid a top-level cycle
+
+    if disaster.notify_tourist_of_active_disasters(db, tourist, inside):
+        alerts_raised.append("disaster")
 
     # ---- predicted geofence (trajectory forecast) ----
     # Preventive only: no incident dedup logic, just a heads-up alert before

@@ -265,3 +265,55 @@ def test_unmatched_question_reflects_back_what_was_heard(client, tourist_headers
                   "please book me a hot air balloon ride")
     assert "hot air balloon" in answer  # so a mis-heard voice command is obvious
     assert "nearest hospital" in answer
+
+
+def test_public_copilot_requires_no_auth(client):
+    # The whole point of this endpoint: reachable before login, from the
+    # Login/Register screen's voice assistant.
+    r = client.post("/api/copilot/public", json={"question": "how does this app work?"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "MUSAFIR" in body["answer"]
+
+
+def test_public_copilot_never_touches_tourist_data(client, db):
+    # No LLM configured in tests (settings.is_test), so this exercises the
+    # honest fallback -- and proves the response can't contain another
+    # tourist's data, because the handler never queries the database at all.
+    t = make_tourist(db, name="Should Never Appear")
+    r = client.post("/api/copilot/public", json={"question": "who is Should Never Appear?"})
+    assert r.status_code == 200
+    assert t.full_name not in r.json()["answer"]
+
+
+def test_public_copilot_gives_real_emergency_numbers_via_fallback(client):
+    # Even without an LLM configured (as in tests), the pre-login assistant
+    # must still surface real emergency numbers -- a blind tourist asking
+    # for emergency help shouldn't depend on an LLM being reachable.
+    r = client.post("/api/copilot/public", json={"question": "what can this app do?"})
+    assert r.status_code == 200
+    answer = r.json()["answer"]
+    assert "112" in answer and "1363" in answer
+
+
+def test_public_copilot_empty_question(client):
+    r = client.post("/api/copilot/public", json={"question": ""})
+    assert r.status_code == 422  # min_length=1 on CopilotQuestion
+
+
+def test_public_emergency_numbers_are_the_real_shared_constants(client):
+    # The pre-login voice assistant speaks these; they must be the same
+    # values the authenticated Safety Card serves, not a second copy that
+    # could drift out of sync.
+    from app.services.safety_card import EMERGENCY_NUMBERS
+
+    r = client.get("/api/copilot/public/emergency-numbers")
+    assert r.status_code == 200
+    assert r.json() == EMERGENCY_NUMBERS
+    assert r.json()["all_in_one"] == "112"
+
+
+def test_public_emergency_numbers_need_no_auth(client):
+    # No Authorization header at all -- reachable from the login screen.
+    r = client.get("/api/copilot/public/emergency-numbers")
+    assert r.status_code == 200

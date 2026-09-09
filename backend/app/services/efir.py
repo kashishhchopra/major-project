@@ -43,7 +43,7 @@ def generate_efir(db: Session, tourist: Tourist) -> dict:
         f"No: {tourist.document_number}). The tourist was last seen at coordinates "
         f"({tourist.last_lat}, {tourist.last_lng}) on "
         f"{tourist.last_seen.isoformat() if tourist.last_seen else 'unknown'}. "
-        f"The Smart Tourist Safety system recorded {len(timeline)} anomaly/alert event(s) "
+        f"The MUSAFIR system recorded {len(timeline)} anomaly/alert event(s) "
         f"prior to loss of contact. Immediate search and rescue is recommended."
     )
 

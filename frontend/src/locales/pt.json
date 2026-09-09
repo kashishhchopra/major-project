@@ -3,7 +3,7 @@
     "digital_id": "ID Digital de Turista",
     "loading": "Carregando…",
     "logout": "Sair",
-    "name": "Segurança do Turista",
+    "name": "MUSAFIR",
     "offline": "Offline"
   },
   "auth": {
@@ -12,7 +12,8 @@
     "login_title": "Entrar",
     "password": "Senha",
     "register_prompt": "Novo turista? Registre-se aqui",
-    "sign_in": "Entrar"
+    "sign_in": "Entrar",
+    "tagline": "Cada viagem, com segurança"
   },
   "checkin": {
     "card_title": "Check-in/Check-out",
@@ -65,7 +66,15 @@
     "tourist_id_label": "ID do turista:"
   },
   "disaster": {
-    "advisory": "Aviso de {{type}}"
+    "advisory": "Aviso de {{type}}",
+    "severity": "Gravidade {{level}}",
+    "source": "Fonte",
+    "issued": "Emitido",
+    "updated": "Atualizado",
+    "expires": "Expira",
+    "affected_area": "Área afetada",
+    "instructions": "Instruções de segurança",
+    "translating": "Traduzindo…"
   },
   "emergency_mode": {
     "assigning": "Atribuindo…",
@@ -267,6 +276,10 @@
     "toggle_hide": "Ocultar tradução ▲",
     "toggle_show": "🌐 Traduzir uma frase"
   },
+  "voice_action": {
+    "opening": "Abrindo {{tab}}.",
+    "sending_sos": "Enviando um SOS agora com sua localização ao vivo."
+  },
   "voice_assistant": {
     "aria_label": "Assistente de voz",
     "ask_anything": "Pergunte qualquer coisa — você não está limitado a isto:",
@@ -299,6 +312,40 @@
     "tap_mic_to_speak": "Toque no microfone para falar",
     "thinking": "Pensando…",
     "title": "Assistente de voz"
+  },
+  "voice_login": {
+    "aria_label": "Assistente de voz — toque para falar",
+    "ask_email": "Qual é o seu endereço de e-mail?",
+    "ask_password": "Preenchi seu e-mail. Agora digite sua senha e pressione Enter — ou diga em voz alta, se preferir.",
+    "assistant_unavailable": "Não posso responder isso agora. Você pode dizer \"login\", \"registrar\", \"esqueci minha senha\", ou \"emergência\".",
+    "current_step": "Etapa {{index}} de {{total}}: {{step}}.",
+    "did_not_hear": "Não entendi isso. Por favor, tente novamente.",
+    "emergency_info": "Em uma emergência real agora, ligue para {{all}} — o número de emergência unificado da Índia — ou para a linha de ajuda turística {{helpline}}. Para enviar um SOS com sua localização ao vivo por meio deste aplicativo, você precisa primeiro fazer login. Diga \"login\" e eu ajudo agora mesmo.",
+    "examples_label": "Tente dizer",
+    "examples_login": "\"login\", \"registrar\", \"esqueci minha senha\", \"como isso funciona?\", \"emergência\"",
+    "examples_register": "\"próximo\", \"voltar\", \"leia esta etapa\", \"emergência\"",
+    "going_to_forgot_password": "Certo, levando você à recuperação de senha.",
+    "going_to_login": "Levando você à tela de login.",
+    "going_to_register": "Certo, levando você ao registro.",
+    "greeting": "Bem-vindo ao MUSAFIR. Você pode usar sua voz para fazer login, se registrar, obter ajuda ou acessar assistência de emergência.",
+    "hide_text": "Ocultar entrada de texto",
+    "login_success": "Você entrou. Levando você ao seu painel.",
+    "mic_error": "Não consegui ouvir você claramente. Tente novamente, ou use a opção de texto.",
+    "mic_unsupported": "A entrada de voz não é compatível com este navegador. Você pode usar a opção de texto acima, ou o formulário normal de e-mail/senha abaixo.",
+    "register_greeting": "Vamos registrá-lo. Diga \"próximo\" para avançar para a próxima etapa, ou peça para eu ler a etapa atual.",
+    "send": "Enviar",
+    "signing_in": "Fazendo login…",
+    "state_error": "Algo deu errado — tente novamente ou use texto",
+    "state_idle": "Pronto — toque no microfone para falar",
+    "state_listening": "Ouvindo…",
+    "state_speaking": "Falando…",
+    "state_thinking": "Pensando…",
+    "step_advanced": "Agora em: {{step}}.",
+    "stop_listening": "Parar de ouvir",
+    "title": "Assistente de voz",
+    "type_placeholder": "Ou digite um comando…",
+    "use_text_instead": "Usar texto em vez disso",
+    "you_said": "Você disse"
   },
   "voice_nav": {
     "card_title": "🧭 Navegação por voz",

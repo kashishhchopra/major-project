@@ -12,12 +12,19 @@ const renderPage = () => render(<MemoryRouter><PoliceNetwork /></MemoryRouter>)
 // page in this repo is untested for exactly that reason. This page's own
 // logic (KPIs, cards, modals, the activity feed) doesn't depend on Leaflet
 // actually painting, so it's swapped for inert stand-ins here only.
+// Marker/Polygon forward `eventHandlers.click` onto a plain <div> so tests
+// can still exercise the real click-to-focus wiring (focusOnStation,
+// focusOnZone) without a real Leaflet SVG renderer.
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }) => <div>{children}</div>,
   TileLayer: () => null,
-  Marker: ({ children }) => <div>{children}</div>,
+  Marker: ({ children, eventHandlers }) => (
+    <div onClick={eventHandlers?.click}>{children}</div>
+  ),
   Popup: ({ children }) => <div>{children}</div>,
-  Polygon: () => null,
+  Polygon: ({ children, eventHandlers }) => (
+    <div onClick={eventHandlers?.click}>{children}</div>
+  ),
   Polyline: () => null,
   useMap: () => ({ flyTo: () => {}, getZoom: () => 13 }),
 }))
@@ -78,6 +85,15 @@ function mockBaseEndpoints() {
     { station_id: 1, name: 'Market PS', distance_km: 0.3, open_cases: 1,
       max_concurrent_cases: 1, total_officers: 28, has_capacity: false, load_pct: 100.0 },
   ])
+  // The real CCTV console -- deliberately empty here, matching the honest
+  // "no feeds available" state most of this test file doesn't care about.
+  mock.onGet('/cctv').reply(200, { cameras: [], summary: {
+    total: 0, live: 0, offline: 0, no_stream: 0, provider: null,
+    provider_configured: false, refresh_interval_seconds: 0,
+  } })
+  // Disaster & Weather Monitoring -- empty by default; tests that care
+  // about it override this.
+  mock.onGet('/police-network/disaster-summary').reply(200, [])
 }
 
 describe('PoliceNetwork page', () => {
@@ -92,15 +108,23 @@ describe('PoliceNetwork page', () => {
 
   it('shows the zone coverage table with real risk/tourist/camera data', async () => {
     mockBaseEndpoints()
-    const { findByText } = renderPage()
+    const { findByText, findAllByText } = renderPage()
     await findByText('Zone Coverage & Assignment')
-    await findByText('Old Market High-Risk Zone')
+    // Also present in the zone polygon's map popup now that Polygon
+    // renders its children in tests -- assert presence, not uniqueness.
+    expect((await findAllByText('Old Market High-Risk Zone')).length).toBeGreaterThan(0)
   })
 
-  it('shows the nearby CCTV grid from real camera data', async () => {
+  it('shows the real CCTV surveillance console instead of the old demo grid', async () => {
+    // The standalone "Nearby CCTV" card (CAM-NNN tiles with a LIVE/OFFLINE
+    // badge sourced from Camera.status, not an actual feed) was removed in
+    // favour of CctvNetworkPanel, which only ever labels a camera LIVE
+    // after /api/cctv reports a real probed connection. See
+    // CctvNetworkPanel.test.jsx for that component's own coverage.
     mockBaseEndpoints()
-    const { findByText } = renderPage()
-    await findByText(/CAM-009/)
+    const { findByText, queryByText } = renderPage()
+    await findByText('CCTV Network')
+    expect(queryByText(/^CAM-\d/)).not.toBeInTheDocument()
   })
 
   it('opens the station detail modal and sends a case directly', async () => {
@@ -152,7 +176,7 @@ describe('PoliceNetwork page', () => {
     const { findByText, findAllByText } = renderPage()
     await findByText('Resource Fallback Order')
     // nothing selected yet
-    await findByText(/Select a station or zone/)
+    await findByText(/Click a zone or station marker/)
 
     // click the zone-coverage table row (same focusOnStation handler the
     // station cards and map markers use)
@@ -163,5 +187,59 @@ describe('PoliceNetwork page', () => {
     await findByText(/2\.1 km/)
     await findByText(/0\/8 free/)
     await findByText(/1\/1 FULL/)
+  })
+
+  // Regression: clicking a zone's polygon directly on the map -- the other
+  // "select a zone" affordance the empty-state text promises, distinct from
+  // the Zone Coverage table row -- previously had no click handler wired at
+  // all, so the fallback card stayed stuck on "Select a station or zone".
+  it('loads the resource fallback order when a zone polygon on the map is clicked', async () => {
+    mockBaseEndpoints()
+    const { findByText } = renderPage()
+    await findByText('Resource Fallback Order')
+    await findByText(/Click a zone or station marker/)
+
+    // The click lands inside the Polygon's popup content and bubbles up
+    // through the DOM to the Polygon wrapper's own click handler, same as
+    // a real Leaflet click anywhere inside the polygon's shape would.
+    const popup = await findByText('Old Market High-Risk Zone', { selector: 'b' })
+    fireEvent.click(popup)
+
+    await findByText(/2\.1 km/)
+    await findByText(/0\/8 free/)
+    await findByText(/1\/1 FULL/)
+  })
+
+  it('shows an honest empty state when there are no active hazard advisories', async () => {
+    mockBaseEndpoints()
+    const { findByText } = renderPage()
+    await findByText('Disaster & Weather Monitoring')
+    await findByText(/No active weather or disaster alerts/)
+  })
+
+  it('shows the Disaster & Weather Monitoring section from real advisory data', async () => {
+    mockBaseEndpoints()
+    mock.onGet('/police-network/disaster-summary').reply(200, [
+      { id: 1, zone_id: 2, hazard_type: 'flood', severity: 'high',
+        title: 'Flood Advisory', message: 'Flash flood advisory.', source: 'simulated',
+        active: true, issued_at: '2026-01-01T00:00:00', expires_at: null,
+        zone_name: 'Old Market High-Risk Zone', affected_tourists: 3,
+        station_id: 1, station_name: 'Market PS' },
+    ])
+    const { findByText, findAllByText } = renderPage()
+    await findByText('Disaster & Weather Monitoring')
+    // Also appears in the affected zone's map popup now that it's drawn
+    // with the hazard highlight -- assert presence, not uniqueness.
+    expect((await findAllByText('Flood Advisory')).length).toBeGreaterThan(0)
+    await findByText(/3 affected tourists/)
+    expect((await findAllByText(/Market PS/)).length).toBeGreaterThan(0)
+  })
+
+  it('shows a retry option when the disaster feed fails', async () => {
+    mockBaseEndpoints()
+    mock.onGet('/police-network/disaster-summary').networkError()
+    const { findByText } = renderPage()
+    await findByText(/Weather & Disaster Alert Service Unavailable/)
+    await findByText('Retry')
   })
 })

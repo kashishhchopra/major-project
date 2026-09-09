@@ -3,7 +3,7 @@
     "digital_id": "デジタル観光者ID",
     "loading": "読み込み中…",
     "logout": "ログアウト",
-    "name": "観光客安全",
+    "name": "MUSAFIR",
     "offline": "オフライン"
   },
   "auth": {
@@ -12,7 +12,8 @@
     "login_title": "ログイン",
     "password": "パスワード",
     "register_prompt": "初めての方はこちらから登録",
-    "sign_in": "ログイン"
+    "sign_in": "ログイン",
+    "tagline": "すべての旅に、安全を"
   },
   "checkin": {
     "card_title": "外出/帰着チェックイン",
@@ -65,7 +66,15 @@
     "tourist_id_label": "観光者ID："
   },
   "disaster": {
-    "advisory": "{{type}}に関する警報"
+    "advisory": "{{type}}に関する警報",
+    "severity": "重大度: {{level}}",
+    "source": "発信元",
+    "issued": "発表",
+    "updated": "更新",
+    "expires": "有効期限",
+    "affected_area": "影響地域",
+    "instructions": "安全に関する指示",
+    "translating": "翻訳中…"
   },
   "emergency_mode": {
     "assigning": "割り当て中…",
@@ -267,6 +276,10 @@
     "toggle_hide": "翻訳を非表示 ▲",
     "toggle_show": "🌐 フレーズを翻訳"
   },
+  "voice_action": {
+    "opening": "{{tab}}を開きます。",
+    "sending_sos": "現在地とともにSOSを送信しています。"
+  },
   "voice_assistant": {
     "aria_label": "音声アシスタント",
     "ask_anything": "何でも聞いてください — これに限定されません：",
@@ -299,6 +312,40 @@
     "tap_mic_to_speak": "話すにはマイクをタップ",
     "thinking": "考え中…",
     "title": "音声アシスタント"
+  },
+  "voice_login": {
+    "aria_label": "音声アシスタント — タップして話す",
+    "ask_email": "メールアドレスは何ですか？",
+    "ask_password": "メールアドレスを入力しました。次にパスワードを入力してEnterを押してください。ご希望なら声に出しても構いません。",
+    "assistant_unavailable": "今はそれにお答えできません。「ログイン」「登録」「パスワードを忘れた」「緊急事態」と言うことができます。",
+    "current_step": "ステップ {{index}} / {{total}}：{{step}}。",
+    "did_not_hear": "聞き取れませんでした。もう一度お試しください。",
+    "emergency_info": "今、本当の緊急事態の場合は、{{all}}（インドの統合緊急番号）または{{helpline}}（観光ヘルプライン）に電話してください。このアプリを通じてライブ位置情報付きでSOSを送信するには、まずサインインする必要があります。「ログイン」と言っていただければ、すぐにお手伝いします。",
+    "examples_label": "こう言ってみてください",
+    "examples_login": "「ログイン」「登録」「パスワードを忘れた」「使い方は？」「緊急事態」",
+    "examples_register": "「次へ」「戻る」「このステップを読んで」「緊急事態」",
+    "going_to_forgot_password": "了解しました、パスワード再設定画面に移動します。",
+    "going_to_login": "ログイン画面に移動します。",
+    "going_to_register": "了解しました、登録画面に移動します。",
+    "greeting": "MUSAFIRへようこそ。音声でログイン、登録、ヘルプの取得、緊急支援へのアクセスができます。",
+    "hide_text": "テキスト入力を隠す",
+    "login_success": "サインインしました。ダッシュボードに移動しています。",
+    "mic_error": "はっきりと聞き取れませんでした。もう一度お試しいただくか、代わりにテキストオプションをご利用ください。",
+    "mic_unsupported": "このブラウザでは音声入力がサポートされていません。上のテキストオプション、または下の通常のメール/パスワードフォームを使用できます。",
+    "register_greeting": "登録を始めましょう。次のステップに進むには「次へ」と言うか、現在のステップを読み上げるよう頼んでください。",
+    "send": "送信",
+    "signing_in": "サインインしています…",
+    "state_error": "問題が発生しました — もう一度試すか、テキストを使用してください",
+    "state_idle": "準備完了 — マイクをタップして話す",
+    "state_listening": "聞いています…",
+    "state_speaking": "話しています…",
+    "state_thinking": "考えています…",
+    "step_advanced": "現在：{{step}}。",
+    "stop_listening": "聞き取りを停止",
+    "title": "音声アシスタント",
+    "type_placeholder": "代わりにコマンドを入力…",
+    "use_text_instead": "代わりにテキストを使用",
+    "you_said": "あなたの発言"
   },
   "voice_nav": {
     "card_title": "🧭 音声ナビゲーション",

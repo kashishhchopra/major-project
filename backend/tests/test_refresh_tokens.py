@@ -9,9 +9,8 @@ from app.models.revoked_token import RevokedToken
 
 
 def test_login_returns_both_tokens(client, admin_user):
-    r = client.post("/api/auth/login",
-                    data={"username": "admin@test.gov", "password": "adminpass1"})
-    body = r.json()
+    body = client.post("/api/auth/login",
+                        data={"username": "admin@test.gov", "password": "adminpass1"}).json()
     assert body["access_token"] and body["refresh_token"]
     assert body["access_token"] != body["refresh_token"]
 

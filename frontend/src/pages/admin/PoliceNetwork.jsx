@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Polygon, Polyline, Popup, useMap } from 'react-leaflet'
+import { useNavigate } from 'react-router-dom'
 import api from '../../api'
+import useWebSocket from '../../useWebSocket'
 import { Card, Stat } from '../../components/ui.jsx'
 import { touristIcon, sosIcon, stationIcon, cameraIcon, centralIcon, riskColor } from '../../components/mapIcons'
 import { DEFAULT_MAP, loadMapConfig } from '../../config'
@@ -88,6 +90,7 @@ const SIM_STAGES = [
 ]
 
 export default function PoliceNetwork() {
+  const nav = useNavigate()
   const [dashboard, setDashboard] = useState(null)
   const [stations, setStations] = useState([])
   const [zones, setZones] = useState([])
@@ -109,6 +112,14 @@ export default function PoliceNetwork() {
   const [contactConnected, setContactConnected] = useState(false)
   const [activeCamera, setActiveCamera] = useState(null)
   const [forwardTarget, setForwardTarget] = useState({})
+  const [transferReason, setTransferReason] = useState({})
+  // Whether "Send Case" also flags the hand-off as sharing live location
+  // (services/police_network.py:send_case's `share_live_location` --
+  // recorded on the transfer for the audit trail; the location session
+  // itself is always tied to the case regardless of this checkbox). Keyed
+  // by incident id, default checked.
+  const [shareLocation, setShareLocation] = useState({})
+  const [caseHistory, setCaseHistory] = useState(null) // { incident, transfers } | null
 
   const [activity, setActivity] = useState(() => {
     const now = Date.now()
@@ -153,6 +164,16 @@ export default function PoliceNetwork() {
     const iv = setInterval(load, 15000)
     return () => { clearInterval(iv); simTimers.current.forEach(clearTimeout) }
   }, [])
+
+  // Case Transfer real-time push (services/police_network.py:send_case
+  // broadcasts this over the same admin WebSocket feed every other live
+  // dashboard already uses) -- refreshes the dashboard immediately instead
+  // of waiting for the next 15s poll.
+  useWebSocket((msg) => {
+    if (['transfer_accepted', 'incident'].includes(msg.event)) {
+      load()
+    }
+  })
 
   // Real CCTV coverage near each station, merged/deduped -- the "Nearby
   // CCTV" section and each station's camera count both come from here.
@@ -224,20 +245,39 @@ export default function PoliceNetwork() {
     loadFallbackFor(station.lat, station.lng)
   }
 
-  const forwardIncident = async (incidentId, fromStationId) => {
+  // Case Transfer: one click, no receiving-station approval step -- the case
+  // (and its live-location session, untouched here) moves immediately. See
+  // backend services/police_network.py:send_case.
+  const sendCase = async (incidentId, fromStationId) => {
     const toStationId = Number(forwardTarget[incidentId])
     if (!toStationId || toStationId === fromStationId) return
     const toStation = stations.find((s) => s.id === toStationId)
     const fromStation = stations.find((s) => s.id === fromStationId)
     try {
-      await api.post(`/police-network/incidents/${incidentId}/forward`, {
-        to_station_id: toStationId, note: 'Forwarded from Central Safety Dashboard',
+      await api.post(`/police-network/incidents/${incidentId}/transfer/send`, {
+        to_station_id: toStationId,
+        reason: transferReason[incidentId] || 'Sent from Central Safety Dashboard',
+        share_live_location: shareLocation[incidentId] ?? true,
       })
       pushActivity(fromStation?.name || 'Station', toStation?.name || 'Station',
-        `Case #${incidentId} forwarded`)
+        `Case #${incidentId} sent — live tracking continues`)
+      setForwardTarget({ ...forwardTarget, [incidentId]: '' })
+      setTransferReason({ ...transferReason, [incidentId]: '' })
       load()
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Failed to send the case.')
+    }
+  }
+
+  const viewCaseHistory = async (incidentId) => {
+    try {
+      const [inc, transfers] = await Promise.all([
+        api.get(`/incidents/${incidentId}`),
+        api.get(`/police-network/incidents/${incidentId}/transfers`),
+      ])
+      setCaseHistory({ incident: inc.data, transfers: transfers.data })
     } catch {
-      setError('Failed to forward the incident.')
+      setError('Failed to load case history.')
     }
   }
 
@@ -680,26 +720,54 @@ export default function PoliceNetwork() {
                 </div>
 
                 <div>
-                  <div className="text-xs text-slate-400 mb-1">Active Incidents</div>
+                  <div className="text-xs text-slate-400 mb-1">
+                    Active Incidents
+                    <span className="normal-case text-slate-300 dark:text-slate-500"> — send a case directly to
+                    another station; live location keeps sharing automatically.</span>
+                  </div>
                   {st.entry.incident_ids.length === 0 ? (
                     <div className="text-xs text-slate-400">No active cases.</div>
                   ) : (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {st.entry.incident_ids.map((id) => (
-                        <div key={id} className="flex items-center gap-2 text-xs">
-                          <span className="w-14 text-slate-500">#{id}</span>
-                          <select className="flex-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg px-2 py-1"
-                            value={forwardTarget[id] || ''}
-                            onChange={(e) => setForwardTarget({ ...forwardTarget, [id]: e.target.value })}>
-                            <option value="">Forward to…</option>
-                            {stations.filter((o) => o.id !== s.id).map((o) => (
-                              <option key={o.id} value={o.id}>{o.name}</option>
-                            ))}
-                          </select>
-                          <button onClick={() => forwardIncident(id, s.id)} disabled={!forwardTarget[id]}
-                            className="bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white font-semibold px-2 py-1 rounded-lg">
-                            Send
-                          </button>
+                        <div key={id} className="space-y-1.5 border border-slate-100 dark:border-slate-700 rounded-lg p-2">
+                          <div className="flex items-center gap-2 text-xs">
+                            <button onClick={() => viewCaseHistory(id)}
+                              className="w-14 text-left text-sky-600 hover:underline font-semibold">#{id}</button>
+                            <button onClick={() => nav(`/admin/live-emergencies?incident=${id}`)}
+                              className="text-[11px] font-semibold text-red-600 hover:underline whitespace-nowrap">
+                              📍 View Live Location
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="w-14" />
+                            <select className="flex-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg px-2 py-1"
+                              value={forwardTarget[id] || ''}
+                              onChange={(e) => setForwardTarget({ ...forwardTarget, [id]: e.target.value })}>
+                              <option value="">Send to…</option>
+                              {stations.filter((o) => o.id !== s.id).map((o) => (
+                                <option key={o.id} value={o.id}>{o.name}</option>
+                              ))}
+                            </select>
+                            <button onClick={() => sendCase(id, s.id)} disabled={!forwardTarget[id]}
+                              className="bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white font-semibold px-2 py-1 rounded-lg">
+                              Send Case
+                            </button>
+                          </div>
+                          {forwardTarget[id] && (
+                            <div className="pl-16 space-y-1.5">
+                              <input type="text" placeholder="Reason (optional)"
+                                className="w-full text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-lg px-2 py-1"
+                                value={transferReason[id] || ''}
+                                onChange={(e) => setTransferReason({ ...transferReason, [id]: e.target.value })} />
+                              <label className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                <input type="checkbox"
+                                  checked={shareLocation[id] ?? true}
+                                  onChange={(e) => setShareLocation({ ...shareLocation, [id]: e.target.checked })} />
+                                Share Live Location
+                              </label>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -767,6 +835,79 @@ export default function PoliceNetwork() {
               className="mt-4 w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-sm font-semibold py-2 rounded-lg">
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ---- case history modal: incident event log + full transfer history ---- */}
+      {caseHistory && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[2000] p-4"
+          onClick={() => setCaseHistory(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 pt-4 pb-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+              <div className="font-bold text-slate-800 dark:text-slate-100">Case #{caseHistory.incident.id} History</div>
+              <button onClick={() => setCaseHistory(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl leading-none">✕</button>
+            </div>
+            <div className="p-5 space-y-4 text-sm">
+              <div>
+                <div className="text-xs text-slate-400 mb-1">Currently Assigned Station</div>
+                <div className="font-medium">
+                  {stations.find((s) => s.id === caseHistory.incident.station_id)?.name || 'Unassigned'}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs text-slate-400 mb-1">Transfer History</div>
+                {caseHistory.transfers.length === 0 ? (
+                  <div className="text-xs text-slate-400">No transfers for this case.</div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {caseHistory.transfers.map((t) => {
+                      const from = stations.find((s) => s.id === t.from_station_id)
+                      const to = stations.find((s) => s.id === t.to_station_id)
+                      const badge = {
+                        requested: 'text-amber-600', accepted: 'text-green-600',
+                        rejected: 'text-red-600', cancelled: 'text-slate-400',
+                      }[t.status] || 'text-slate-500'
+                      return (
+                        <div key={t.id} className="text-xs border-b border-slate-50 dark:border-slate-700/50 pb-1.5 last:border-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{from?.name || 'Control room'} → {to?.name || `Station ${t.to_station_id}`}</span>
+                            <span className={`font-bold uppercase ${badge}`}>{t.status}</span>
+                          </div>
+                          {t.reason && <div className="text-slate-500 dark:text-slate-400">{t.reason}</div>}
+                          <div className="text-slate-400">
+                            Requested {new Date(t.requested_at).toLocaleString()} by {t.requested_by}
+                            {t.responded_at && ` · resolved ${new Date(t.responded_at).toLocaleString()} by ${t.responded_by}`}
+                          </div>
+                          <div className="text-slate-400">
+                            Location Shared: {t.location_shared ? '✓' : '✗'}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="text-xs text-slate-400 mb-1">Case Event Log</div>
+                <div className="space-y-1">
+                  {caseHistory.incident.events.map((e, i) => (
+                    <div key={i} className="text-xs text-slate-600 dark:text-slate-300">
+                      <span className="text-slate-400">{new Date(e.timestamp).toLocaleTimeString()}</span> — {e.note || e.status}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button onClick={() => setCaseHistory(null)}
+                className="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-sm font-semibold py-2 rounded-lg">
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -72,18 +72,18 @@ def test_reset_password_with_valid_token_changes_the_password(client, admin_user
     client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
     token = _extract_token(capture.sent[0]["body"])
 
-    r = client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+    r = client.post("/api/auth/reset-password", json={"token": token, "new_password": "Newpass123!"})
     assert r.status_code == 204
 
     db.refresh(admin_user)
-    assert verify_password("newpass123", admin_user.hashed_password)
+    assert verify_password("Newpass123!", admin_user.hashed_password)
     assert not verify_password("adminpass1", admin_user.hashed_password)
 
 
 def test_old_password_no_longer_logs_in_after_reset(client, admin_user, capture):
     client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
     token = _extract_token(capture.sent[0]["body"])
-    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "Newpass123!"})
 
     r = client.post("/api/auth/login", data={"username": "admin@test.gov", "password": "adminpass1"})
     assert r.status_code == 401
@@ -92,24 +92,24 @@ def test_old_password_no_longer_logs_in_after_reset(client, admin_user, capture)
 def test_new_password_logs_in_after_reset(client, admin_user, capture):
     client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
     token = _extract_token(capture.sent[0]["body"])
-    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "Newpass123!"})
 
-    r = client.post("/api/auth/login", data={"username": "admin@test.gov", "password": "newpass123"})
+    r = client.post("/api/auth/login", data={"username": "admin@test.gov", "password": "Newpass123!"})
     assert r.status_code == 200
 
 
 def test_reset_with_unknown_token_rejected(client):
     r = client.post("/api/auth/reset-password",
-                    json={"token": "not-a-real-token", "new_password": "newpass123"})
+                    json={"token": "not-a-real-token", "new_password": "Newpass123!"})
     assert r.status_code == 400
 
 
 def test_reset_token_cannot_be_reused(client, admin_user, capture):
     client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
     token = _extract_token(capture.sent[0]["body"])
-    client.post("/api/auth/reset-password", json={"token": token, "new_password": "firstpass123"})
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "Firstpass123!"})
 
-    r = client.post("/api/auth/reset-password", json={"token": token, "new_password": "secondpass123"})
+    r = client.post("/api/auth/reset-password", json={"token": token, "new_password": "Secondpass123!"})
     assert r.status_code == 400
 
 
@@ -121,7 +121,7 @@ def test_expired_reset_token_rejected(client, admin_user, capture, db):
     row.expires_at = utc_now() - timedelta(minutes=1)
     db.commit()
 
-    r = client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+    r = client.post("/api/auth/reset-password", json={"token": token, "new_password": "Newpass123!"})
     assert r.status_code == 400
 
 
@@ -138,7 +138,7 @@ def test_reset_password_is_audited(client, admin_user, capture, db):
 
     client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
     token = _extract_token(capture.sent[0]["body"])
-    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "Newpass123!"})
 
     assert db.query(AuditLog).filter_by(action="reset_password").count() == 1
 
@@ -160,7 +160,7 @@ def test_refresh_token_issued_before_reset_is_rejected_after_it(client, admin_us
 
     client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
     token = _extract_token(capture.sent[0]["body"])
-    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "Newpass123!"})
 
     # Clear the jar so this exercises the stale *body* token specifically,
     # not whatever cookie the client happens to be holding.
@@ -178,7 +178,7 @@ def test_access_token_issued_before_reset_is_rejected_after_it(client, admin_use
 
     client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
     token = _extract_token(capture.sent[0]["body"])
-    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "Newpass123!"})
 
     r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {login['access_token']}"})
     assert r.status_code == 401
@@ -187,9 +187,9 @@ def test_access_token_issued_before_reset_is_rejected_after_it(client, admin_use
 def test_a_fresh_login_after_reset_works_normally(client, admin_user, capture):
     client.post("/api/auth/forgot-password", json={"email": "admin@test.gov"})
     token = _extract_token(capture.sent[0]["body"])
-    client.post("/api/auth/reset-password", json={"token": token, "new_password": "newpass123"})
+    client.post("/api/auth/reset-password", json={"token": token, "new_password": "Newpass123!"})
 
-    r = client.post("/api/auth/login", data={"username": "admin@test.gov", "password": "newpass123"})
+    r = client.post("/api/auth/login", data={"username": "admin@test.gov", "password": "Newpass123!"})
     assert r.status_code == 200
     me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {r.json()['access_token']}"})
     assert me.status_code == 200

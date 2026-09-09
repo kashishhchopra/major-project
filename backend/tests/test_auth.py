@@ -35,14 +35,43 @@ def test_bcrypt_72_byte_limit_does_not_raise():
     assert verify_password(long_pw, hash_password(long_pw)) is True
 
 
-@pytest.mark.parametrize("weak", ["short1", "alllettersonly", "12345678", ""])
+@pytest.mark.parametrize("weak", [
+    "short1",           # too short
+    "alllettersonly",   # no digit, no uppercase, no symbol
+    "12345678",         # no letters at all
+    "",                 # empty
+    "goodpass123",      # letters + digits, but no uppercase and no symbol
+    "GOODPASS123",      # no lowercase, no symbol
+    "GoodPass!",        # no digit
+    "GoodPass123",      # no symbol
+])
 def test_weak_passwords_rejected(weak):
     with pytest.raises(ValueError):
         validate_password_strength(weak)
 
 
 def test_strong_password_accepted():
-    validate_password_strength("goodpass123")
+    validate_password_strength("GoodPass123!")
+
+
+def test_password_missing_uppercase_gives_a_specific_message():
+    with pytest.raises(ValueError, match="uppercase"):
+        validate_password_strength("goodpass123!")
+
+
+def test_password_missing_lowercase_gives_a_specific_message():
+    with pytest.raises(ValueError, match="lowercase"):
+        validate_password_strength("GOODPASS123!")
+
+
+def test_password_missing_digit_gives_a_specific_message():
+    with pytest.raises(ValueError, match="number"):
+        validate_password_strength("GoodPassword!")
+
+
+def test_password_missing_symbol_gives_a_specific_message():
+    with pytest.raises(ValueError, match="special character"):
+        validate_password_strength("GoodPass123")
 
 
 # ---------------------------------------------------------------- JWT

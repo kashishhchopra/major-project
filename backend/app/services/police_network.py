@@ -31,7 +31,9 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.core.time import utc_now
+from app.models.emergency_location import EmergencyLocationPing
 from app.models.incident import Incident, IncidentEvent
+from app.models.incident_transfer import IncidentTransfer
 from app.models.police import Camera, PoliceStation
 from app.models.zone import Zone
 from app.services import geo
@@ -173,6 +175,231 @@ def forward_incident(
         detail += f" (by {actor})"
     db.add(IncidentEvent(incident_id=incident.id, status="forwarded", note=detail))
     return to_station
+
+
+class TransferError(Exception):
+    """Raised for a transfer request/response that fails a business rule --
+    the API layer maps this to the right HTTP status."""
+
+
+def _latest_location(db: Session, incident_id: int) -> EmergencyLocationPing | None:
+    return (
+        db.query(EmergencyLocationPing)
+        .filter(EmergencyLocationPing.incident_id == incident_id)
+        .order_by(EmergencyLocationPing.timestamp.desc())
+        .first()
+    )
+
+
+def send_case(
+    db: Session, incident: Incident, to_station_id: int, reason: str, actor: str,
+    share_live_location: bool = True,
+) -> IncidentTransfer:
+    """One-click, no-approval hand-off: the case (and its live-location
+    session, keyed by incident.id and never touched here) moves to
+    `to_station_id` immediately -- the dashboard's "Send Case" action. Still
+    writes a full IncidentTransfer row (status already "accepted", no
+    "requested" interval) so the transfer/audit history stays complete; see
+    request_transfer/accept_transfer below for the older two-step,
+    receiving-station-approval alternative kept for API compatibility.
+    """
+    if incident.status == "resolved":
+        raise TransferError("Cannot transfer a resolved case.")
+    to_station = db.get(PoliceStation, to_station_id)
+    if to_station is None:
+        raise TransferError(f"No such station: {to_station_id}")
+    if to_station_id == incident.station_id:
+        raise TransferError("Case is already assigned to that station.")
+
+    from_station_id = incident.station_id
+    latest = _latest_location(db, incident.id)
+    now = utc_now()
+    transfer = IncidentTransfer(
+        incident_id=incident.id,
+        from_station_id=from_station_id,
+        to_station_id=to_station_id,
+        reason=reason,
+        status="accepted",
+        requested_by=actor,
+        responded_by=actor,
+        location_shared=share_live_location,
+        latest_lat=latest.lat if latest else incident.lat,
+        latest_lng=latest.lng if latest else incident.lng,
+        latest_location_at=latest.timestamp if latest else None,
+        requested_at=now,
+        responded_at=now,
+    )
+    db.add(transfer)
+    db.flush()
+
+    forward_incident(
+        db, incident, to_station_id,
+        note=reason or "sent directly", actor=actor,
+    )
+
+    from app.websocket.manager import broadcast_sync
+    broadcast_sync({
+        "event": "transfer_accepted", "incident_id": incident.id, "transfer_id": transfer.id,
+        "from_station_id": from_station_id, "to_station_id": to_station_id,
+        "location_shared": share_live_location,
+    })
+    return transfer
+
+
+def request_transfer(
+    db: Session, incident: Incident, to_station_id: int, reason: str, actor: str,
+    share_live_location: bool = True,
+) -> IncidentTransfer:
+    """Station A asks to hand a case to Station B. Does NOT move the case --
+    the live-location session (keyed by incident.id, never by station) keeps
+    flowing to Station A exactly as before until Station B accepts. See the
+    module docstring's "Police Station Resource Fallback System" for the
+    immediate, no-approval alternative (`forward_incident`) this workflow
+    sits alongside rather than replaces.
+    """
+    if incident.status == "resolved":
+        raise TransferError("Cannot transfer a resolved case.")
+    to_station = db.get(PoliceStation, to_station_id)
+    if to_station is None:
+        raise TransferError(f"No such station: {to_station_id}")
+    if to_station_id == incident.station_id:
+        raise TransferError("Case is already assigned to that station.")
+
+    existing = (
+        db.query(IncidentTransfer)
+        .filter(IncidentTransfer.incident_id == incident.id,
+                IncidentTransfer.status == "requested")
+        .first()
+    )
+    if existing is not None:
+        raise TransferError(
+            f"A transfer request (#{existing.id}) is already pending for this case."
+        )
+
+    latest = _latest_location(db, incident.id)
+    transfer = IncidentTransfer(
+        incident_id=incident.id,
+        from_station_id=incident.station_id,
+        to_station_id=to_station_id,
+        reason=reason,
+        status="requested",
+        requested_by=actor,
+        location_shared=share_live_location,
+        latest_lat=latest.lat if latest else incident.lat,
+        latest_lng=latest.lng if latest else incident.lng,
+        latest_location_at=latest.timestamp if latest else None,
+    )
+    db.add(transfer)
+    db.flush()
+
+    from_station = db.get(PoliceStation, incident.station_id) if incident.station_id else None
+    from_name = from_station.name if from_station else "control room"
+    note = f"Transfer requested: {from_name} -> {to_station.name}"
+    if reason:
+        note += f" ({reason})"
+    db.add(IncidentEvent(incident_id=incident.id, status="transfer_requested",
+                         note=f"{note}, by {actor}" if actor else note))
+    from app.websocket.manager import broadcast_sync
+    broadcast_sync({
+        "event": "transfer_requested", "incident_id": incident.id, "transfer_id": transfer.id,
+        "from_station_id": incident.station_id, "to_station_id": to_station_id,
+        "reason": reason,
+    })
+    return transfer
+
+
+def _get_pending_transfer(db: Session, incident: Incident, transfer_id: int) -> IncidentTransfer:
+    transfer = db.get(IncidentTransfer, transfer_id)
+    if transfer is None or transfer.incident_id != incident.id:
+        raise TransferError("Transfer request not found for this case.")
+    if transfer.status != "requested":
+        raise TransferError(f"Transfer #{transfer_id} is already {transfer.status}.")
+    return transfer
+
+
+def accept_transfer(
+    db: Session, incident: Incident, transfer_id: int, actor: str
+) -> IncidentTransfer:
+    """Station B accepts: the case's current station changes, but the same
+    live-location session (EmergencyLocationPing rows keyed by incident.id)
+    just keeps recording against this incident -- nothing about the
+    location feed itself is touched. Reuses `forward_incident` for the
+    actual station hand-off + case-history entry, so there is exactly one
+    code path that ever moves `Incident.station_id`.
+    """
+    transfer = _get_pending_transfer(db, incident, transfer_id)
+    to_station = forward_incident(
+        db, incident, transfer.to_station_id,
+        note=f"transfer #{transfer.id} accepted" + (f": {transfer.reason}" if transfer.reason else ""),
+        actor=actor,
+    )
+    transfer.status = "accepted"
+    transfer.responded_by = actor
+    transfer.responded_at = utc_now()
+
+    from app.websocket.manager import broadcast_sync
+    broadcast_sync({
+        "event": "transfer_accepted", "incident_id": incident.id, "transfer_id": transfer.id,
+        "from_station_id": transfer.from_station_id, "to_station_id": to_station.id,
+    })
+    return transfer
+
+
+def reject_transfer(
+    db: Session, incident: Incident, transfer_id: int, actor: str, reason: str = ""
+) -> IncidentTransfer:
+    """Station B declines: the case, and its live-location session, remain
+    exactly where they were -- the original station stays responsible until
+    some other station accepts a (new) transfer request."""
+    transfer = _get_pending_transfer(db, incident, transfer_id)
+    transfer.status = "rejected"
+    transfer.responded_by = actor
+    transfer.responded_at = utc_now()
+
+    to_station = db.get(PoliceStation, transfer.to_station_id)
+    note = f"Transfer #{transfer.id} rejected by {actor}"
+    if reason:
+        note += f": {reason}"
+    db.add(IncidentEvent(incident_id=incident.id, status="transfer_rejected", note=note))
+
+    from app.websocket.manager import broadcast_sync
+    broadcast_sync({
+        "event": "transfer_rejected", "incident_id": incident.id, "transfer_id": transfer.id,
+        "to_station_id": to_station.id if to_station else transfer.to_station_id,
+    })
+    return transfer
+
+
+def cancel_transfer(db: Session, incident: Incident, transfer_id: int, actor: str) -> IncidentTransfer:
+    """The requesting station withdraws its own still-pending request."""
+    transfer = _get_pending_transfer(db, incident, transfer_id)
+    transfer.status = "cancelled"
+    transfer.responded_by = actor
+    transfer.responded_at = utc_now()
+    db.add(IncidentEvent(incident_id=incident.id, status="transfer_cancelled",
+                         note=f"Transfer #{transfer.id} cancelled by {actor}"))
+    return transfer
+
+
+def list_transfers(db: Session, incident_id: int) -> list[IncidentTransfer]:
+    """Complete transfer history for a case, oldest first."""
+    return (
+        db.query(IncidentTransfer)
+        .filter(IncidentTransfer.incident_id == incident_id)
+        .order_by(IncidentTransfer.requested_at)
+        .all()
+    )
+
+
+def list_pending_transfers(db: Session) -> list[IncidentTransfer]:
+    """Every transfer request network-wide still awaiting accept/reject --
+    the Central Safety Dashboard's "Incoming Transfer Requests" panel."""
+    return (
+        db.query(IncidentTransfer)
+        .filter(IncidentTransfer.status == "requested")
+        .order_by(IncidentTransfer.requested_at.desc())
+        .all()
+    )
 
 
 def nearby_cameras(db: Session, lat: float, lng: float, radius_m: float = 1000) -> list[dict]:

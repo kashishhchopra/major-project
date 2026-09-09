@@ -18,6 +18,7 @@ this module only ever reports what the numbers say.
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -26,6 +27,7 @@ from app.core.config import settings
 from app.core.time import utc_now
 from app.models.emergency_location import EmergencyLocationPing
 from app.models.incident import Incident, IncidentEvent
+from app.models.incident_transfer import IncidentTransfer
 from app.models.police import PoliceStation
 from app.models.tourist import Tourist
 from app.services.geo import haversine_m
@@ -168,14 +170,37 @@ def build_track(db: Session, incident: Incident) -> dict:
     )
     latest = trail[0] if trail else None
     status, age_s = location_status(latest.timestamp if latest else None)
+    # Whether a hand-off to another station is awaiting that station's
+    # accept/reject -- the live-location feed above is completely unaffected
+    # either way (see app/models/incident_transfer.py): this is purely a
+    # dashboard signal that the case's *station* may be about to change.
+    pending_transfer = (
+        db.query(IncidentTransfer)
+        .filter(IncidentTransfer.incident_id == incident.id, IncidentTransfer.status == "requested")
+        .order_by(IncidentTransfer.requested_at.desc())
+        .first()
+    )
     return {
         "incident_id": incident.id,
         "tourist_id": incident.tourist_id,
         "tourist_name": tourist.full_name if tourist else "Unknown",
         "digital_id": tourist.digital_id if tourist else "",
+        # Full case + tourist detail, so a station receiving a transferred
+        # case has everything it needs in this one call -- it never has to
+        # separately request the tourist's identity/contact information
+        # from whoever sent the case (see the "Send Case" panel's
+        # docstring in police_network.py:send_case).
+        "tourist_phone": tourist.phone if tourist else None,
+        "tourist_nationality": tourist.nationality if tourist else None,
+        "tourist_photo": tourist.photo if tourist else None,
+        "safety_score": tourist.safety_score if tourist else None,
+        "hotel": tourist.hotel if tourist else None,
+        "emergency_contacts": json.loads(tourist.emergency_contacts) if tourist and tourist.emergency_contacts else [],
         "incident_type": incident.type,
         "severity": incident.severity,
         "status": incident.status,
+        "description": incident.description,
+        "detected_at": incident.detected_at,
         "live_tracking_active": incident.live_tracking_active,
         "station_id": station.id if station else None,
         "station_name": station.name if station else None,
@@ -183,6 +208,8 @@ def build_track(db: Session, incident: Incident) -> dict:
         "seconds_since_update": age_s,
         "latest": latest,
         "trail": list(reversed(trail)),  # oldest -> newest, for drawing a path
+        "pending_transfer_id": pending_transfer.id if pending_transfer else None,
+        "pending_transfer_to_station_id": pending_transfer.to_station_id if pending_transfer else None,
     }
 
 

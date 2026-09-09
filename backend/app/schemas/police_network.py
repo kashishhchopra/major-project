@@ -52,6 +52,45 @@ class ForwardIncidentRequest(BaseModel):
     note: str = Field("", max_length=1000)
 
 
+class TransferRequestIn(BaseModel):
+    to_station_id: int
+    reason: str = Field("", max_length=1000)
+    share_live_location: bool = True
+
+
+class SendCaseIn(BaseModel):
+    """Direct, one-click case hand-off -- see
+    services/police_network.py:send_case. No accept/reject step: the case
+    (and its live-location session) moves to `to_station_id` immediately."""
+    to_station_id: int
+    reason: str = Field("", max_length=1000)
+    share_live_location: bool = True
+
+
+class TransferRespondIn(BaseModel):
+    reason: str = Field("", max_length=1000)
+
+
+class TransferOut(BaseModel):
+    id: int
+    incident_id: int
+    from_station_id: int | None
+    to_station_id: int
+    reason: str
+    status: str
+    requested_by: str
+    responded_by: str | None
+    location_shared: bool
+    latest_lat: float | None
+    latest_lng: float | None
+    latest_location_at: datetime | None
+    requested_at: datetime
+    responded_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
 class StationDashboardEntry(BaseModel):
     id: int
     name: str

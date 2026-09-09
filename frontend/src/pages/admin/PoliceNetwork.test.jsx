@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import MockAdapter from 'axios-mock-adapter'
 import api from '../../api'
 import PoliceNetwork from './PoliceNetwork'
+
+const renderPage = () => render(<MemoryRouter><PoliceNetwork /></MemoryRouter>)
 
 // react-leaflet's Polygon/Polyline layers need a real SVG renderer that jsdom
 // doesn't provide (same class of gap as canvas) -- every other map-using
@@ -17,6 +20,10 @@ vi.mock('react-leaflet', () => ({
   Polygon: () => null,
   Polyline: () => null,
   useMap: () => ({ flyTo: () => {}, getZoom: () => 13 }),
+}))
+
+vi.mock('../../useWebSocket', () => ({
+  default: () => ({ connected: true }),
 }))
 
 const mock = new MockAdapter(api)
@@ -76,7 +83,7 @@ function mockBaseEndpoints() {
 describe('PoliceNetwork page', () => {
   it('renders the network status header, KPIs, and station cards', async () => {
     mockBaseEndpoints()
-    const { findByText, findAllByText, findByRole } = render(<PoliceNetwork />)
+    const { findByText, findAllByText, findByRole } = renderPage()
     await findByRole('heading', { name: 'Central Safety Dashboard' })
     await findByText('NETWORK OPERATIONAL')
     expect((await findAllByText('Market PS')).length).toBeGreaterThan(0)
@@ -85,38 +92,38 @@ describe('PoliceNetwork page', () => {
 
   it('shows the zone coverage table with real risk/tourist/camera data', async () => {
     mockBaseEndpoints()
-    const { findByText } = render(<PoliceNetwork />)
+    const { findByText } = renderPage()
     await findByText('Zone Coverage & Assignment')
     await findByText('Old Market High-Risk Zone')
   })
 
   it('shows the nearby CCTV grid from real camera data', async () => {
     mockBaseEndpoints()
-    const { findByText } = render(<PoliceNetwork />)
+    const { findByText } = renderPage()
     await findByText(/CAM-009/)
   })
 
-  it('opens the station detail modal and forwards an incident', async () => {
+  it('opens the station detail modal and sends a case directly', async () => {
     mockBaseEndpoints()
-    mock.onPost('/police-network/incidents/7/forward').reply(200, {})
+    mock.onPost('/police-network/incidents/7/transfer/send').reply(201, {})
 
-    const { findAllByText, findByText } = render(<PoliceNetwork />)
+    const { findAllByText, findByText } = renderPage()
     const viewButtons = await findAllByText('View Station')
     fireEvent.click(viewButtons[0])
 
     await findByText('Station Commander')
-    const select = await findByText('Forward to…')
+    const select = await findByText('Send to…')
     fireEvent.change(select.closest('select'), { target: { value: '2' } })
-    fireEvent.click(await findByText('Send'))
+    fireEvent.click(await findByText('Send Case'))
 
     await waitFor(() => {
-      expect(mock.history.post.some((r) => r.url === '/police-network/incidents/7/forward')).toBe(true)
+      expect(mock.history.post.some((r) => r.url === '/police-network/incidents/7/transfer/send')).toBe(true)
     })
   })
 
   it('opens the contact modal for a station', async () => {
     mockBaseEndpoints()
-    const { findAllByText, findByText } = render(<PoliceNetwork />)
+    const { findAllByText, findByText } = renderPage()
     const contactButtons = await findAllByText('Contact')
     fireEvent.click(contactButtons[0])
     await findByText('Connecting…')
@@ -125,7 +132,7 @@ describe('PoliceNetwork page', () => {
 
   it('runs the simulate-incident demo flow', async () => {
     mockBaseEndpoints()
-    const { findByText } = render(<PoliceNetwork />)
+    const { findByText } = renderPage()
     fireEvent.click(await findByText('🚨 Simulate Incident'))
     await findByText('ACTIVE RESPONSE IN PROGRESS')
     await findByText(/Tourist SOS raised/)
@@ -134,7 +141,7 @@ describe('PoliceNetwork page', () => {
 
   it('shows each station case load, flagging one at capacity', async () => {
     mockBaseEndpoints()
-    const { findAllByText, findByText } = render(<PoliceNetwork />)
+    const { findAllByText, findByText } = renderPage()
     // Market PS is 1/1 -> at capacity; City Central PS is 0/8 -> free
     await findByText(/1\/1 · AT CAPACITY/)
     expect((await findAllByText('Case load')).length).toBe(2)
@@ -142,7 +149,7 @@ describe('PoliceNetwork page', () => {
 
   it('loads the resource fallback order when a zone/station is selected', async () => {
     mockBaseEndpoints()
-    const { findByText, findAllByText } = render(<PoliceNetwork />)
+    const { findByText, findAllByText } = renderPage()
     await findByText('Resource Fallback Order')
     // nothing selected yet
     await findByText(/Select a station or zone/)

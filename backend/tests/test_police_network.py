@@ -3,8 +3,9 @@ Dashboard, inter-station hand-off, and nearby-camera lookup
 (services/police_network.py, app/api/police_network.py)."""
 import pytest
 
+from app.models.emergency_location import EmergencyLocationPing
 from app.models.incident import Incident
-from app.services import police_network
+from app.services import emergency_location, police_network
 from app.services.monitoring import trigger_sos
 from tests.conftest import make_camera, make_station, make_tourist, make_zone
 
@@ -397,3 +398,376 @@ def test_dashboard_exposes_capacity_signals(client, admin_headers, db):
     assert entry["max_concurrent_cases"] == 2
     assert entry["has_capacity"] is False
     assert entry["load_pct"] == 100.0
+
+
+# ============================================================
+# Case Transfer: request / accept / reject / cancel
+# (services/police_network.py's request_transfer & friends,
+# app/models/incident_transfer.py). The core rule under test throughout:
+# the live-location session (EmergencyLocationPing, keyed by incident_id)
+# must never be interrupted, duplicated, or reset by any of this -- only
+# Incident.station_id ever changes, and only once a transfer is accepted.
+# ============================================================
+def _sos_with_stations(db):
+    zone_a = make_zone(db, name="Zone A", lat=26.165, lng=91.75, d=0.008)
+    station_a = make_station(db, name="Station A", zone_id=zone_a.id, lat=26.165, lng=91.75)
+    station_b = make_station(db, name="Station B", lat=26.2, lng=91.8)
+    t = make_tourist(db, lat=26.165, lng=91.75)
+    result = trigger_sos(db, t, 26.165, 91.75, "help")
+    inc = db.get(Incident, result["incident_id"])
+    return inc, station_a, station_b
+
+
+def test_request_transfer_does_not_move_the_case(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "tourist moved", "admin@test.gov")
+    db.commit()
+    db.refresh(inc)
+
+    assert transfer.status == "requested"
+    assert transfer.from_station_id == station_a.id
+    assert transfer.to_station_id == station_b.id
+    assert inc.station_id == station_a.id  # unchanged until accepted
+
+
+def test_request_transfer_snapshots_latest_location(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    emergency_location.record_location(db, inc, 26.166, 91.751, None, None, None)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+    assert transfer.latest_lat == 26.166
+    assert transfer.latest_lng == 91.751
+    assert transfer.latest_location_at is not None
+
+
+def test_request_transfer_rejects_unknown_station(db):
+    inc, _station_a, _station_b = _sos_with_stations(db)
+    with pytest.raises(police_network.TransferError):
+        police_network.request_transfer(db, inc, 99999, "", "admin@test.gov")
+
+
+def test_request_transfer_rejects_same_station(db):
+    inc, station_a, _station_b = _sos_with_stations(db)
+    with pytest.raises(police_network.TransferError):
+        police_network.request_transfer(db, inc, station_a.id, "", "admin@test.gov")
+
+
+def test_second_request_blocked_while_one_is_pending(db):
+    inc, _station_a, station_b = _sos_with_stations(db)
+    station_c = make_station(db, name="Station C", lat=26.3, lng=91.9)
+    police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+    with pytest.raises(police_network.TransferError):
+        police_network.request_transfer(db, inc, station_c.id, "", "admin@test.gov")
+
+
+def test_live_location_keeps_flowing_while_transfer_is_pending(db):
+    """The core architecture rule: the live-location session belongs to the
+    case, not the station, so it must not pause or reset just because a
+    transfer is awaiting acceptance."""
+    inc, station_a, station_b = _sos_with_stations(db)
+    emergency_location.record_location(db, inc, 26.166, 91.751, None, None, None)
+    police_network.request_transfer(db, inc, station_b.id, "moved", "admin@test.gov")
+
+    # a ping arrives while the transfer is still just "requested"
+    emergency_location.record_location(db, inc, 26.167, 91.752, None, None, None)
+    db.commit()
+    db.refresh(inc)
+
+    assert inc.station_id == station_a.id  # still with the requesting station
+    assert inc.live_tracking_active is True
+    pings = (
+        db.query(EmergencyLocationPing)
+        .filter(EmergencyLocationPing.incident_id == inc.id)
+        .order_by(EmergencyLocationPing.timestamp)
+        .all()
+    )
+    assert len(pings) == 2
+    assert pings[-1].lat == 26.167
+
+
+def test_accept_transfer_moves_station_and_continues_same_session(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    emergency_location.record_location(db, inc, 26.166, 91.751, None, None, None)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "moved", "station_a@test.gov")
+
+    accepted = police_network.accept_transfer(db, inc, transfer.id, "station_b@test.gov")
+    db.commit()
+    db.refresh(inc)
+
+    assert accepted.status == "accepted"
+    assert accepted.responded_by == "station_b@test.gov"
+    assert inc.station_id == station_b.id  # now Station B's case
+
+    # the tourist keeps moving -- same incident, same ping table, no new
+    # incident and no new live-tracking session were created by the transfer
+    emergency_location.record_location(db, inc, 26.21, 91.81, None, None, None)
+    pings = (
+        db.query(EmergencyLocationPing)
+        .filter(EmergencyLocationPing.incident_id == inc.id)
+        .order_by(EmergencyLocationPing.timestamp)
+        .all()
+    )
+    assert len(pings) == 2  # one before the transfer, one after -- same trail
+    assert inc.live_tracking_active is True
+    assert db.query(Incident).count() == 1  # no duplicate case
+
+
+def test_accept_transfer_preserves_case_and_transfer_history(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "moved", "admin@test.gov")
+    police_network.accept_transfer(db, inc, transfer.id, "admin@test.gov")
+    db.commit()
+    db.refresh(inc)
+
+    notes = [e.note for e in inc.events]
+    assert any("Transfer requested" in n for n in notes)
+    assert any("Forwarded from Station A to Station B" in n for n in notes)
+
+    history = police_network.list_transfers(db, inc.id)
+    assert len(history) == 1
+    assert history[0].status == "accepted"
+
+
+def test_reject_transfer_leaves_case_with_original_station(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "moved", "admin@test.gov")
+
+    rejected = police_network.reject_transfer(db, inc, transfer.id, "station_b@test.gov", "too far")
+    db.commit()
+    db.refresh(inc)
+
+    assert rejected.status == "rejected"
+    assert inc.station_id == station_a.id  # original station remains responsible
+    assert inc.live_tracking_active is True
+
+
+def test_can_request_again_after_a_rejection(db):
+    inc, _station_a, station_b = _sos_with_stations(db)
+    station_c = make_station(db, name="Station C", lat=26.3, lng=91.9)
+    t1 = police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+    police_network.reject_transfer(db, inc, t1.id, "admin@test.gov")
+    db.flush()
+
+    t2 = police_network.request_transfer(db, inc, station_c.id, "", "admin@test.gov")
+    assert t2.status == "requested"
+    assert t2.id != t1.id
+
+
+def test_cancel_transfer_by_requester(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+
+    cancelled = police_network.cancel_transfer(db, inc, transfer.id, "admin@test.gov")
+    db.commit()
+    db.refresh(inc)
+    assert cancelled.status == "cancelled"
+    assert inc.station_id == station_a.id
+
+
+def test_accept_already_resolved_transfer_raises(db):
+    inc, _station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+    police_network.accept_transfer(db, inc, transfer.id, "admin@test.gov")
+    with pytest.raises(police_network.TransferError):
+        police_network.accept_transfer(db, inc, transfer.id, "admin@test.gov")
+
+
+def test_cannot_transfer_a_resolved_case(db):
+    inc, _station_a, station_b = _sos_with_stations(db)
+    inc.status = "resolved"
+    with pytest.raises(police_network.TransferError):
+        police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+
+
+def test_multiple_transfers_preserve_full_chain(db):
+    """Station A -> Station B -> Station C: the same case and live-location
+    session continue through every hop."""
+    inc, station_a, station_b = _sos_with_stations(db)
+    station_c = make_station(db, name="Station C", lat=26.3, lng=91.9)
+
+    t1 = police_network.request_transfer(db, inc, station_b.id, "hop 1", "admin@test.gov")
+    police_network.accept_transfer(db, inc, t1.id, "admin@test.gov")
+    db.flush()
+    db.refresh(inc)
+    assert inc.station_id == station_b.id
+
+    t2 = police_network.request_transfer(db, inc, station_c.id, "hop 2", "admin@test.gov")
+    police_network.accept_transfer(db, inc, t2.id, "admin@test.gov")
+    db.commit()
+    db.refresh(inc)
+    assert inc.station_id == station_c.id
+
+    history = police_network.list_transfers(db, inc.id)
+    assert [h.to_station_id for h in history] == [station_b.id, station_c.id]
+    assert db.query(Incident).count() == 1  # still one case throughout
+
+
+# ---------------------------------------------------------------- send_case (direct, one-click)
+def test_send_case_moves_the_incident_immediately(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.send_case(db, inc, station_b.id, "moved zones", "admin@test.gov")
+    db.commit()
+    db.refresh(inc)
+
+    assert transfer.status == "accepted"
+    assert transfer.requested_by == transfer.responded_by == "admin@test.gov"
+    assert transfer.location_shared is True
+    assert inc.station_id == station_b.id  # no pending interval at all
+
+
+def test_send_case_respects_share_live_location_flag(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.send_case(db, inc, station_b.id, "", "admin@test.gov",
+                                        share_live_location=False)
+    assert transfer.location_shared is False
+
+
+def test_send_case_does_not_create_a_pending_transfer(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    police_network.send_case(db, inc, station_b.id, "", "admin@test.gov")
+    db.commit()
+    assert police_network.list_pending_transfers(db) == []
+
+
+def test_send_case_preserves_live_location_session(db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    emergency_location.record_location(db, inc, 26.166, 91.751, None, None, None)
+    police_network.send_case(db, inc, station_b.id, "", "admin@test.gov")
+    db.commit()
+    db.refresh(inc)
+
+    assert inc.station_id == station_b.id
+    assert inc.live_tracking_active is True
+    pings = (
+        db.query(EmergencyLocationPing)
+        .filter(EmergencyLocationPing.incident_id == inc.id)
+        .all()
+    )
+    assert len(pings) == 1  # same session, not reset
+
+
+def test_send_case_rejects_unknown_station(db):
+    inc, _station_a, _station_b = _sos_with_stations(db)
+    with pytest.raises(police_network.TransferError):
+        police_network.send_case(db, inc, 99999, "", "admin@test.gov")
+
+
+def test_send_case_endpoint(client, admin_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    r = client.post(
+        f"/api/police-network/incidents/{inc.id}/transfer/send",
+        json={"to_station_id": station_b.id, "reason": "moved", "share_live_location": True},
+        headers=admin_headers,
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["status"] == "accepted"
+    assert body["location_shared"] is True
+
+    inc_r = client.get(f"/api/incidents/{inc.id}", headers=admin_headers)
+    assert inc_r.json()["station_id"] == station_b.id
+
+
+def test_send_case_endpoint_forbidden_for_tourist(client, tourist_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    r = client.post(
+        f"/api/police-network/incidents/{inc.id}/transfer/send",
+        json={"to_station_id": station_b.id}, headers=tourist_headers,
+    )
+    assert r.status_code == 403
+
+
+# ---------------------------------------------------------------- API
+def test_request_transfer_endpoint(client, admin_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    r = client.post(
+        f"/api/police-network/incidents/{inc.id}/transfer",
+        json={"to_station_id": station_b.id, "reason": "tourist moved"},
+        headers=admin_headers,
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["status"] == "requested"
+    assert body["to_station_id"] == station_b.id
+
+
+def test_accept_transfer_endpoint(client, admin_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+    db.commit()
+
+    r = client.post(
+        f"/api/police-network/incidents/{inc.id}/transfer/{transfer.id}/accept",
+        headers=admin_headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["station_id"] == station_b.id
+
+
+def test_reject_transfer_endpoint(client, admin_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+    db.commit()
+
+    r = client.post(
+        f"/api/police-network/incidents/{inc.id}/transfer/{transfer.id}/reject",
+        json={"reason": "not our jurisdiction"},
+        headers=admin_headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "rejected"
+
+
+def test_transfer_history_endpoint(client, admin_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+    db.commit()
+
+    r = client.get(f"/api/police-network/incidents/{inc.id}/transfers", headers=admin_headers)
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+
+
+def test_pending_transfers_endpoint(client, admin_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+    db.commit()
+
+    r = client.get("/api/police-network/transfers/pending", headers=admin_headers)
+    assert r.status_code == 200
+    assert any(t["incident_id"] == inc.id for t in r.json())
+
+
+def test_transfer_endpoints_forbidden_for_tourist(client, tourist_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    r = client.post(
+        f"/api/police-network/incidents/{inc.id}/transfer",
+        json={"to_station_id": station_b.id}, headers=tourist_headers,
+    )
+    assert r.status_code == 403
+
+
+def test_station_scoped_active_incidents_endpoint(client, admin_headers, db):
+    inc, station_a, station_b = _sos_with_stations(db)
+    r = client.get(f"/api/police-network/stations/{station_a.id}/incidents", headers=admin_headers)
+    assert r.status_code == 200
+    assert any(i["id"] == inc.id for i in r.json())
+
+    r_b = client.get(f"/api/police-network/stations/{station_b.id}/incidents", headers=admin_headers)
+    assert r_b.json() == []  # nothing assigned to Station B yet
+
+
+def test_live_track_reports_pending_transfer(db):
+    from app.services import emergency_location as svc
+
+    inc, station_a, station_b = _sos_with_stations(db)
+    svc.record_location(db, inc, 26.166, 91.751, None, None, None)
+    transfer = police_network.request_transfer(db, inc, station_b.id, "", "admin@test.gov")
+
+    track = svc.build_track(db, inc)
+    assert track["pending_transfer_id"] == transfer.id
+    assert track["pending_transfer_to_station_id"] == station_b.id
+
+    police_network.accept_transfer(db, inc, transfer.id, "admin@test.gov")
+    db.flush()
+    track_after = svc.build_track(db, inc)
+    assert track_after["pending_transfer_id"] is None

@@ -30,6 +30,11 @@ class IncidentEventOut(BaseModel):
 class IncidentOut(BaseModel):
     id: int
     tourist_id: int | None
+    # Not real columns on Incident -- attached at the API layer (see
+    # api/incidents.py:_hydrate_tourist_info) so the admin incidents list
+    # shows whose case this is without a second round trip per row.
+    tourist_name: str | None = None
+    tourist_digital_id: str | None = None
     type: str
     severity: str
     status: str

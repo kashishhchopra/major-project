@@ -27,13 +27,29 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def validate_password_strength(password: str) -> None:
-    """Raise ValueError if the password is too weak. Kept simple & explainable."""
+    """Raise ValueError if the password is too weak.
+
+    A strong password must have: minimum length, at least one uppercase
+    letter, one lowercase letter, one digit, and one special character.
+    One rule, reused everywhere a new password is ever set (registration's
+    account step and password reset -- see schemas/tourist.py and
+    schemas/auth.py) so the requirement can't silently drift between the
+    two. Never re-checked at login: an existing account's password was
+    valid under whatever rule was in force when it was set, and login only
+    ever verifies the hash, not the rule.
+    """
     if len(password) < settings.MIN_PASSWORD_LENGTH:
         raise ValueError(
             f"Password must be at least {settings.MIN_PASSWORD_LENGTH} characters."
         )
-    if not re.search(r"[A-Za-z]", password) or not re.search(r"\d", password):
-        raise ValueError("Password must contain both letters and numbers.")
+    if not re.search(r"[A-Z]", password):
+        raise ValueError("Password must contain at least one uppercase letter.")
+    if not re.search(r"[a-z]", password):
+        raise ValueError("Password must contain at least one lowercase letter.")
+    if not re.search(r"\d", password):
+        raise ValueError("Password must contain at least one number.")
+    if not re.search(r"[^A-Za-z0-9]", password):
+        raise ValueError("Password must contain at least one special character.")
 
 
 # ---------------------------------------------------------------- JWT

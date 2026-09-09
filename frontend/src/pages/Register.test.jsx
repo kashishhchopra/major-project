@@ -79,8 +79,8 @@ describe('Register', () => {
     fillIdentityAndAdvance('passport')
     expect(screen.getByText(/— Document/)).toBeInTheDocument()
 
-    fireEvent.change(screen.getByPlaceholderText('Enter document number'), { target: { value: 'TK1234567' } })
-    fireEvent.change(screen.getByPlaceholderText('+91-90000-00000'), { target: { value: '+81-90-0000-0000' } })
+    fireEvent.change(screen.getByLabelText(/Passport Number/i), { target: { value: 'A1234567' } })
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
     fireEvent.change(screen.getByLabelText(/Country of Citizenship/i), { target: { value: 'JP' } })
     fireEvent.click(screen.getByText('Next'))
 
@@ -90,8 +90,8 @@ describe('Register', () => {
   it('cannot advance past the Visa step without visa type and expiry', () => {
     renderPage()
     fillIdentityAndAdvance('passport')
-    fireEvent.change(screen.getByPlaceholderText('Enter document number'), { target: { value: 'TK1234567' } })
-    fireEvent.change(screen.getByPlaceholderText('+91-90000-00000'), { target: { value: '+81-90-0000-0000' } })
+    fireEvent.change(screen.getByLabelText(/Passport Number/i), { target: { value: 'A1234567' } })
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
     fireEvent.change(screen.getByLabelText(/Country of Citizenship/i), { target: { value: 'JP' } })
     fireEvent.click(screen.getByText('Next'))
     expect(screen.getByText(/— Visa & Travel/)).toBeInTheDocument()
@@ -107,8 +107,8 @@ describe('Register', () => {
   it('cannot advance past the Photo step without capturing a photo', () => {
     renderPage()
     fillIdentityAndAdvance('aadhaar')
-    fireEvent.change(screen.getByPlaceholderText('Enter document number'), { target: { value: 'XXXX-1234' } })
-    fireEvent.change(screen.getByPlaceholderText('+91-90000-00000'), { target: { value: '+91-90000-00000' } })
+    fireEvent.change(screen.getByLabelText(/Aadhaar Number/i), { target: { value: '123456789012' } })
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
     fireEvent.click(screen.getByText('Next'))  // -> Photo
     expect(screen.getByText(/— Photo/)).toBeInTheDocument()
 
@@ -122,8 +122,8 @@ describe('Register', () => {
     renderPage()
     fillIdentityAndAdvance('passport')
 
-    fireEvent.change(screen.getByPlaceholderText('Enter document number'), { target: { value: 'TK1234567' } })
-    fireEvent.change(screen.getByPlaceholderText('+91-90000-00000'), { target: { value: '+81-90-0000-0000' } })
+    fireEvent.change(screen.getByLabelText(/Passport Number/i), { target: { value: 'A1234567' } })
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
     fireEvent.change(screen.getByLabelText(/Country of Citizenship/i), { target: { value: 'JP' } })
     fireEvent.click(screen.getByText('Next'))
 
@@ -153,8 +153,8 @@ describe('Register', () => {
     renderPage()
     fillIdentityAndAdvance('aadhaar')
 
-    fireEvent.change(screen.getByPlaceholderText('Enter document number'), { target: { value: 'XXXX-1234' } })
-    fireEvent.change(screen.getByPlaceholderText('+91-90000-00000'), { target: { value: '+91-90000-00000' } })
+    fireEvent.change(screen.getByLabelText(/Aadhaar Number/i), { target: { value: '123456789012' } })
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
     fireEvent.click(screen.getByText('Next'))  // -> Photo
 
     await capturePhotoAndAdvance()  // -> Trip
@@ -168,5 +168,71 @@ describe('Register', () => {
     const [, payload] = api.post.mock.calls[0]
     expect(payload.visa_type).toBeUndefined()
     expect(payload.visa_expiry).toBeUndefined()
+  })
+
+  // ---------------------------------------------------- identity validation
+  it('filters digits and symbols out of the name field as they are typed', () => {
+    renderPage()
+    fireEvent.change(screen.getByPlaceholderText('Enter Full Name'), { target: { value: 'Rahul123@Sharma' } })
+    expect(screen.getByPlaceholderText('Enter Full Name').value).toBe('RahulSharma')
+  })
+
+  it('cannot advance past Identity with an empty name', () => {
+    renderPage()
+    fireEvent.change(screen.getByLabelText(/Select Verification Method/i), { target: { value: 'aadhaar' } })
+    fireEvent.click(screen.getByText('Next'))
+    expect(screen.getByText(/— Identity/)).toBeInTheDocument()
+  })
+
+  it('filters non-digit characters and enforces the 6-9 start on the phone field', () => {
+    renderPage()
+    fillIdentityAndAdvance('aadhaar')
+    const phoneInput = screen.getByLabelText(/Phone/i)
+    fireEvent.change(phoneInput, { target: { value: '98765abc10' } })
+    expect(phoneInput.value).toBe('9876510')
+  })
+
+  it('cannot advance past Document with an incomplete Aadhaar number', () => {
+    renderPage()
+    fillIdentityAndAdvance('aadhaar')
+    fireEvent.change(screen.getByLabelText(/Aadhaar Number/i), { target: { value: '1234' } })
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
+    fireEvent.click(screen.getByText('Next'))
+    expect(screen.getByText(/— Document/)).toBeInTheDocument()
+    expect(screen.getByText(/Please fill in the required fields/)).toBeInTheDocument()
+  })
+
+  it('auto-uppercases a lowercase PAN and accepts it once complete', () => {
+    renderPage()
+    fillIdentityAndAdvance('pan')
+    const panInput = screen.getByLabelText(/Pan Number/i)
+    fireEvent.change(panInput, { target: { value: 'abcde1234f' } })
+    expect(panInput.value).toBe('ABCDE1234F')
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
+    fireEvent.click(screen.getByText('Next'))
+    expect(screen.getByText(/— Photo/)).toBeInTheDocument()
+  })
+
+  it('normalizes collapsed whitespace in the name before submitting', async () => {
+    api.post.mockResolvedValue({ data: { digital_id: 'STS-TEST', trip_end: '2026-12-01T00:00:00' } })
+    renderPage()
+    fireEvent.change(screen.getByPlaceholderText('Enter Full Name'), { target: { value: '  Rahul   Sharma  ' } })
+    fireEvent.change(screen.getByLabelText(/Select Verification Method/i), { target: { value: 'aadhaar' } })
+    fireEvent.click(screen.getByText('Next'))
+
+    fireEvent.change(screen.getByLabelText(/Aadhaar Number/i), { target: { value: '123456789012' } })
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
+    fireEvent.click(screen.getByText('Next'))  // -> Photo
+
+    await capturePhotoAndAdvance()  // -> Trip
+    fireEvent.change(screen.getByLabelText(/Trip Start/i), { target: { value: '2026-11-01T09:00' } })
+    fireEvent.change(screen.getByLabelText(/Trip End/i), { target: { value: '2026-11-10T09:00' } })
+    fireEvent.click(screen.getByText('Next'))  // -> Emergency
+    fireEvent.click(screen.getByText('Next'))  // -> Account
+    fireEvent.click(screen.getByText(/Get Your Unique Blockchain ID/))
+
+    const [, payload] = api.post.mock.calls[0]
+    expect(payload.full_name).toBe('Rahul Sharma')
+    expect(payload.document_number).toBe('123456789012')
   })
 })

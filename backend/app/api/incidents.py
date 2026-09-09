@@ -124,6 +124,23 @@ def duress_sos(tourist_id: int, payload: DuressSOSRequest, request: Request,
 
 
 # ---------------- incidents ----------------
+def _hydrate_tourist_info(db: Session, incidents: list[Incident]) -> list[Incident]:
+    """Attach `tourist_name`/`tourist_digital_id` to each incident -- not
+    real columns on Incident, just read once here and set as plain instance
+    attributes (IncidentOut.from_attributes picks them up via getattr) so
+    the admin incidents list shows whose case each row is without a second
+    round trip per row."""
+    tourist_ids = {i.tourist_id for i in incidents if i.tourist_id is not None}
+    if not tourist_ids:
+        return incidents
+    tourists = {t.id: t for t in db.query(Tourist).filter(Tourist.id.in_(tourist_ids)).all()}
+    for inc in incidents:
+        t = tourists.get(inc.tourist_id)
+        inc.tourist_name = t.full_name if t else None
+        inc.tourist_digital_id = t.digital_id if t else None
+    return incidents
+
+
 @router.get("/incidents", response_model=list[IncidentOut])
 def list_incidents(response: Response, status: str | None = None,
                    page: PageParams = Depends(), db: Session = Depends(get_db),
@@ -132,7 +149,7 @@ def list_incidents(response: Response, status: str | None = None,
     if status:
         q = q.filter(Incident.status == status)
     response.headers["X-Total-Count"] = str(q.with_entities(func.count(Incident.id)).scalar())
-    return page.apply(q.order_by(Incident.detected_at.desc())).all()
+    return _hydrate_tourist_info(db, page.apply(q.order_by(Incident.detected_at.desc())).all())
 
 
 @router.get("/incidents/mine", response_model=list[IncidentOut])
@@ -146,7 +163,7 @@ def list_my_incidents(response: Response, page: PageParams = Depends(),
     """
     q = db.query(Incident).filter(Incident.assigned_unit_id == user.unit_id)
     response.headers["X-Total-Count"] = str(q.with_entities(func.count(Incident.id)).scalar())
-    return page.apply(q.order_by(Incident.detected_at.desc())).all()
+    return _hydrate_tourist_info(db, page.apply(q.order_by(Incident.detected_at.desc())).all())
 
 
 def _get_incident_or_404(incident_id: int, db: Session) -> Incident:
@@ -159,7 +176,9 @@ def _get_incident_or_404(incident_id: int, db: Session) -> Incident:
 @router.get("/incidents/{incident_id}", response_model=IncidentOut)
 def get_incident(incident_id: int, db: Session = Depends(get_db),
                  _: User = Depends(require_admin)):
-    return _get_incident_or_404(incident_id, db)
+    inc = _get_incident_or_404(incident_id, db)
+    _hydrate_tourist_info(db, [inc])
+    return inc
 
 
 @router.get("/incidents/{incident_id}/timeline")
@@ -269,6 +288,7 @@ def update_incident(incident_id: int, payload: IncidentStatusUpdate,
     db.add(IncidentEvent(incident_id=inc.id, status=payload.status, note=payload.note))
     db.commit()
     db.refresh(inc)
+    _hydrate_tourist_info(db, [inc])
     return inc
 
 
@@ -287,6 +307,7 @@ def acknowledge_incident(incident_id: int, db: Session = Depends(get_db),
                          note=f"Acknowledged by {user.email}"))
     db.commit()
     db.refresh(inc)
+    _hydrate_tourist_info(db, [inc])
     return inc
 
 

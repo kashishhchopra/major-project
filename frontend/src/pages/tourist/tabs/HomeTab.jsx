@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Polygon } from 'react-leaflet'
 import { useTranslation } from 'react-i18next'
+import { DEFAULT_MAP } from '../../../config'
 import { ScoreGauge, bandLabel } from '../../../components/ui.jsx'
 import { touristIcon, policeIcon, riskColor } from '../../../components/mapIcons'
 import ScoreExplanation from '../../../components/ScoreExplanation.jsx'
@@ -173,14 +174,23 @@ export default function HomeTab({ data, onVoice, onNavigateTab }) {
       <RecommendedPlaces />
 
       <div ref={mapRef} className="bg-white dark:bg-slate-800 rounded-[var(--theme-radius)] shadow-[var(--theme-shadow)] overflow-hidden" style={{ height: 320 }}>
-        <MapContainer center={[me.last_lat, me.last_lng]} zoom={14} style={{ height: '100%' }} key={me.id}>
+        <MapContainer
+          center={me.last_lat != null && me.last_lng != null ? [me.last_lat, me.last_lng] : DEFAULT_MAP.center}
+          zoom={14} style={{ height: '100%' }} key={me.id}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
           {zones.map((z) => (
             <Polygon key={z.id} positions={z.polygon}
               pathOptions={{ color: riskColor[z.risk_level], fillOpacity: 0.15, weight: 1.5 }} />
           ))}
-          <Marker position={[me.last_lat, me.last_lng]} icon={touristIcon(score.score)} />
-          {nearby.map((u) => <Marker key={u.id} position={[u.lat, u.lng]} icon={policeIcon} />)}
+          {/* A brand-new tourist has no location yet -- before their first
+              GPS/simulated ping lands, there's nothing real to place a
+              marker at, so it's simply omitted rather than plotted at a
+              null-coerced (0, 0) point. */}
+          {me.last_lat != null && me.last_lng != null && (
+            <Marker position={[me.last_lat, me.last_lng]} icon={touristIcon(score.score)} />
+          )}
+          {nearby.filter((u) => u.lat != null && u.lng != null)
+            .map((u) => <Marker key={u.id} position={[u.lat, u.lng]} icon={policeIcon} />)}
           <TrajectoryOverlay points={trajectory} />
           <RouteLayer active={routePickerOpen} dest={routePicker.dest}
             result={routePicker.result} onPick={routePicker.pick} />

@@ -17,7 +17,7 @@ from tests.conftest import make_station, make_tourist, make_unit, make_zone
 def test_registration_accepts_photo_and_hotel(client):
     r = client.post("/api/tourists", json={
         "full_name": "Kashish Chopra", "document_type": "aadhaar",
-        "document_number": "1234-5678-9999", "phone": "+91-90000-00001",
+        "document_number": "123456789999", "phone": "9876543212",
         "photo": "data:image/png;base64,iVBORw0KGgo=", "hotel": "ABC Residency",
         "trip_start": "2026-01-01T00:00:00", "trip_end": "2026-01-10T00:00:00",
     })

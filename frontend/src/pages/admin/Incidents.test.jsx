@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import Incidents from './Incidents'
 
 vi.mock('../../api', () => ({ default: { get: vi.fn(), patch: vi.fn() } }))
@@ -8,7 +8,8 @@ vi.mock('../../useWebSocket', () => ({ default: () => ({ connected: true }) }))
 import api from '../../api'
 
 const INCIDENTS = [
-  { id: 1, type: 'sos', severity: 'critical', status: 'detected',
+  { id: 1, type: 'sos', severity: 'critical', status: 'detected', tourist_id: 9,
+    tourist_name: 'Aarav Sharma', tourist_digital_id: 'STS-DEMO001',
     description: 'A', detected_at: '2026-01-01T10:00:00', response_time_seconds: null },
   { id: 2, type: 'anomaly', severity: 'low', status: 'resolved',
     description: 'B', detected_at: '2026-01-03T10:00:00', response_time_seconds: 120 },
@@ -85,5 +86,45 @@ describe('Incidents severity filter and sort', () => {
     const selects = screen.getAllByRole('combobox')
     fireEvent.change(selects[1], { target: { value: 'medium' } })
     expect(screen.getByText(/export csv/i)).toBeDisabled()
+  })
+
+  it('shows the tourist name next to the incident number when the backend supplies one', async () => {
+    render(<Incidents />)
+    await waitFor(() => expect(screen.getByText('A')).toBeInTheDocument())
+    expect(screen.getByText('Aarav Sharma')).toBeInTheDocument()
+  })
+
+  it('shows no extra name for an incident with no linked tourist', async () => {
+    render(<Incidents />)
+    await waitFor(() => expect(screen.getByText('B')).toBeInTheDocument())
+    // Incident #2/#3 carry no tourist_name -- nothing crashes, nothing extra renders.
+    expect(screen.queryByText('undefined')).not.toBeInTheDocument()
+  })
+
+  it('opening Details and the Tourist tab loads that tourist\'s photo/digital ID/contact info', async () => {
+    api.get.mockImplementation((url) => {
+      if (url === '/incidents') return Promise.resolve({ data: INCIDENTS })
+      if (url === '/tourists/9') {
+        return Promise.resolve({
+          data: {
+            full_name: 'Aarav Sharma', digital_id: 'STS-DEMO001', phone: '9876543210',
+            nationality: 'Indian', document_type: 'aadhaar', document_number: '123456789012',
+            hotel: 'ABC Residency', safety_score: 82, status: 'sos', photo: 'data:image/png;base64,x',
+            emergency_contacts: [{ name: 'Kin', phone: '+91-1', relation: 'family' }],
+          },
+        })
+      }
+      return Promise.resolve({ data: [] })
+    })
+    render(<Incidents />)
+    await waitFor(() => expect(screen.getByText('A')).toBeInTheDocument())
+
+    const card = screen.getByText('A').closest('div.bg-white')
+    fireEvent.click(within(card).getByText('Details ▾'))
+    fireEvent.click(within(card).getByText('tourist'))
+
+    await waitFor(() => expect(screen.getByText('STS-DEMO001')).toBeInTheDocument())
+    expect(screen.getByText(/ABC Residency/)).toBeInTheDocument()
+    expect(screen.getByText(/Kin \(family\)/)).toBeInTheDocument()
   })
 })

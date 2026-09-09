@@ -9,6 +9,7 @@ from app.models.efir import EFIR
 from app.models.emergency_location import EmergencyLocationPing
 from app.models.guardian import TripGuardian
 from app.models.incident import Incident, IncidentEvent
+from app.models.incident_transfer import IncidentTransfer
 from app.models.itinerary import ItineraryDocument
 from app.models.job_lock import JobLock
 from app.models.liveness import LivenessVerification
@@ -29,6 +30,7 @@ __all__ = [
     "Zone",
     "Incident",
     "IncidentEvent",
+    "IncidentTransfer",
     "Alert",
     "PoliceUnit",
     "PoliceStation",

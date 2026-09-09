@@ -4,6 +4,14 @@ import api from '../api'
 import { useAuth } from '../auth.jsx'
 import { COUNTRIES } from '../lib/countries.js'
 import LivenessCapture from '../components/LivenessCapture.jsx'
+import PasswordChecklist from '../components/PasswordChecklist.jsx'
+import {
+  DOCUMENT_ERRORS, documentFieldStatus, documentMaxLength,
+  filterDocumentNumberInput, filterNameInput, filterPhoneInput,
+  NAME_ERROR, nameFieldStatus, normalizeDocumentNumber, normalizeName,
+  PHONE_ERROR, phoneFieldStatus, validateDocumentNumber, validateName, validatePhone,
+} from '../lib/identityValidation.js'
+import { validatePassword } from '../lib/passwordValidation.js'
 
 const DOC_TYPES = [
   { value: '', label: 'Select Verification Method' },
@@ -93,6 +101,23 @@ function StepDots({ steps, activeKey }) {
       ))}
     </div>
   )
+}
+
+// Real-time validation feedback for an identity/contact field. Never relies
+// on color alone (§14): an invalid/incomplete state always carries text too.
+// "incomplete" (still typing, not long enough yet) is shown as a neutral
+// hint rather than a red error -- only a genuinely wrong, complete-length
+// value or a value the user has moved past (touched) shows as an error.
+function FieldHint({ status, touched }) {
+  if (!status || status.state === 'empty' || status.state === 'valid') {
+    return status?.state === 'valid'
+      ? <p className="text-xs text-emerald-400 mt-1">✓ Looks good</p>
+      : null
+  }
+  if (status.state === 'incomplete' && !touched) {
+    return <p className="text-xs text-slate-400 mt-1">{status.message}</p>
+  }
+  return <p className="text-xs text-red-300 mt-1">❌ {status.message}</p>
 }
 
 // Live camera capture -- no file upload, matching the Digital Tourist Safety
@@ -187,17 +212,54 @@ export default function Register() {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  // Smart Identity & Contact Validation: which identity/contact fields the
+  // user has moved on from (blurred) -- gates whether an incomplete value
+  // shows as a neutral hint or a hard error (see FieldHint above).
+  const [touched, setTouched] = useState({})
+  const touch = (k) => () => setTouched((prev) => ({ ...prev, [k]: true }))
 
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  // Real-time input restriction (Level 1, §9): filters every keystroke (and
+  // paste) through the same shape rules the backend validates against, so
+  // an unsupported character is rejected as it's typed rather than flagged
+  // afterwards. Level 2 (the authoritative check) is the backend's own
+  // TouristCreate validators -- see backend/app/core/identity_validators.py.
+  // A silently-dropped keystroke is invisible ("I pressed @ and nothing
+  // happened") -- rejected tracks whether the just-typed character got
+  // filtered out, so the UI can say so instead of staying quiet.
+  const [rejected, setRejected] = useState({ full_name: false, phone: false, document_number: false })
+  const setName = (e) => {
+    const filtered = filterNameInput(e.target.value)
+    setF({ ...f, full_name: filtered })
+    setRejected((r) => ({ ...r, full_name: filtered.length < e.target.value.length }))
+  }
+  const setPhone = (e) => {
+    const filtered = filterPhoneInput(e.target.value)
+    setF({ ...f, phone: filtered })
+    setRejected((r) => ({ ...r, phone: filtered.length < e.target.value.length }))
+  }
+  const setDocumentNumber = (e) => {
+    const filtered = filterDocumentNumberInput(f.document_type, e.target.value)
+    setF({ ...f, document_number: filtered })
+    setRejected((r) => ({ ...r, document_number: filtered.length < e.target.value.length }))
+  }
+
+  const nameStatus = nameFieldStatus(f.full_name)
+  const phoneStatus = phoneFieldStatus(f.phone)
+  const documentStatus = documentFieldStatus(f.document_type, f.document_number)
 
   const validators = {
-    identity: () => f.full_name.trim().length >= 2 && f.document_type,
-    document: () => f.document_number.trim().length >= 4 && f.phone.trim().length >= 3,
+    identity: () => validateName(f.full_name) && f.document_type,
+    document: () => validatePhone(f.phone) && validateDocumentNumber(f.document_type, f.document_number),
     visa: () => f.nationality_code && f.visa_type && f.visa_expiry,
     photo: () => !!f.photo, // live camera capture is mandatory for the Digital ID card
     trip: () => f.trip_start && f.trip_end && new Date(f.trip_end) > new Date(f.trip_start),
     emergency: () => true, // optional
-    account: () => true, // optional
+    // Credentials are optional (see the account step's own hint), but if
+    // either field is started, both are required and the password must
+    // meet the same strength rule the backend enforces (see
+    // lib/passwordValidation.js / backend/app/core/security.py).
+    account: () => (!f.email && !f.password) || (!!f.email && validatePassword(f.password)),
   }
   const stepIndex = steps.findIndex((s) => s.key === stepKey)
   const canAdvance = validators[stepKey]()
@@ -219,16 +281,20 @@ export default function Register() {
 
   const submit = async (e) => {
     e.preventDefault()
+    if (!canAdvance) {
+      setError('Please provide a valid password (see the checklist above) or leave both fields empty.')
+      return
+    }
     setError('')
     setLoading(true)
     try {
       const payload = {
-        full_name: f.full_name,
+        full_name: normalizeName(f.full_name),
         nationality: f.document_type === 'passport'
           ? (COUNTRIES.find((c) => c.code === f.nationality_code)?.name || f.nationality_code)
           : f.nationality,
         document_type: f.document_type,
-        document_number: f.document_number,
+        document_number: normalizeDocumentNumber(f.document_type, f.document_number),
         phone: f.phone,
         photo: f.photo || null,
         liveness_token: f.liveness_token || null,
@@ -302,10 +368,14 @@ export default function Register() {
           {stepKey === 'identity' && (
             <>
               <label className={label}>Enter Full Name
-                <input className={input} value={f.full_name} onChange={set('full_name')}
-                  placeholder="Enter Full Name" required minLength={2} /></label>
+                <input className={input} value={f.full_name} onChange={setName} onBlur={touch('full_name')}
+                  placeholder="Enter Full Name" required minLength={2} maxLength={120} /></label>
+              {rejected.full_name
+                ? <p className="text-xs text-red-300 mt-1">❌ {NAME_ERROR}</p>
+                : <FieldHint status={nameStatus} touched={touched.full_name} />}
               <label className={label}>Select Verification Method
-                <select className={input} value={f.document_type} onChange={set('document_type')} required>
+                <select className={input} value={f.document_type}
+                  onChange={(e) => setF({ ...f, document_type: e.target.value, document_number: '' })} required>
                   {DOC_TYPES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                 </select></label>
             </>
@@ -314,10 +384,18 @@ export default function Register() {
           {stepKey === 'document' && (
             <>
               <label className={label}>{f.document_type ? DOC_TYPES.find((d) => d.value === f.document_type)?.label : 'Document'} Number
-                <input className={input} value={f.document_number} onChange={set('document_number')}
-                  placeholder="Enter document number" required minLength={4} /></label>
+                <input className={input} value={f.document_number} onChange={setDocumentNumber} onBlur={touch('document_number')}
+                  placeholder={DOCUMENT_ERRORS[f.document_type] ? `e.g. ${{ aadhaar: '123456789012', passport: 'A1234567', voterid: 'ABC1234567', pan: 'ABCDE1234F' }[f.document_type]}` : 'Enter document number'}
+                  required minLength={4} maxLength={documentMaxLength(f.document_type)} /></label>
+              {rejected.document_number && DOCUMENT_ERRORS[f.document_type]
+                ? <p className="text-xs text-red-300 mt-1">❌ {DOCUMENT_ERRORS[f.document_type]}</p>
+                : <FieldHint status={documentStatus} touched={touched.document_number} />}
               <label className={label}>Phone
-                <input className={input} value={f.phone} onChange={set('phone')} placeholder="+91-90000-00000" required /></label>
+                <input className={input} value={f.phone} onChange={setPhone} onBlur={touch('phone')}
+                  placeholder="9876543210" inputMode="numeric" required maxLength={10} /></label>
+              {rejected.phone
+                ? <p className="text-xs text-red-300 mt-1">❌ {PHONE_ERROR}</p>
+                : <FieldHint status={phoneStatus} touched={touched.phone} />}
               {f.document_type === 'passport' ? (
                 <label className={label}>Country of Citizenship
                   <select className={input} value={f.nationality_code} onChange={set('nationality_code')} required>
@@ -415,8 +493,9 @@ export default function Register() {
               <p className="text-xs text-slate-400 -mt-1 mb-2">Optional — set credentials to access the tourist app after registering.</p>
               <label className={label}>Email
                 <input type="email" className={input} value={f.email} onChange={set('email')} placeholder="you@example.com" /></label>
-              <label className={label}>Password (min 8, letters + numbers)
+              <label className={label}>Password
                 <input type="password" className={input} value={f.password} onChange={set('password')} /></label>
+              {f.password && <PasswordChecklist password={f.password} />}
             </>
           )}
 
@@ -429,7 +508,7 @@ export default function Register() {
                 Back
               </button>
             )}
-            <button type="submit" disabled={loading}
+            <button type="submit" disabled={loading || (stepKey === 'account' && !canAdvance)}
               className="flex-[2] bg-gradient-to-r from-cyan-400 to-sky-500 text-slate-900 font-bold py-2.5 rounded-lg disabled:opacity-60">
               {stepKey === 'account'
                 ? (loading ? 'Issuing…' : 'Get Your Unique Blockchain ID')

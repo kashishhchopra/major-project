@@ -120,3 +120,24 @@ def test_build_track_reports_station_and_status(db):
     assert track["latest"].lat == 26.15
     assert track["tourist_name"]
     assert track["digital_id"]
+
+
+def test_build_track_includes_full_tourist_and_case_detail(db):
+    """A station a case is transferred to must have everything in this one
+    call -- see services/police_network.py:send_case."""
+    t = make_tourist(db, name="Priya Sharma")
+    t.phone = "9876543210"
+    t.nationality = "Indian"
+    t.hotel = "ABC Residency"
+    result = trigger_sos(db, t, 26.1445, 91.7362, "Help")
+    from app.models.incident import Incident
+    inc = db.get(Incident, result["incident_id"])
+
+    track = svc.build_track(db, inc)
+    assert track["tourist_phone"] == "9876543210"
+    assert track["tourist_nationality"] == "Indian"
+    assert track["hotel"] == "ABC Residency"
+    assert track["safety_score"] is not None
+    assert isinstance(track["emergency_contacts"], list)
+    assert track["description"]
+    assert track["detected_at"] is not None

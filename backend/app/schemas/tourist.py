@@ -1,7 +1,17 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
+from app.core.identity_validators import (
+    DOCUMENT_ERRORS,
+    NAME_ERROR,
+    PHONE_ERROR,
+    normalize_document_number,
+    normalize_name,
+    validate_document_number,
+    validate_name,
+    validate_phone,
+)
 from app.core.security import validate_password_strength
 
 LAT = Field(..., ge=-90, le=90)
@@ -61,6 +71,38 @@ class TouristCreate(BaseModel):
         if v.lower() not in ("aadhaar", "passport", "voterid", "pan"):
             raise ValueError("document_type must be one of aadhaar, passport, voterid, pan")
         return v.lower()
+
+    # Smart Identity & Contact Validation -- the authoritative check behind
+    # the frontend's real-time input mask (see
+    # frontend/src/lib/identityValidation.js and app/core/identity_validators.py).
+    # A request that somehow bypasses the frontend restriction (a raw API
+    # call, a scripted client) is still rejected here.
+    @field_validator("full_name")
+    @classmethod
+    def _validate_full_name(cls, v: str) -> str:
+        normalized = normalize_name(v)
+        if not validate_name(normalized):
+            raise ValueError(NAME_ERROR)
+        return normalized
+
+    @field_validator("phone")
+    @classmethod
+    def _validate_phone(cls, v: str) -> str:
+        normalized = v.strip()
+        if not validate_phone(normalized):
+            raise ValueError(PHONE_ERROR)
+        return normalized
+
+    # Runs after document_type (declared earlier in this class), so its
+    # already-validated/lowercased value is available via info.data.
+    @field_validator("document_number")
+    @classmethod
+    def _validate_document_number(cls, v: str, info: ValidationInfo) -> str:
+        document_type = info.data.get("document_type")
+        normalized = normalize_document_number(document_type or "", v)
+        if document_type in DOCUMENT_ERRORS and not validate_document_number(document_type, normalized):
+            raise ValueError(DOCUMENT_ERRORS[document_type])
+        return normalized
 
     @model_validator(mode="after")
     def _checks(self) -> "TouristCreate":

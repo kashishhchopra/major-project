@@ -52,12 +52,12 @@ describe('ForgotPassword', () => {
 
     api.post.mockResolvedValueOnce({})
     fireEvent.change(screen.getByLabelText(/reset code/i), { target: { value: 'abc123' } })
-    fireEvent.change(screen.getByLabelText(/new password/i), { target: { value: 'newpass123' } })
+    fireEvent.change(screen.getByLabelText(/new password/i), { target: { value: 'Newpass123!' } })
     fireEvent.click(screen.getByText('Reset password'))
 
     await waitFor(() => expect(screen.getByText(/password has been reset/i)).toBeInTheDocument())
     expect(api.post).toHaveBeenLastCalledWith('/auth/reset-password',
-      { token: 'abc123', new_password: 'newpass123' })
+      { token: 'abc123', new_password: 'Newpass123!' })
   })
 
   it('shows a server-provided error for an invalid or expired code', async () => {
@@ -69,7 +69,7 @@ describe('ForgotPassword', () => {
 
     api.post.mockRejectedValueOnce({ response: { data: { detail: 'Invalid or expired reset token' } } })
     fireEvent.change(screen.getByLabelText(/reset code/i), { target: { value: 'wrong' } })
-    fireEvent.change(screen.getByLabelText(/new password/i), { target: { value: 'newpass123' } })
+    fireEvent.change(screen.getByLabelText(/new password/i), { target: { value: 'Newpass123!' } })
     fireEvent.click(screen.getByText('Reset password'))
 
     await waitFor(() => expect(screen.getByText('Invalid or expired reset token')).toBeInTheDocument())

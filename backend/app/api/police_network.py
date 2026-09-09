@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin, require_admin_or_responder
 from app.db.session import get_db
+from app.models.incident import Incident
 from app.models.police import Camera, PoliceStation
 from app.models.user import User
 from app.schemas.incident import IncidentOut
@@ -19,8 +20,12 @@ from app.schemas.police_network import (
     ForwardIncidentRequest,
     PoliceStationCreate,
     PoliceStationOut,
+    SendCaseIn,
     StationCapacityOut,
     StationFallbackOut,
+    TransferOut,
+    TransferRequestIn,
+    TransferRespondIn,
 )
 from app.services import audit, police_network
 
@@ -81,6 +86,26 @@ def locate_station(lat: float = Query(...), lng: float = Query(...),
     return station
 
 
+# ---------------- station-scoped active cases (police dashboard) ----------------
+@router.get("/stations/{station_id}/incidents", response_model=list[IncidentOut])
+def station_incidents(station_id: int, include_resolved: bool = False,
+                      db: Session = Depends(get_db),
+                      _: User = Depends(require_admin_or_responder)):
+    """Active emergency cases currently assigned to one station -- the police
+    dashboard's own worklist. `Incident.station_id` is always the *current*
+    authorized handler (moved by forward/accept-transfer, never duplicated),
+    so this is a plain filter, not a join through any transfer history."""
+    station = db.get(PoliceStation, station_id)
+    if station is None:
+        raise HTTPException(status_code=404, detail="Station not found")
+    q = db.query(Incident).filter(Incident.station_id == station_id)
+    if not include_resolved:
+        q = q.filter(Incident.status != "resolved")
+    from app.api.incidents import _hydrate_tourist_info
+
+    return _hydrate_tourist_info(db, q.order_by(Incident.detected_at.desc()).all())
+
+
 # ---------------- resource fallback ----------------
 @router.get("/stations/{station_id}/capacity", response_model=StationCapacityOut)
 def station_capacity(station_id: int, db: Session = Depends(get_db),
@@ -136,6 +161,128 @@ def forward_incident(incident_id: int, payload: ForwardIncidentRequest, request:
     db.commit()
     db.refresh(inc)
     return inc
+
+
+# ---------------- case transfer: direct send (dashboard's "Send Case") ----------------
+# One click, no receiving-station approval step -- the case (and its
+# live-location session, keyed by incident_id and never touched here) moves
+# immediately. This is what the Central Safety Dashboard's transfer panel
+# uses; see services/police_network.py:send_case.
+@router.post("/incidents/{incident_id}/transfer/send", response_model=TransferOut, status_code=201)
+def send_case(incident_id: int, payload: SendCaseIn, request: Request,
+             db: Session = Depends(get_db),
+             user: User = Depends(require_admin_or_responder)):
+    from app.api.incidents import _get_incident_or_404
+
+    inc = _get_incident_or_404(incident_id, db)
+    try:
+        transfer = police_network.send_case(
+            db, inc, payload.to_station_id, payload.reason, actor=user.email,
+            share_live_location=payload.share_live_location,
+        )
+    except police_network.TransferError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    audit.record(db, "send_case", actor=user.email, target=str(incident_id),
+                detail=f"to_station={payload.to_station_id}", request=request)
+    db.commit()
+    db.refresh(transfer)
+    return transfer
+
+
+# ---------------- case transfer: request / accept / reject / cancel ----------------
+# The consent-based counterpart to `send_case`/`forward_incident` above: a
+# case moves to another station only once that station accepts, and the
+# live-location session (services/emergency_location.py, keyed by
+# incident_id) is never re-created or interrupted by any of this -- see
+# services/police_network.py module docstring and app/models/incident_transfer.py.
+@router.post("/incidents/{incident_id}/transfer", response_model=TransferOut, status_code=201)
+def request_transfer(incident_id: int, payload: TransferRequestIn, request: Request,
+                     db: Session = Depends(get_db),
+                     user: User = Depends(require_admin_or_responder)):
+    from app.api.incidents import _get_incident_or_404
+
+    inc = _get_incident_or_404(incident_id, db)
+    try:
+        transfer = police_network.request_transfer(
+            db, inc, payload.to_station_id, payload.reason, actor=user.email
+        )
+    except police_network.TransferError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    audit.record(db, "request_transfer", actor=user.email, target=str(incident_id),
+                detail=f"to_station={payload.to_station_id}", request=request)
+    db.commit()
+    db.refresh(transfer)
+    return transfer
+
+
+@router.post("/incidents/{incident_id}/transfer/{transfer_id}/accept", response_model=IncidentOut)
+def accept_transfer(incident_id: int, transfer_id: int, request: Request,
+                    db: Session = Depends(get_db),
+                    user: User = Depends(require_admin_or_responder)):
+    from app.api.incidents import _get_incident_or_404
+
+    inc = _get_incident_or_404(incident_id, db)
+    try:
+        police_network.accept_transfer(db, inc, transfer_id, actor=user.email)
+    except police_network.TransferError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    audit.record(db, "accept_transfer", actor=user.email, target=str(incident_id),
+                detail=f"transfer={transfer_id}", request=request)
+    db.commit()
+    db.refresh(inc)
+    return inc
+
+
+@router.post("/incidents/{incident_id}/transfer/{transfer_id}/reject", response_model=TransferOut)
+def reject_transfer(incident_id: int, transfer_id: int, payload: TransferRespondIn, request: Request,
+                    db: Session = Depends(get_db),
+                    user: User = Depends(require_admin_or_responder)):
+    from app.api.incidents import _get_incident_or_404
+
+    inc = _get_incident_or_404(incident_id, db)
+    try:
+        transfer = police_network.reject_transfer(db, inc, transfer_id, actor=user.email,
+                                                   reason=payload.reason)
+    except police_network.TransferError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    audit.record(db, "reject_transfer", actor=user.email, target=str(incident_id),
+                detail=f"transfer={transfer_id}", request=request)
+    db.commit()
+    db.refresh(transfer)
+    return transfer
+
+
+@router.post("/incidents/{incident_id}/transfer/{transfer_id}/cancel", response_model=TransferOut)
+def cancel_transfer(incident_id: int, transfer_id: int, db: Session = Depends(get_db),
+                    user: User = Depends(require_admin_or_responder)):
+    from app.api.incidents import _get_incident_or_404
+
+    inc = _get_incident_or_404(incident_id, db)
+    try:
+        transfer = police_network.cancel_transfer(db, inc, transfer_id, actor=user.email)
+    except police_network.TransferError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    db.commit()
+    db.refresh(transfer)
+    return transfer
+
+
+@router.get("/incidents/{incident_id}/transfers", response_model=list[TransferOut])
+def list_transfers(incident_id: int, db: Session = Depends(get_db),
+                   _: User = Depends(require_admin_or_responder)):
+    """Complete transfer history for a case -- every request, whoever raised
+    it, and how it was resolved, oldest first."""
+    from app.api.incidents import _get_incident_or_404
+
+    _get_incident_or_404(incident_id, db)
+    return police_network.list_transfers(db, incident_id)
+
+
+@router.get("/transfers/pending", response_model=list[TransferOut])
+def pending_transfers(db: Session = Depends(get_db),
+                      _: User = Depends(require_admin_or_responder)):
+    """Every transfer request network-wide still awaiting accept/reject."""
+    return police_network.list_pending_transfers(db)
 
 
 # ---------------- CCTV / camera directory ----------------

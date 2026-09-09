@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api'
 import ThemeToggle from '../components/ThemeToggle.jsx'
+import PasswordChecklist from '../components/PasswordChecklist.jsx'
+import { validatePassword } from '../lib/passwordValidation.js'
 
 export default function ForgotPassword() {
   const [step, setStep] = useState('request') // request | reset | done
@@ -30,6 +32,10 @@ export default function ForgotPassword() {
 
   const submitReset = async (e) => {
     e.preventDefault()
+    if (!validatePassword(newPassword)) {
+      setError('Please choose a password that meets all the requirements below.')
+      return
+    }
     setLoading(true); setError('')
     try {
       await api.post('/auth/reset-password', { token, new_password: newPassword })
@@ -92,9 +98,10 @@ export default function ForgotPassword() {
                 <input id="fp-new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
                   className="mt-1 w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 outline-none"
                   type="password" required />
+                {newPassword && <PasswordChecklist password={newPassword} />}
               </div>
               {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
-              <button disabled={loading}
+              <button disabled={loading || !validatePassword(newPassword)}
                 className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 rounded-lg transition disabled:opacity-60">
                 {loading ? 'Resetting…' : 'Reset password'}
               </button>

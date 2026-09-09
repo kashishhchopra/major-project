@@ -4,6 +4,7 @@ import useWebSocket from '../../useWebSocket'
 import { SeverityBadge, StatusBadge, Card } from '../../components/ui.jsx'
 import DispatchPanel from '../../components/DispatchPanel.jsx'
 import IncidentTimeline from '../../components/IncidentTimeline.jsx'
+import TouristDetailsPanel from '../../components/TouristDetailsPanel.jsx'
 import { downloadCSV } from '../../lib/csv'
 
 const NEXT = { detected: 'acknowledged', acknowledged: 'dispatched', dispatched: 'resolved' }
@@ -50,6 +51,8 @@ export default function Incidents() {
 
   const exportCSV = () => downloadCSV('incidents', visible.map((inc) => ({
     id: inc.id,
+    tourist_name: inc.tourist_name,
+    tourist_digital_id: inc.tourist_digital_id,
     type: inc.type,
     severity: inc.severity,
     status: inc.status,
@@ -101,8 +104,11 @@ export default function Incidents() {
         {visible.map((inc) => (
           <div key={inc.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold">#{inc.id}</span>
+                {inc.tourist_name && (
+                  <span className="text-sm text-slate-700 dark:text-slate-200">{inc.tourist_name}</span>
+                )}
                 <span className="capitalize">{inc.type.replace('_', ' ')}</span>
                 <SeverityBadge severity={inc.severity} />
                 <StatusBadge status={inc.status} />
@@ -145,7 +151,7 @@ export default function Incidents() {
             {expanded === inc.id && (
               <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
                 <div className="flex items-center gap-1 mb-3">
-                  {['dispatch', 'timeline'].map((tab) => (
+                  {['dispatch', 'timeline', 'tourist'].map((tab) => (
                     <button key={tab} onClick={() => setExpandedTab(tab)}
                       className={`text-xs font-semibold px-3 py-1 rounded-lg capitalize ${
                         expandedTab === tab ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
@@ -157,6 +163,7 @@ export default function Incidents() {
                 {expandedTab === 'timeline' && (
                   <IncidentTimeline incidentId={inc.id} touristId={inc.tourist_id} />
                 )}
+                {expandedTab === 'tourist' && <TouristDetailsPanel touristId={inc.tourist_id} />}
               </div>
             )}
           </div>

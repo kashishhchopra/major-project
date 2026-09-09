@@ -19,6 +19,33 @@ def test_list_incidents(client, admin_headers, incident):
     assert r.status_code == 200 and len(r.json()) == 1
 
 
+def test_list_incidents_includes_tourist_name_and_digital_id(client, admin_headers, incident, db):
+    from app.models.tourist import Tourist
+
+    tourist = db.get(Tourist, incident.tourist_id)
+    body = client.get("/api/incidents", headers=admin_headers).json()[0]
+    assert body["tourist_name"] == "Victim"
+    assert body["tourist_digital_id"] == tourist.digital_id
+
+
+def test_get_incident_includes_tourist_name_and_digital_id(client, admin_headers, incident):
+    body = client.get(f"/api/incidents/{incident.id}", headers=admin_headers).json()
+    assert body["tourist_name"] == "Victim"
+    assert body["tourist_digital_id"]
+
+
+def test_station_incidents_includes_tourist_name(client, admin_headers, db, incident):
+    from tests.conftest import make_station
+
+    station = make_station(db, name="Station A")
+    incident.station_id = station.id
+    db.commit()
+
+    body = client.get(f"/api/police-network/stations/{station.id}/incidents",
+                      headers=admin_headers).json()
+    assert body[0]["tourist_name"] == "Victim"
+
+
 def test_filter_incidents_by_status(client, admin_headers, incident):
     assert len(client.get("/api/incidents?status=dispatched",
                           headers=admin_headers).json()) == 1

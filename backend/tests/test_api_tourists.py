@@ -13,8 +13,8 @@ def _payload(**over):
         "full_name": "New Tourist",
         "nationality": "Indian",
         "document_type": "aadhaar",
-        "document_number": "XXXX-XXXX-9999",
-        "phone": "+91-90000-11111",
+        "document_number": "123456789999",
+        "phone": "9876543210",
         "photo": "data:image/png;base64,iVBORw0KGgo=",
         "itinerary": [{"name": "Stop", "lat": 26.14, "lng": 91.73}],
         "emergency_contacts": [{"name": "Kin", "phone": "+91-1", "relation": "family"}],
@@ -55,7 +55,7 @@ def test_registration_seeds_the_hash_chain(client, admin_headers):
 
 def test_registration_with_credentials_creates_a_login(client, db):
     r = client.post("/api/tourists", json=_payload(
-        email="new@test.com", password="strongpass1"))
+        email="new@test.com", password="Strongpass1!"))
     assert r.status_code == 201
     user = db.query(User).filter_by(email="new@test.com").one()
     assert user.role == "tourist" and user.tourist_id == r.json()["id"]
@@ -63,9 +63,9 @@ def test_registration_with_credentials_creates_a_login(client, db):
 
 def test_duplicate_email_rejected(client):
     client.post("/api/tourists", json=_payload(email="dup@test.com",
-                                               password="strongpass1"))
+                                               password="Strongpass1!"))
     r = client.post("/api/tourists", json=_payload(email="dup@test.com",
-                                                   password="strongpass1"))
+                                                   password="Strongpass1!"))
     assert r.status_code == 400
 
 
@@ -91,6 +91,59 @@ def test_email_without_password_rejected(client):
 def test_invalid_document_type_rejected(client, bad_doc):
     assert client.post("/api/tourists",
                        json=_payload(document_type=bad_doc)).status_code == 422
+
+
+# --------------------------------------- Smart Identity & Contact Validation
+# Backend must reject bad identity/contact values even if a client bypasses
+# the frontend's own real-time input restriction entirely.
+@pytest.mark.parametrize("bad_name", ["Rahul123", "Rahul@Sharma", "Rahul-Sharma", "Rahul_123"])
+def test_invalid_name_rejected(client, bad_name):
+    r = client.post("/api/tourists", json=_payload(full_name=bad_name))
+    assert r.status_code == 422
+    assert "letters and spaces" in r.text
+
+
+@pytest.mark.parametrize("bad_phone", [
+    "987654321", "98765432101", "5123456789", "98765abc10", "98765 43210", "98765-43210",
+])
+def test_invalid_phone_rejected(client, bad_phone):
+    r = client.post("/api/tourists", json=_payload(phone=bad_phone))
+    assert r.status_code == 422
+    assert "10-digit mobile number" in r.text
+
+
+@pytest.mark.parametrize("bad_aadhaar", ["12345678901", "1234567890123", "1234abcd9012", "1234-5678-9012"])
+def test_invalid_aadhaar_rejected(client, bad_aadhaar):
+    r = client.post("/api/tourists", json=_payload(document_number=bad_aadhaar))
+    assert r.status_code == 422
+    assert "exactly 12 digits" in r.text
+
+
+def test_invalid_pan_rejected(client):
+    r = client.post("/api/tourists",
+                    json=_payload(document_type="pan", document_number="ABCDE12345"))
+    assert r.status_code == 422
+    assert "PAN must contain" in r.text
+
+
+def test_invalid_voterid_rejected(client):
+    r = client.post("/api/tourists",
+                    json=_payload(document_type="voterid", document_number="ABC123456"))
+    assert r.status_code == 422
+    assert "Voter ID must contain" in r.text
+
+
+def test_lowercase_pan_is_normalized_to_uppercase_and_accepted(client):
+    r = client.post("/api/tourists",
+                    json=_payload(document_type="pan", document_number="abcde1234f"))
+    assert r.status_code == 201
+    assert r.json()["document_number"] == "ABCDE1234F"
+
+
+def test_name_whitespace_is_trimmed_and_collapsed(client):
+    r = client.post("/api/tourists", json=_payload(full_name="  Rahul   Sharma  "))
+    assert r.status_code == 201
+    assert r.json()["full_name"] == "Rahul Sharma"
 
 
 @pytest.mark.parametrize("lat,lng", [(91.0, 91.7), (26.1, 181.0), (-91.0, 0.0)])
@@ -135,7 +188,7 @@ def _passport_payload(**over):
     now = utc_now()
     base = {
         "document_type": "passport", "nationality": "Japanese",
-        "document_number": "TK1234567",
+        "document_number": "T1234567",
         "visa_type": "Tourist", "visa_expiry": (now + timedelta(days=10)).isoformat(),
     }
     base.update(over)
